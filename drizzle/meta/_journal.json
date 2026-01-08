@@ -15,6 +15,13 @@
       "when": 1767835284683,
       "tag": "0001_brainy_alex_wilder",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1767837282359,
+      "tag": "0002_easy_lizard",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { eq, like, or, and, desc, asc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, vehicles, vehicleDocuments, InsertVehicle, InsertVehicleDocument, Vehicle } from "../drizzle/schema";
+import { InsertUser, users, vehicles, vehicleDocuments, maintenanceRecords, InsertVehicle, InsertVehicleDocument, InsertMaintenanceRecord, Vehicle, MaintenanceRecord } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -282,4 +282,62 @@ export async function getVehicleStats() {
     active: activeResult[0]?.count || 0,
     expiringSoon: expiringSoonResult[0]?.count || 0,
   };
+}
+
+
+// ============ MAINTENANCE RECORD QUERIES ============
+
+export async function getMaintenanceRecords(vehicleId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select()
+    .from(maintenanceRecords)
+    .where(eq(maintenanceRecords.vehicleId, vehicleId))
+    .orderBy(desc(maintenanceRecords.serviceDate));
+}
+
+export async function getMaintenanceRecordById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.select().from(maintenanceRecords).where(eq(maintenanceRecords.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function createMaintenanceRecord(data: InsertMaintenanceRecord) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(maintenanceRecords).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updateMaintenanceRecord(id: number, data: Partial<InsertMaintenanceRecord>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(maintenanceRecords).set(data).where(eq(maintenanceRecords.id, id));
+  return { success: true };
+}
+
+export async function deleteMaintenanceRecord(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(maintenanceRecords).where(eq(maintenanceRecords.id, id));
+  return { success: true };
+}
+
+export async function getRecentMaintenanceForVehicle(vehicleId: number, limit: number = 5) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select()
+    .from(maintenanceRecords)
+    .where(eq(maintenanceRecords.vehicleId, vehicleId))
+    .orderBy(desc(maintenanceRecords.serviceDate))
+    .limit(limit);
 }

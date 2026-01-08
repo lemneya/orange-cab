@@ -101,3 +101,63 @@ export const vehicleDocuments = mysqlTable("vehicle_documents", {
 
 export type VehicleDocument = typeof vehicleDocuments.$inferSelect;
 export type InsertVehicleDocument = typeof vehicleDocuments.$inferInsert;
+
+
+/**
+ * Maintenance type categories
+ */
+export const maintenanceTypeEnum = mysqlEnum("maintenanceType", [
+  "oil_change",
+  "tire_rotation",
+  "tire_replacement",
+  "brake_service",
+  "transmission",
+  "engine_repair",
+  "battery",
+  "inspection",
+  "registration_renewal",
+  "insurance_renewal",
+  "body_work",
+  "electrical",
+  "ac_heating",
+  "general_service",
+  "other"
+]);
+
+/**
+ * Maintenance records table - tracks maintenance history for each vehicle
+ */
+export const maintenanceRecords = mysqlTable("maintenance_records", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Reference to vehicle
+  vehicleId: int("vehicleId").notNull().references(() => vehicles.id, { onDelete: "cascade" }),
+  
+  // Maintenance details
+  maintenanceType: maintenanceTypeEnum.notNull(),
+  description: text("description"),
+  
+  // Service info
+  serviceDate: date("serviceDate").notNull(),
+  mileage: int("mileage"),
+  cost: int("cost"), // in cents to avoid floating point issues
+  
+  // Service provider
+  serviceProvider: varchar("serviceProvider", { length: 200 }),
+  invoiceNumber: varchar("invoiceNumber", { length: 100 }),
+  
+  // Next service
+  nextServiceDate: date("nextServiceDate"),
+  nextServiceMileage: int("nextServiceMileage"),
+  
+  // Notes
+  notes: text("notes"),
+  
+  // Audit
+  createdBy: int("createdBy").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MaintenanceRecord = typeof maintenanceRecords.$inferSelect;
+export type InsertMaintenanceRecord = typeof maintenanceRecords.$inferInsert;

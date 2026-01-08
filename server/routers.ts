@@ -3,6 +3,34 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
+
+// Helper function to safely parse date strings into Date objects
+function parseDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr) return null;
+  
+  // Try parsing as ISO date first (YYYY-MM-DD)
+  const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) return date;
+  }
+  
+  // Try parsing JavaScript Date string format (e.g., "Thu Apr 29 2027 20:00:00 GMT-0400")
+  const jsDate = new Date(dateStr);
+  if (!isNaN(jsDate.getTime())) {
+    return jsDate;
+  }
+  
+  // Try MM/DD/YYYY format
+  const usMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (usMatch) {
+    const [, month, day, year] = usMatch;
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    if (!isNaN(date.getTime())) return date;
+  }
+  
+  return null;
+}
 import {
   getVehicles,
   getVehicleById,
@@ -16,6 +44,11 @@ import {
   deleteVehicleDocument,
   getDocumentById,
   getVehicleStats,
+  getMaintenanceRecords,
+  getMaintenanceRecordById,
+  createMaintenanceRecord,
+  updateMaintenanceRecord,
+  deleteMaintenanceRecord,
 } from "./db";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
@@ -81,6 +114,38 @@ const bulkVehicleSchema = z.object({
   stateInspectionExp: z.string().optional().nullable(),
   cityInspectionDate: z.string().optional().nullable(),
   insurance: z.string().optional().nullable(),
+});
+
+const maintenanceTypeSchema = z.enum([
+  "oil_change",
+  "tire_rotation",
+  "tire_replacement",
+  "brake_service",
+  "transmission",
+  "engine_repair",
+  "battery",
+  "inspection",
+  "registration_renewal",
+  "insurance_renewal",
+  "body_work",
+  "electrical",
+  "ac_heating",
+  "general_service",
+  "other",
+]);
+
+const maintenanceInputSchema = z.object({
+  vehicleId: z.number(),
+  maintenanceType: maintenanceTypeSchema,
+  description: z.string().optional().nullable(),
+  serviceDate: z.string(),
+  mileage: z.number().optional().nullable(),
+  cost: z.number().optional().nullable(), // in cents
+  serviceProvider: z.string().optional().nullable(),
+  invoiceNumber: z.string().optional().nullable(),
+  nextServiceDate: z.string().optional().nullable(),
+  nextServiceMileage: z.number().optional().nullable(),
+  notes: z.string().optional().nullable(),
 });
 
 export const appRouter = router({
@@ -164,9 +229,9 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const vehicleData = input.vehicles.map(v => ({
           ...v,
-          registrationExp: v.registrationExp ? new Date(v.registrationExp) : null,
-          stateInspectionExp: v.stateInspectionExp ? new Date(v.stateInspectionExp) : null,
-          cityInspectionDate: v.cityInspectionDate ? new Date(v.cityInspectionDate) : null,
+          registrationExp: parseDate(v.registrationExp),
+          stateInspectionExp: parseDate(v.stateInspectionExp),
+          cityInspectionDate: parseDate(v.cityInspectionDate),
           createdBy: ctx.user.id,
         }));
         return bulkCreateVehicles(vehicleData);
@@ -229,6 +294,61 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return getDocumentById(input.id);
+      }),
+  }),
+
+  maintenance: router({
+    // List maintenance records for a vehicle
+    listByVehicle: protectedProcedure
+      .input(z.object({ vehicleId: z.number() }))
+      .query(async ({ input }) => {
+        return getMaintenanceRecords(input.vehicleId);
+      }),
+
+    // Get single maintenance record by ID
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return getMaintenanceRecordById(input.id);
+      }),
+
+    // Create new maintenance record
+    create: protectedProcedure
+      .input(maintenanceInputSchema)
+      .mutation(async ({ input, ctx }) => {
+        const data = {
+          ...input,
+          serviceDate: parseDate(input.serviceDate)!,
+          nextServiceDate: parseDate(input.nextServiceDate),
+          createdBy: ctx.user.id,
+        };
+        return createMaintenanceRecord(data);
+      }),
+
+    // Update maintenance record
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: maintenanceInputSchema.partial().omit({ vehicleId: true }),
+      }))
+      .mutation(async ({ input }) => {
+        const updateData: Record<string, unknown> = { ...input.data };
+        
+        if (input.data.serviceDate !== undefined) {
+          updateData.serviceDate = parseDate(input.data.serviceDate);
+        }
+        if (input.data.nextServiceDate !== undefined) {
+          updateData.nextServiceDate = parseDate(input.data.nextServiceDate);
+        }
+        
+        return updateMaintenanceRecord(input.id, updateData);
+      }),
+
+    // Delete maintenance record
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        return deleteMaintenanceRecord(input.id);
       }),
   }),
 });

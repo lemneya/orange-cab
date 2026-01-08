@@ -29,3 +29,13 @@
 - [x] Document list with preview/download
 - [x] Expiration status badges
 - [x] Import from Google Sheets UI
+
+
+## Bug Fixes
+- [x] Fix bulk import date parsing - dates sent as strings instead of Date objects
+
+## New Features - Maintenance History
+- [x] Maintenance records database table
+- [x] Maintenance CRUD API procedures
+- [x] Maintenance history UI in vehicle detail page
+- [x] Add maintenance record form
