@@ -13,6 +13,11 @@ export const systemRouter = router({
       ok: true,
     })),
 
+  ping: publicProcedure.query(() => ({
+    ok: true,
+    timestamp: Date.now(),
+  })),
+
   notifyOwner: adminProcedure
     .input(
       z.object({

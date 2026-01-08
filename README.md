@@ -87,3 +87,66 @@ The GitHub Actions CI pipeline runs on every push and PR:
 2. Type check (`pnpm check`)
 3. Lint (`pnpm lint`)
 4. Test (`pnpm test`)
+
+## Railway Deployment
+
+### Quick Deploy
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template)
+
+### Manual Setup
+
+1. **Create a Railway project**
+
+   ```bash
+   # Install Railway CLI
+   npm install -g @railway/cli
+
+   # Login to Railway
+   railway login
+
+   # Initialize project
+   railway init
+   ```
+
+2. **Add MySQL database**
+   - In Railway dashboard, click "New" → "Database" → "MySQL"
+   - Copy the `DATABASE_URL` from the MySQL service variables
+
+3. **Add MinIO/S3 storage** (optional)
+   - Use Railway's S3-compatible storage or an external S3 provider
+   - Set `BUILT_IN_FORGE_API_URL` and `BUILT_IN_FORGE_API_KEY`
+
+4. **Configure environment variables**
+
+   In Railway dashboard, set these variables for your app service:
+
+   ```
+   DATABASE_URL=<from MySQL service>
+   NODE_ENV=production
+   JWT_SECRET=<generate a secure random string>
+   VITE_APP_ID=orange-cab
+   OAUTH_SERVER_URL=<your OAuth server URL>
+   OWNER_OPEN_ID=<admin user open ID>
+   ```
+
+5. **Deploy**
+
+   ```bash
+   railway up
+   ```
+
+   Or connect your GitHub repo for automatic deployments.
+
+### Environment Variables Reference
+
+| Variable                 | Required | Description                    |
+| ------------------------ | -------- | ------------------------------ |
+| `DATABASE_URL`           | Yes      | MySQL connection string        |
+| `JWT_SECRET`             | Yes      | Secret for JWT token signing   |
+| `NODE_ENV`               | Yes      | Set to `production`            |
+| `VITE_APP_ID`            | Yes      | Application identifier         |
+| `OAUTH_SERVER_URL`       | Yes      | OAuth provider URL             |
+| `OWNER_OPEN_ID`          | No       | Open ID for admin user         |
+| `BUILT_IN_FORGE_API_URL` | No       | S3-compatible storage endpoint |
+| `BUILT_IN_FORGE_API_KEY` | No       | S3 access key                  |
