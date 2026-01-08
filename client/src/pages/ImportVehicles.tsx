@@ -1,12 +1,35 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Info, Car, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Upload,
+  FileSpreadsheet,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  Info,
+  Car,
+  Users,
+} from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -50,13 +73,14 @@ interface ParsedMaintenance {
 }
 
 function parseDate(dateStr: string | undefined): string | undefined {
-  if (!dateStr || dateStr === "NA" || dateStr === "-" || dateStr === "") return undefined;
-  
+  if (!dateStr || dateStr === "NA" || dateStr === "-" || dateStr === "")
+    return undefined;
+
   const date = new Date(dateStr);
   if (!isNaN(date.getTime())) {
     return date.toISOString().split("T")[0];
   }
-  
+
   const parts = dateStr.split("/");
   if (parts.length === 3) {
     const [month, day, year] = parts;
@@ -65,22 +89,26 @@ function parseDate(dateStr: string | undefined): string | undefined {
       return parsed.toISOString().split("T")[0];
     }
   }
-  
+
   return undefined;
 }
 
 function parseVehicleData(text: string): ParsedVehicle[] {
   const lines = text.trim().split("\n");
   const vehicles: ParsedVehicle[] = [];
-  
-  const startIndex = lines[0]?.toLowerCase().includes("tag") || lines[0]?.toLowerCase().includes("vehicle") ? 1 : 0;
-  
+
+  const startIndex =
+    lines[0]?.toLowerCase().includes("tag") ||
+    lines[0]?.toLowerCase().includes("vehicle")
+      ? 1
+      : 0;
+
   for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
-    
+
     const cells = line.includes("\t") ? line.split("\t") : line.split(",");
-    
+
     if (cells.length >= 2) {
       const vehicle: ParsedVehicle = {
         vehicleNumber: cells[0]?.trim() || "",
@@ -96,33 +124,37 @@ function parseVehicleData(text: string): ParsedVehicle[] {
         year: cells[10]?.trim() ? parseInt(cells[10].trim()) : undefined,
         tireSize: cells[11]?.trim() || undefined,
       };
-      
+
       if (vehicle.vehicleNumber && vehicle.tagNumber) {
         vehicles.push(vehicle);
       }
     }
   }
-  
+
   return vehicles;
 }
 
 function parseDriverData(text: string): ParsedDriver[] {
   const lines = text.trim().split("\n");
   const drivers: ParsedDriver[] = [];
-  
-  const startIndex = lines[0]?.toLowerCase().includes("name") || lines[0]?.toLowerCase().includes("driver") ? 1 : 0;
-  
+
+  const startIndex =
+    lines[0]?.toLowerCase().includes("name") ||
+    lines[0]?.toLowerCase().includes("driver")
+      ? 1
+      : 0;
+
   for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
-    
+
     const cells = line.includes("\t") ? line.split("\t") : line.split(",");
-    
+
     if (cells.length >= 1) {
       // Try to parse name - could be "First Last" or separate columns
       let firstName = "";
       let lastName = "";
-      
+
       const firstCell = cells[0]?.trim() || "";
       if (firstCell.includes(" ")) {
         const nameParts = firstCell.split(" ");
@@ -132,9 +164,9 @@ function parseDriverData(text: string): ParsedDriver[] {
         firstName = firstCell;
         lastName = cells[1]?.trim() || "";
       }
-      
+
       if (!firstName) continue;
-      
+
       const driver: ParsedDriver = {
         firstName,
         lastName,
@@ -146,43 +178,51 @@ function parseDriverData(text: string): ParsedDriver[] {
         city: cells[7]?.trim() || undefined,
         hireDate: parseDate(cells[8]?.trim()),
       };
-      
+
       drivers.push(driver);
     }
   }
-  
+
   return drivers;
 }
 
 function parseMaintenanceData(text: string): ParsedMaintenance[] {
   const lines = text.trim().split("\n");
   const records: ParsedMaintenance[] = [];
-  
-  const startIndex = lines[0]?.toLowerCase().includes("vehicle") || lines[0]?.toLowerCase().includes("date") ? 1 : 0;
-  
+
+  const startIndex =
+    lines[0]?.toLowerCase().includes("vehicle") ||
+    lines[0]?.toLowerCase().includes("date")
+      ? 1
+      : 0;
+
   for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
-    
+
     const cells = line.includes("\t") ? line.split("\t") : line.split(",");
-    
+
     if (cells.length >= 2) {
       const record: ParsedMaintenance = {
         vehicleNumber: cells[0]?.trim() || "",
-        maintenanceType: cells[1]?.trim()?.toLowerCase().replace(/\s+/g, "_") || "oil_change",
-        serviceDate: parseDate(cells[2]?.trim()) || new Date().toISOString().split("T")[0],
+        maintenanceType:
+          cells[1]?.trim()?.toLowerCase().replace(/\s+/g, "_") || "oil_change",
+        serviceDate:
+          parseDate(cells[2]?.trim()) || new Date().toISOString().split("T")[0],
         description: cells[3]?.trim() || undefined,
         mileage: cells[4]?.trim() ? parseInt(cells[4].trim()) : undefined,
-        cost: cells[5]?.trim() ? parseFloat(cells[5].trim().replace(/[$,]/g, "")) * 100 : undefined,
+        cost: cells[5]?.trim()
+          ? parseFloat(cells[5].trim().replace(/[$,]/g, "")) * 100
+          : undefined,
         serviceProvider: cells[6]?.trim() || undefined,
       };
-      
+
       if (record.vehicleNumber) {
         records.push(record);
       }
     }
   }
-  
+
   return records;
 }
 
@@ -192,25 +232,27 @@ export default function ImportVehicles() {
   const [rawData, setRawData] = useState("");
   const [parsedVehicles, setParsedVehicles] = useState<ParsedVehicle[]>([]);
   const [parsedDrivers, setParsedDrivers] = useState<ParsedDriver[]>([]);
-  const [parsedMaintenance, setParsedMaintenance] = useState<ParsedMaintenance[]>([]);
+  const [parsedMaintenance, setParsedMaintenance] = useState<
+    ParsedMaintenance[]
+  >([]);
   const [isParsed, setIsParsed] = useState(false);
 
   const vehicleImportMutation = trpc.vehicles.bulkImport.useMutation({
-    onSuccess: (result) => {
+    onSuccess: result => {
       toast.success(`Successfully imported ${result.count} vehicles`);
       setLocation("/vehicles");
     },
-    onError: (error) => {
+    onError: error => {
       toast.error("Failed to import vehicles: " + error.message);
     },
   });
 
   const driverImportMutation = trpc.drivers.bulkImport.useMutation({
-    onSuccess: (result) => {
+    onSuccess: result => {
       toast.success(`Successfully imported ${result.count} drivers`);
       setLocation("/drivers");
     },
-    onError: (error) => {
+    onError: error => {
       toast.error("Failed to import drivers: " + error.message);
     },
   });
@@ -222,7 +264,9 @@ export default function ImportVehicles() {
       if (vehicles.length === 0) {
         toast.error("No valid vehicles found. Please check the format.");
       } else {
-        toast.success(`Parsed ${vehicles.length} vehicles. Review and confirm.`);
+        toast.success(
+          `Parsed ${vehicles.length} vehicles. Review and confirm.`
+        );
       }
     } else if (importType === "drivers") {
       const drivers = parseDriverData(rawData);
@@ -236,7 +280,9 @@ export default function ImportVehicles() {
       const records = parseMaintenanceData(rawData);
       setParsedMaintenance(records);
       if (records.length === 0) {
-        toast.error("No valid maintenance records found. Please check the format.");
+        toast.error(
+          "No valid maintenance records found. Please check the format."
+        );
       } else {
         toast.success(`Parsed ${records.length} records. Review and confirm.`);
       }
@@ -290,10 +336,14 @@ export default function ImportVehicles() {
     handleReset();
   };
 
-  const isPending = vehicleImportMutation.isPending || driverImportMutation.isPending;
-  const parsedCount = importType === "vehicles" ? parsedVehicles.length : 
-                      importType === "drivers" ? parsedDrivers.length : 
-                      parsedMaintenance.length;
+  const isPending =
+    vehicleImportMutation.isPending || driverImportMutation.isPending;
+  const parsedCount =
+    importType === "vehicles"
+      ? parsedVehicles.length
+      : importType === "drivers"
+        ? parsedDrivers.length
+        : parsedMaintenance.length;
 
   return (
     <div className="space-y-6">
@@ -346,17 +396,21 @@ export default function ImportVehicles() {
           <p>4. Paste the data into the text area below</p>
           {importType === "vehicles" && (
             <p className="text-xs text-muted-foreground mt-2">
-              Expected columns: Vehicle#, TAG#, City, VIN, Registration Exp, State Inspection Exp, City Inspection, Insurance, Make, Model, Year, Tire Size
+              Expected columns: Vehicle#, TAG#, City, VIN, Registration Exp,
+              State Inspection Exp, City Inspection, Insurance, Make, Model,
+              Year, Tire Size
             </p>
           )}
           {importType === "drivers" && (
             <p className="text-xs text-muted-foreground mt-2">
-              Expected columns: Name (or First, Last), Phone, Email, License#, License Exp, License State, City, Hire Date
+              Expected columns: Name (or First, Last), Phone, Email, License#,
+              License Exp, License State, City, Hire Date
             </p>
           )}
           {importType === "maintenance" && (
             <p className="text-xs text-muted-foreground mt-2">
-              Expected columns: Vehicle#, Service Type, Date, Description, Mileage, Cost, Service Provider
+              Expected columns: Vehicle#, Service Type, Date, Description,
+              Mileage, Cost, Service Provider
             </p>
           )}
         </AlertDescription>
@@ -377,14 +431,14 @@ export default function ImportVehicles() {
           <CardContent className="space-y-4">
             <Textarea
               placeholder={
-                importType === "vehicles" 
+                importType === "vehicles"
                   ? "Paste vehicle data here...\n\nExample:\n1001\tTYE9504\tIW\t5FNRL6H7XJB094488\t4/30/2027\t9/30/2026\t\tSAHRAWI\tHONDA\todyssey\t2018"
                   : importType === "drivers"
-                  ? "Paste driver data here...\n\nExample:\nJohn Doe\t555-123-4567\tjohn@email.com\tDL12345\t12/31/2025\tVA\tNN"
-                  : "Paste service records here...\n\nExample:\n1001\tOil Change\t1/15/2024\tRegular oil change\t45000\t45.99\tQuick Lube"
+                    ? "Paste driver data here...\n\nExample:\nJohn Doe\t555-123-4567\tjohn@email.com\tDL12345\t12/31/2025\tVA\tNN"
+                    : "Paste service records here...\n\nExample:\n1001\tOil Change\t1/15/2024\tRegular oil change\t45000\t45.99\tQuick Lube"
               }
               value={rawData}
-              onChange={(e) => setRawData(e.target.value)}
+              onChange={e => setRawData(e.target.value)}
               rows={12}
               className="font-mono text-sm"
             />
@@ -427,13 +481,23 @@ export default function ImportVehicles() {
                     <TableBody>
                       {parsedVehicles.map((vehicle, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{vehicle.vehicleNumber}</TableCell>
+                          <TableCell className="font-medium">
+                            {vehicle.vehicleNumber}
+                          </TableCell>
                           <TableCell>{vehicle.tagNumber}</TableCell>
-                          <TableCell><Badge variant="outline">{vehicle.city || "-"}</Badge></TableCell>
-                          <TableCell>{vehicle.make} {vehicle.model}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {vehicle.city || "-"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {vehicle.make} {vehicle.model}
+                          </TableCell>
                           <TableCell>{vehicle.year || "-"}</TableCell>
                           <TableCell>{vehicle.insurance || "-"}</TableCell>
-                          <TableCell>{vehicle.registrationExp || "-"}</TableCell>
+                          <TableCell>
+                            {vehicle.registrationExp || "-"}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -454,12 +518,20 @@ export default function ImportVehicles() {
                     <TableBody>
                       {parsedDrivers.map((driver, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{driver.firstName} {driver.lastName}</TableCell>
+                          <TableCell className="font-medium">
+                            {driver.firstName} {driver.lastName}
+                          </TableCell>
                           <TableCell>{driver.phone || "-"}</TableCell>
                           <TableCell>{driver.email || "-"}</TableCell>
                           <TableCell>{driver.licenseNumber || "-"}</TableCell>
-                          <TableCell>{driver.licenseExpiration || "-"}</TableCell>
-                          <TableCell><Badge variant="outline">{driver.city || "-"}</Badge></TableCell>
+                          <TableCell>
+                            {driver.licenseExpiration || "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {driver.city || "-"}
+                            </Badge>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -480,12 +552,24 @@ export default function ImportVehicles() {
                     <TableBody>
                       {parsedMaintenance.map((record, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{record.vehicleNumber}</TableCell>
-                          <TableCell><Badge variant="outline">{record.maintenanceType}</Badge></TableCell>
+                          <TableCell className="font-medium">
+                            {record.vehicleNumber}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {record.maintenanceType}
+                            </Badge>
+                          </TableCell>
                           <TableCell>{record.serviceDate}</TableCell>
                           <TableCell>{record.description || "-"}</TableCell>
-                          <TableCell>{record.mileage?.toLocaleString() || "-"}</TableCell>
-                          <TableCell>{record.cost ? `$${(record.cost / 100).toFixed(2)}` : "-"}</TableCell>
+                          <TableCell>
+                            {record.mileage?.toLocaleString() || "-"}
+                          </TableCell>
+                          <TableCell>
+                            {record.cost
+                              ? `$${(record.cost / 100).toFixed(2)}`
+                              : "-"}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -501,12 +585,15 @@ export default function ImportVehicles() {
                 </p>
               </div>
             )}
-            
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={handleReset}>
                 Start Over
               </Button>
-              <Button onClick={handleImport} disabled={parsedCount === 0 || isPending}>
+              <Button
+                onClick={handleImport}
+                disabled={parsedCount === 0 || isPending}
+              >
                 {isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

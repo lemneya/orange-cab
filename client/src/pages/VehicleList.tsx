@@ -3,16 +3,39 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, X, Eye, AlertTriangle, AlertCircle, CheckCircle } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Plus,
+  Search,
+  X,
+  Eye,
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
 import { useLocation } from "wouter";
 
 type ExpirationStatus = "valid" | "warning" | "expired";
 
-function getExpirationStatus(dateStr: string | Date | null | undefined): ExpirationStatus {
+function getExpirationStatus(
+  dateStr: string | Date | null | undefined
+): ExpirationStatus {
   if (!dateStr) return "valid";
   const date = new Date(dateStr);
   const today = new Date();
@@ -24,11 +47,21 @@ function getExpirationStatus(dateStr: string | Date | null | undefined): Expirat
   return "valid";
 }
 
-function ExpirationBadge({ date, label }: { date: string | Date | null | undefined; label: string }) {
+function ExpirationBadge({
+  date,
+  label,
+}: {
+  date: string | Date | null | undefined;
+  label: string;
+}) {
   const status = getExpirationStatus(date);
-  
+
   if (!date) {
-    return <Badge variant="outline" className="text-xs">No {label}</Badge>;
+    return (
+      <Badge variant="outline" className="text-xs">
+        No {label}
+      </Badge>
+    );
   }
 
   const formattedDate = new Date(date).toLocaleDateString();
@@ -112,7 +145,7 @@ export default function VehicleList() {
                 <Input
                   placeholder="Search by TAG#, VIN, make, model..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={e => setSearch(e.target.value)}
                   className="pl-9"
                 />
               </div>
@@ -123,8 +156,10 @@ export default function VehicleList() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Cities</SelectItem>
-                {filterOptions?.cities.map((city) => (
-                  <SelectItem key={city} value={city}>{city}</SelectItem>
+                {filterOptions?.cities.map(city => (
+                  <SelectItem key={city} value={city}>
+                    {city}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -134,8 +169,10 @@ export default function VehicleList() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Makes</SelectItem>
-                {filterOptions?.makes.map((make) => (
-                  <SelectItem key={make} value={make}>{make}</SelectItem>
+                {filterOptions?.makes.map(make => (
+                  <SelectItem key={make} value={make}>
+                    {make}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -145,8 +182,10 @@ export default function VehicleList() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Years</SelectItem>
-                {filterOptions?.years.map((year) => (
-                  <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                {filterOptions?.years.map(year => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -185,13 +224,15 @@ export default function VehicleList() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {vehicles.map((vehicle) => (
-                    <TableRow 
-                      key={vehicle.id} 
+                  {vehicles.map(vehicle => (
+                    <TableRow
+                      key={vehicle.id}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => setLocation(`/vehicles/${vehicle.id}`)}
                     >
-                      <TableCell className="font-medium">{vehicle.vehicleNumber}</TableCell>
+                      <TableCell className="font-medium">
+                        {vehicle.vehicleNumber}
+                      </TableCell>
                       <TableCell>{vehicle.tagNumber}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{vehicle.city || "-"}</Badge>
@@ -201,17 +242,23 @@ export default function VehicleList() {
                       </TableCell>
                       <TableCell>{vehicle.year || "-"}</TableCell>
                       <TableCell>
-                        <ExpirationBadge date={vehicle.registrationExp} label="Reg" />
+                        <ExpirationBadge
+                          date={vehicle.registrationExp}
+                          label="Reg"
+                        />
                       </TableCell>
                       <TableCell>
-                        <ExpirationBadge date={vehicle.stateInspectionExp} label="Insp" />
+                        <ExpirationBadge
+                          date={vehicle.stateInspectionExp}
+                          label="Insp"
+                        />
                       </TableCell>
                       <TableCell>{vehicle.insurance || "-"}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation();
                             setLocation(`/vehicles/${vehicle.id}`);
                           }}
@@ -236,7 +283,10 @@ export default function VehicleList() {
                   : "Add your first vehicle to get started"}
               </p>
               {!hasFilters && (
-                <Button className="mt-4" onClick={() => setLocation("/vehicles/new")}>
+                <Button
+                  className="mt-4"
+                  onClick={() => setLocation("/vehicles/new")}
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Vehicle
                 </Button>

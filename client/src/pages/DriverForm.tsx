@@ -13,7 +13,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ArrowLeft, Save, User } from "lucide-react";
@@ -76,11 +82,11 @@ export default function DriverForm() {
   const utils = trpc.useUtils();
 
   const createMutation = trpc.drivers.create.useMutation({
-    onSuccess: (result) => {
+    onSuccess: result => {
       toast.success("Driver created successfully");
       setLocation(`/drivers/${result.id}`);
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Failed to create driver: ${error.message}`);
     },
   });
@@ -91,7 +97,7 @@ export default function DriverForm() {
       utils.drivers.getById.invalidate({ id: driverId });
       setLocation(`/drivers/${driverId}`);
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Failed to update driver: ${error.message}`);
     },
   });
@@ -184,7 +190,9 @@ export default function DriverForm() {
             type="button"
             variant="ghost"
             size="icon"
-            onClick={() => setLocation(isEdit ? `/drivers/${driverId}` : "/drivers")}
+            onClick={() =>
+              setLocation(isEdit ? `/drivers/${driverId}` : "/drivers")
+            }
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -209,7 +217,9 @@ export default function DriverForm() {
           <Card>
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
-              <CardDescription>Driver's name and contact details</CardDescription>
+              <CardDescription>
+                Driver's name and contact details
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -217,22 +227,30 @@ export default function DriverForm() {
                   <Label htmlFor="firstName">First Name *</Label>
                   <Input
                     id="firstName"
-                    {...register("firstName", { required: "First name is required" })}
+                    {...register("firstName", {
+                      required: "First name is required",
+                    })}
                     placeholder="John"
                   />
                   {errors.firstName && (
-                    <p className="text-sm text-destructive">{errors.firstName.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.firstName.message}
+                    </p>
                   )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name *</Label>
                   <Input
                     id="lastName"
-                    {...register("lastName", { required: "Last name is required" })}
+                    {...register("lastName", {
+                      required: "Last name is required",
+                    })}
                     placeholder="Doe"
                   />
                   {errors.lastName && (
-                    <p className="text-sm text-destructive">{errors.lastName.message}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.lastName.message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -257,13 +275,13 @@ export default function DriverForm() {
                 <Label htmlFor="city">City</Label>
                 <Select
                   value={watch("city") || ""}
-                  onValueChange={(value) => setValue("city", value)}
+                  onValueChange={value => setValue("city", value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select city" />
                   </SelectTrigger>
                   <SelectContent>
-                    {cities.map((city) => (
+                    {cities.map(city => (
                       <SelectItem key={city} value={city}>
                         {city}
                       </SelectItem>
@@ -322,8 +340,11 @@ export default function DriverForm() {
                 <Label htmlFor="status">Status</Label>
                 <Select
                   value={watch("status")}
-                  onValueChange={(value) =>
-                    setValue("status", value as "active" | "inactive" | "on_leave" | "terminated")
+                  onValueChange={value =>
+                    setValue(
+                      "status",
+                      value as "active" | "inactive" | "on_leave" | "terminated"
+                    )
                   }
                 >
                   <SelectTrigger>
@@ -339,11 +360,7 @@ export default function DriverForm() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="hireDate">Hire Date</Label>
-                <Input
-                  id="hireDate"
-                  type="date"
-                  {...register("hireDate")}
-                />
+                <Input id="hireDate" type="date" {...register("hireDate")} />
               </div>
             </CardContent>
           </Card>
@@ -378,7 +395,9 @@ export default function DriverForm() {
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle>Notes</CardTitle>
-              <CardDescription>Additional information about the driver</CardDescription>
+              <CardDescription>
+                Additional information about the driver
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea

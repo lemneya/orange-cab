@@ -1,14 +1,31 @@
 import { trpc } from "@/lib/trpc";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Car, AlertTriangle, CheckCircle, Plus, List, Upload, Users, UserCheck } from "lucide-react";
+import {
+  Car,
+  AlertTriangle,
+  CheckCircle,
+  Plus,
+  List,
+  Upload,
+  Users,
+  UserCheck,
+} from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { data: vehicleStats, isLoading: vehicleLoading } = trpc.vehicles.stats.useQuery();
-  const { data: driverStats, isLoading: driverLoading } = trpc.drivers.stats.useQuery();
+  const { data: vehicleStats, isLoading: vehicleLoading } =
+    trpc.vehicles.stats.useQuery();
+  const { data: driverStats, isLoading: driverLoading } =
+    trpc.drivers.stats.useQuery();
 
   const isLoading = vehicleLoading || driverLoading;
 
@@ -44,14 +61,18 @@ export default function Home() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Vehicles</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Vehicles
+              </CardTitle>
               <Car className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <Skeleton className="h-8 w-20" />
               ) : (
-                <div className="text-2xl font-bold">{vehicleStats?.total || 0}</div>
+                <div className="text-2xl font-bold">
+                  {vehicleStats?.total || 0}
+                </div>
               )}
               <p className="text-xs text-muted-foreground">
                 Vehicles in your fleet
@@ -61,14 +82,18 @@ export default function Home() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Vehicles</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Active Vehicles
+              </CardTitle>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <Skeleton className="h-8 w-20" />
               ) : (
-                <div className="text-2xl font-bold text-green-600">{vehicleStats?.active || 0}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {vehicleStats?.active || 0}
+                </div>
               )}
               <p className="text-xs text-muted-foreground">
                 Currently operational
@@ -78,14 +103,18 @@ export default function Home() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Expiring Soon</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Expiring Soon
+              </CardTitle>
               <AlertTriangle className="h-4 w-4 text-amber-500" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <Skeleton className="h-8 w-20" />
               ) : (
-                <div className="text-2xl font-bold text-amber-500">{vehicleStats?.expiringSoon || 0}</div>
+                <div className="text-2xl font-bold text-amber-500">
+                  {vehicleStats?.expiringSoon || 0}
+                </div>
               )}
               <p className="text-xs text-muted-foreground">
                 Registration or inspection expiring in 30 days
@@ -101,14 +130,18 @@ export default function Home() {
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Drivers</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Drivers
+              </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <Skeleton className="h-8 w-20" />
               ) : (
-                <div className="text-2xl font-bold">{driverStats?.total || 0}</div>
+                <div className="text-2xl font-bold">
+                  {driverStats?.total || 0}
+                </div>
               )}
               <p className="text-xs text-muted-foreground">
                 Registered drivers
@@ -118,18 +151,20 @@ export default function Home() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Drivers</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Active Drivers
+              </CardTitle>
               <UserCheck className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <Skeleton className="h-8 w-20" />
               ) : (
-                <div className="text-2xl font-bold text-green-600">{driverStats?.active || 0}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {driverStats?.active || 0}
+                </div>
               )}
-              <p className="text-xs text-muted-foreground">
-                Currently active
-              </p>
+              <p className="text-xs text-muted-foreground">Currently active</p>
             </CardContent>
           </Card>
 
@@ -142,7 +177,9 @@ export default function Home() {
               {isLoading ? (
                 <Skeleton className="h-8 w-20" />
               ) : (
-                <div className="text-2xl font-bold text-blue-600">{driverStats?.assigned || 0}</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {driverStats?.assigned || 0}
+                </div>
               )}
               <p className="text-xs text-muted-foreground">
                 With assigned vehicle
@@ -152,18 +189,20 @@ export default function Home() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">License Expiring</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                License Expiring
+              </CardTitle>
               <AlertTriangle className="h-4 w-4 text-amber-500" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <Skeleton className="h-8 w-20" />
               ) : (
-                <div className="text-2xl font-bold text-amber-500">{driverStats?.licenseExpiring || 0}</div>
+                <div className="text-2xl font-bold text-amber-500">
+                  {driverStats?.licenseExpiring || 0}
+                </div>
               )}
-              <p className="text-xs text-muted-foreground">
-                Within 30 days
-              </p>
+              <p className="text-xs text-muted-foreground">Within 30 days</p>
             </CardContent>
           </Card>
         </div>
@@ -230,7 +269,8 @@ export default function Home() {
               <div>
                 <h4 className="font-medium">Add vehicles and drivers</h4>
                 <p className="text-sm text-muted-foreground">
-                  Click "Add Vehicle" or "Add Driver" to enter information one by one.
+                  Click "Add Vehicle" or "Add Driver" to enter information one
+                  by one.
                 </p>
               </div>
             </div>
@@ -241,7 +281,8 @@ export default function Home() {
               <div>
                 <h4 className="font-medium">Import from Google Sheets</h4>
                 <p className="text-sm text-muted-foreground">
-                  Have existing data? Use the import feature to bulk add vehicles and drivers from a spreadsheet.
+                  Have existing data? Use the import feature to bulk add
+                  vehicles and drivers from a spreadsheet.
                 </p>
               </div>
             </div>
@@ -252,7 +293,8 @@ export default function Home() {
               <div>
                 <h4 className="font-medium">Assign drivers to vehicles</h4>
                 <p className="text-sm text-muted-foreground">
-                  Link drivers to their assigned vehicles and track maintenance history.
+                  Link drivers to their assigned vehicles and track maintenance
+                  history.
                 </p>
               </div>
             </div>

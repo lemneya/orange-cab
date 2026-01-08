@@ -1,7 +1,23 @@
 import { eq, like, or, and, desc, asc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, vehicles, vehicleDocuments, maintenanceRecords, drivers, driverVehicleHistory, InsertVehicle, InsertVehicleDocument, InsertMaintenanceRecord, InsertDriver, InsertDriverVehicleHistory, Vehicle, MaintenanceRecord, Driver } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import {
+  InsertUser,
+  users,
+  vehicles,
+  vehicleDocuments,
+  maintenanceRecords,
+  drivers,
+  driverVehicleHistory,
+  InsertVehicle,
+  InsertVehicleDocument,
+  InsertMaintenanceRecord,
+  InsertDriver,
+  InsertDriverVehicleHistory,
+  Vehicle,
+  MaintenanceRecord,
+  Driver,
+} from "../drizzle/schema";
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -57,8 +73,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       values.role = user.role;
       updateSet.role = user.role;
     } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
+      values.role = "admin";
+      updateSet.role = "admin";
     }
 
     if (!values.lastSignedIn) {
@@ -85,7 +101,11 @@ export async function getUserByOpenId(openId: string) {
     return undefined;
   }
 
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.openId, openId))
+    .limit(1);
 
   return result.length > 0 ? result[0] : undefined;
 }
@@ -153,7 +173,11 @@ export async function getVehicleById(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.select().from(vehicles).where(eq(vehicles.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(vehicles)
+    .where(eq(vehicles.id, id))
+    .limit(1);
   return result[0] || null;
 }
 
@@ -186,10 +210,23 @@ export async function getVehicleFilterOptions() {
   if (!db) throw new Error("Database not available");
 
   const [cities, makes, models, years] = await Promise.all([
-    db.selectDistinct({ city: vehicles.city }).from(vehicles).where(sql`${vehicles.city} IS NOT NULL`),
-    db.selectDistinct({ make: vehicles.make }).from(vehicles).where(sql`${vehicles.make} IS NOT NULL`),
-    db.selectDistinct({ model: vehicles.model }).from(vehicles).where(sql`${vehicles.model} IS NOT NULL`),
-    db.selectDistinct({ year: vehicles.year }).from(vehicles).where(sql`${vehicles.year} IS NOT NULL`).orderBy(desc(vehicles.year)),
+    db
+      .selectDistinct({ city: vehicles.city })
+      .from(vehicles)
+      .where(sql`${vehicles.city} IS NOT NULL`),
+    db
+      .selectDistinct({ make: vehicles.make })
+      .from(vehicles)
+      .where(sql`${vehicles.make} IS NOT NULL`),
+    db
+      .selectDistinct({ model: vehicles.model })
+      .from(vehicles)
+      .where(sql`${vehicles.model} IS NOT NULL`),
+    db
+      .selectDistinct({ year: vehicles.year })
+      .from(vehicles)
+      .where(sql`${vehicles.year} IS NOT NULL`)
+      .orderBy(desc(vehicles.year)),
   ]);
 
   return {
@@ -243,7 +280,11 @@ export async function getDocumentById(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.select().from(vehicleDocuments).where(eq(vehicleDocuments.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(vehicleDocuments)
+    .where(eq(vehicleDocuments.id, id))
+    .limit(1);
   return result[0] || null;
 }
 
@@ -259,22 +300,28 @@ export async function getVehicleStats() {
 
   const [totalResult, activeResult, expiringSoonResult] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(vehicles),
-    db.select({ count: sql<number>`count(*)` }).from(vehicles).where(eq(vehicles.isActive, "active")),
-    db.select({ count: sql<number>`count(*)` }).from(vehicles).where(
-      and(
-        eq(vehicles.isActive, "active"),
-        or(
-          and(
-            sql`${vehicles.registrationExp} IS NOT NULL`,
-            sql`${vehicles.registrationExp} <= ${thirtyDaysFromNow.toISOString().split('T')[0]}`
-          ),
-          and(
-            sql`${vehicles.stateInspectionExp} IS NOT NULL`,
-            sql`${vehicles.stateInspectionExp} <= ${thirtyDaysFromNow.toISOString().split('T')[0]}`
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(vehicles)
+      .where(eq(vehicles.isActive, "active")),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(vehicles)
+      .where(
+        and(
+          eq(vehicles.isActive, "active"),
+          or(
+            and(
+              sql`${vehicles.registrationExp} IS NOT NULL`,
+              sql`${vehicles.registrationExp} <= ${thirtyDaysFromNow.toISOString().split("T")[0]}`
+            ),
+            and(
+              sql`${vehicles.stateInspectionExp} IS NOT NULL`,
+              sql`${vehicles.stateInspectionExp} <= ${thirtyDaysFromNow.toISOString().split("T")[0]}`
+            )
           )
         )
-      )
-    ),
+      ),
   ]);
 
   return {
@@ -283,7 +330,6 @@ export async function getVehicleStats() {
     expiringSoon: expiringSoonResult[0]?.count || 0,
   };
 }
-
 
 // ============ MAINTENANCE RECORD QUERIES ============
 
@@ -302,7 +348,11 @@ export async function getMaintenanceRecordById(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.select().from(maintenanceRecords).where(eq(maintenanceRecords.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(maintenanceRecords)
+    .where(eq(maintenanceRecords.id, id))
+    .limit(1);
   return result[0] || null;
 }
 
@@ -314,11 +364,17 @@ export async function createMaintenanceRecord(data: InsertMaintenanceRecord) {
   return { id: Number(result[0].insertId) };
 }
 
-export async function updateMaintenanceRecord(id: number, data: Partial<InsertMaintenanceRecord>) {
+export async function updateMaintenanceRecord(
+  id: number,
+  data: Partial<InsertMaintenanceRecord>
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(maintenanceRecords).set(data).where(eq(maintenanceRecords.id, id));
+  await db
+    .update(maintenanceRecords)
+    .set(data)
+    .where(eq(maintenanceRecords.id, id));
   return { success: true };
 }
 
@@ -330,7 +386,10 @@ export async function deleteMaintenanceRecord(id: number) {
   return { success: true };
 }
 
-export async function getRecentMaintenanceForVehicle(vehicleId: number, limit: number = 5) {
+export async function getRecentMaintenanceForVehicle(
+  vehicleId: number,
+  limit: number = 5
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
@@ -341,7 +400,6 @@ export async function getRecentMaintenanceForVehicle(vehicleId: number, limit: n
     .orderBy(desc(maintenanceRecords.serviceDate))
     .limit(limit);
 }
-
 
 // ============ DRIVER QUERIES ============
 
@@ -398,7 +456,11 @@ export async function getDriverById(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.select().from(drivers).where(eq(drivers.id, id)).limit(1);
+  const result = await db
+    .select()
+    .from(drivers)
+    .where(eq(drivers.id, id))
+    .limit(1);
   return result[0] || null;
 }
 
@@ -406,7 +468,11 @@ export async function getDriverByVehicleId(vehicleId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.select().from(drivers).where(eq(drivers.assignedVehicleId, vehicleId)).limit(1);
+  const result = await db
+    .select()
+    .from(drivers)
+    .where(eq(drivers.assignedVehicleId, vehicleId))
+    .limit(1);
   return result[0] || null;
 }
 
@@ -434,7 +500,11 @@ export async function deleteDriver(id: number) {
   return { success: true };
 }
 
-export async function assignVehicleToDriver(driverId: number, vehicleId: number | null, notes?: string) {
+export async function assignVehicleToDriver(
+  driverId: number,
+  vehicleId: number | null,
+  notes?: string
+) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
@@ -444,7 +514,8 @@ export async function assignVehicleToDriver(driverId: number, vehicleId: number 
 
   // If driver had a previous vehicle, record the unassignment
   if (driver.assignedVehicleId) {
-    await db.update(driverVehicleHistory)
+    await db
+      .update(driverVehicleHistory)
       .set({ unassignedDate: new Date() })
       .where(
         and(
@@ -456,7 +527,8 @@ export async function assignVehicleToDriver(driverId: number, vehicleId: number 
   }
 
   // Update driver's assigned vehicle
-  await db.update(drivers)
+  await db
+    .update(drivers)
     .set({ assignedVehicleId: vehicleId })
     .where(eq(drivers.id, driverId));
 
@@ -514,18 +586,28 @@ export async function getDriverStats() {
   const thirtyDaysFromNow = new Date(today);
   thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
-  const [totalResult, activeResult, assignedResult, licenseExpiringResult] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` }).from(drivers),
-    db.select({ count: sql<number>`count(*)` }).from(drivers).where(eq(drivers.status, "active")),
-    db.select({ count: sql<number>`count(*)` }).from(drivers).where(sql`${drivers.assignedVehicleId} IS NOT NULL`),
-    db.select({ count: sql<number>`count(*)` }).from(drivers).where(
-      and(
-        eq(drivers.status, "active"),
-        sql`${drivers.licenseExpiration} IS NOT NULL`,
-        sql`${drivers.licenseExpiration} <= ${thirtyDaysFromNow.toISOString().split('T')[0]}`
-      )
-    ),
-  ]);
+  const [totalResult, activeResult, assignedResult, licenseExpiringResult] =
+    await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(drivers),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(drivers)
+        .where(eq(drivers.status, "active")),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(drivers)
+        .where(sql`${drivers.assignedVehicleId} IS NOT NULL`),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(drivers)
+        .where(
+          and(
+            eq(drivers.status, "active"),
+            sql`${drivers.licenseExpiration} IS NOT NULL`,
+            sql`${drivers.licenseExpiration} <= ${thirtyDaysFromNow.toISOString().split("T")[0]}`
+          )
+        ),
+    ]);
 
   return {
     total: totalResult[0]?.count || 0,

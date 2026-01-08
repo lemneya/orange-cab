@@ -7,20 +7,20 @@ import { z } from "zod";
 // Helper function to safely parse date strings into Date objects
 function parseDate(dateStr: string | null | undefined): Date | null {
   if (!dateStr) return null;
-  
+
   // Try parsing as ISO date first (YYYY-MM-DD)
   const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) {
     const date = new Date(dateStr);
     if (!isNaN(date.getTime())) return date;
   }
-  
+
   // Try parsing JavaScript Date string format (e.g., "Thu Apr 29 2027 20:00:00 GMT-0400")
   const jsDate = new Date(dateStr);
   if (!isNaN(jsDate.getTime())) {
     return jsDate;
   }
-  
+
   // Try MM/DD/YYYY format
   const usMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (usMatch) {
@@ -28,7 +28,7 @@ function parseDate(dateStr: string | null | undefined): Date | null {
     const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     if (!isNaN(date.getTime())) return date;
   }
-  
+
   return null;
 }
 import {
@@ -159,7 +159,12 @@ const maintenanceInputSchema = z.object({
 });
 
 // Driver schemas
-const driverStatusSchema = z.enum(["active", "inactive", "on_leave", "terminated"]);
+const driverStatusSchema = z.enum([
+  "active",
+  "inactive",
+  "on_leave",
+  "terminated",
+]);
 
 const driverFiltersSchema = z.object({
   search: z.string().optional(),
@@ -199,7 +204,7 @@ const bulkDriverSchema = z.object({
 
 export const appRouter = router({
   system: systemRouter,
-  
+
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -230,9 +235,15 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const data = {
           ...input,
-          registrationExp: input.registrationExp ? new Date(input.registrationExp) : null,
-          stateInspectionExp: input.stateInspectionExp ? new Date(input.stateInspectionExp) : null,
-          cityInspectionDate: input.cityInspectionDate ? new Date(input.cityInspectionDate) : null,
+          registrationExp: input.registrationExp
+            ? new Date(input.registrationExp)
+            : null,
+          stateInspectionExp: input.stateInspectionExp
+            ? new Date(input.stateInspectionExp)
+            : null,
+          cityInspectionDate: input.cityInspectionDate
+            ? new Date(input.cityInspectionDate)
+            : null,
           createdBy: ctx.user.id,
         };
         return createVehicle(data);
@@ -240,23 +251,31 @@ export const appRouter = router({
 
     // Update vehicle
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        data: vehicleInputSchema.partial(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          data: vehicleInputSchema.partial(),
+        })
+      )
       .mutation(async ({ input }) => {
         const updateData: Record<string, unknown> = { ...input.data };
-        
+
         if (input.data.registrationExp !== undefined) {
-          updateData.registrationExp = input.data.registrationExp ? new Date(input.data.registrationExp) : null;
+          updateData.registrationExp = input.data.registrationExp
+            ? new Date(input.data.registrationExp)
+            : null;
         }
         if (input.data.stateInspectionExp !== undefined) {
-          updateData.stateInspectionExp = input.data.stateInspectionExp ? new Date(input.data.stateInspectionExp) : null;
+          updateData.stateInspectionExp = input.data.stateInspectionExp
+            ? new Date(input.data.stateInspectionExp)
+            : null;
         }
         if (input.data.cityInspectionDate !== undefined) {
-          updateData.cityInspectionDate = input.data.cityInspectionDate ? new Date(input.data.cityInspectionDate) : null;
+          updateData.cityInspectionDate = input.data.cityInspectionDate
+            ? new Date(input.data.cityInspectionDate)
+            : null;
         }
-        
+
         return updateVehicle(input.id, updateData);
       }),
 
@@ -306,14 +325,14 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         // Decode base64 file data
         const fileBuffer = Buffer.from(input.fileData, "base64");
-        
+
         // Generate unique file key
         const fileExt = input.fileName.split(".").pop() || "bin";
         const fileKey = `vehicles/${input.vehicleId}/documents/${input.category}/${nanoid()}.${fileExt}`;
-        
+
         // Upload to S3
         const { url } = await storagePut(fileKey, fileBuffer, input.mimeType);
-        
+
         // Save document record
         const docData = {
           vehicleId: input.vehicleId,
@@ -323,11 +342,13 @@ export const appRouter = router({
           fileUrl: url,
           mimeType: input.mimeType,
           fileSize: input.fileSize,
-          expirationDate: input.expirationDate ? new Date(input.expirationDate) : null,
+          expirationDate: input.expirationDate
+            ? new Date(input.expirationDate)
+            : null,
           notes: input.notes,
           uploadedBy: ctx.user.id,
         };
-        
+
         return createVehicleDocument(docData);
       }),
 
@@ -383,20 +404,24 @@ export const appRouter = router({
 
     // Update driver
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        data: driverInputSchema.partial(),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          data: driverInputSchema.partial(),
+        })
+      )
       .mutation(async ({ input }) => {
         const updateData: Record<string, unknown> = { ...input.data };
-        
+
         if (input.data.licenseExpiration !== undefined) {
-          updateData.licenseExpiration = parseDate(input.data.licenseExpiration);
+          updateData.licenseExpiration = parseDate(
+            input.data.licenseExpiration
+          );
         }
         if (input.data.hireDate !== undefined) {
           updateData.hireDate = parseDate(input.data.hireDate);
         }
-        
+
         return updateDriver(input.id, updateData);
       }),
 
@@ -409,13 +434,19 @@ export const appRouter = router({
 
     // Assign vehicle to driver
     assignVehicle: protectedProcedure
-      .input(z.object({
-        driverId: z.number(),
-        vehicleId: z.number().nullable(),
-        notes: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          driverId: z.number(),
+          vehicleId: z.number().nullable(),
+          notes: z.string().optional(),
+        })
+      )
       .mutation(async ({ input }) => {
-        return assignVehicleToDriver(input.driverId, input.vehicleId, input.notes);
+        return assignVehicleToDriver(
+          input.driverId,
+          input.vehicleId,
+          input.notes
+        );
       }),
 
     // Get driver's vehicle history
@@ -474,20 +505,22 @@ export const appRouter = router({
 
     // Update maintenance record
     update: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-        data: maintenanceInputSchema.partial().omit({ vehicleId: true }),
-      }))
+      .input(
+        z.object({
+          id: z.number(),
+          data: maintenanceInputSchema.partial().omit({ vehicleId: true }),
+        })
+      )
       .mutation(async ({ input }) => {
         const updateData: Record<string, unknown> = { ...input.data };
-        
+
         if (input.data.serviceDate !== undefined) {
           updateData.serviceDate = parseDate(input.data.serviceDate);
         }
         if (input.data.nextServiceDate !== undefined) {
           updateData.nextServiceDate = parseDate(input.data.nextServiceDate);
         }
-        
+
         return updateMaintenanceRecord(input.id, updateData);
       }),
 

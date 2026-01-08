@@ -1,0 +1,4 @@
+
+> vehicle-fleet-dashboard@1.0.0 check /home/user/orange-cab
+> tsc --noEmit
+

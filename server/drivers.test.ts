@@ -1,6 +1,39 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
+
+// Mock the database functions
+vi.mock("./db", () => ({
+  getDrivers: vi.fn(),
+  getDriverById: vi.fn(),
+  createDriver: vi.fn(),
+  updateDriver: vi.fn(),
+  deleteDriver: vi.fn(),
+  bulkCreateDrivers: vi.fn(),
+  getDriverStats: vi.fn(),
+  assignVehicleToDriver: vi.fn(),
+  getDriverVehicleHistory: vi.fn(),
+  getDriverByVehicleId: vi.fn(),
+  getVehicles: vi.fn(),
+  getVehicleById: vi.fn(),
+  createVehicle: vi.fn(),
+  updateVehicle: vi.fn(),
+  deleteVehicle: vi.fn(),
+  getVehicleFilterOptions: vi.fn(),
+  bulkCreateVehicles: vi.fn(),
+  getVehicleDocuments: vi.fn(),
+  createVehicleDocument: vi.fn(),
+  deleteVehicleDocument: vi.fn(),
+  getDocumentById: vi.fn(),
+  getVehicleStats: vi.fn(),
+  getMaintenanceRecords: vi.fn(),
+  getMaintenanceRecordById: vi.fn(),
+  createMaintenanceRecord: vi.fn(),
+  updateMaintenanceRecord: vi.fn(),
+  deleteMaintenanceRecord: vi.fn(),
+}));
+
+import * as db from "./db";
 
 type CookieCall = {
   name: string;
@@ -9,7 +42,10 @@ type CookieCall = {
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
-function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] } {
+function createAuthContext(): {
+  ctx: TrpcContext;
+  clearedCookies: CookieCall[];
+} {
   const clearedCookies: CookieCall[] = [];
 
   const user: AuthenticatedUser = {
@@ -41,7 +77,13 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
 }
 
 describe("drivers router", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("drivers.list returns an array", async () => {
+    vi.mocked(db.getDrivers).mockResolvedValue([]);
+
     const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
@@ -51,6 +93,13 @@ describe("drivers router", () => {
   });
 
   it("drivers.stats returns driver statistics", async () => {
+    vi.mocked(db.getDriverStats).mockResolvedValue({
+      total: 10,
+      active: 8,
+      assigned: 5,
+      licenseExpiring: 2,
+    });
+
     const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
@@ -65,6 +114,8 @@ describe("drivers router", () => {
   });
 
   it("drivers.create creates a new driver", async () => {
+    vi.mocked(db.createDriver).mockResolvedValue({ id: 1 });
+
     const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
@@ -84,6 +135,26 @@ describe("drivers router", () => {
   });
 
   it("drivers.getById retrieves a driver", async () => {
+    const mockDriver = {
+      id: 1,
+      firstName: "Retrieve",
+      lastName: "Test",
+      status: "active" as const,
+      phone: null,
+      email: null,
+      city: null,
+      licenseNumber: null,
+      licenseExpiration: null,
+      assignedVehicleId: null,
+      hireDate: null,
+      notes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    vi.mocked(db.createDriver).mockResolvedValue({ id: 1 });
+    vi.mocked(db.getDriverById).mockResolvedValue(mockDriver);
+
     const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
@@ -103,6 +174,27 @@ describe("drivers router", () => {
   });
 
   it("drivers.update updates driver information", async () => {
+    const mockDriver = {
+      id: 1,
+      firstName: "Updated",
+      lastName: "Test",
+      phone: "555-999-8888",
+      status: "active" as const,
+      email: null,
+      city: null,
+      licenseNumber: null,
+      licenseExpiration: null,
+      assignedVehicleId: null,
+      hireDate: null,
+      notes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    vi.mocked(db.createDriver).mockResolvedValue({ id: 1 });
+    vi.mocked(db.updateDriver).mockResolvedValue({ success: true });
+    vi.mocked(db.getDriverById).mockResolvedValue(mockDriver);
+
     const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
@@ -129,6 +221,10 @@ describe("drivers router", () => {
   });
 
   it("drivers.delete removes a driver", async () => {
+    vi.mocked(db.createDriver).mockResolvedValue({ id: 1 });
+    vi.mocked(db.deleteDriver).mockResolvedValue({ success: true });
+    vi.mocked(db.getDriverById).mockResolvedValue(null);
+
     const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
@@ -148,6 +244,8 @@ describe("drivers router", () => {
   });
 
   it("drivers.bulkImport imports multiple drivers", async () => {
+    vi.mocked(db.bulkCreateDrivers).mockResolvedValue({ count: 2 });
+
     const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 

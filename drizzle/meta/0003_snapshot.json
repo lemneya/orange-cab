@@ -64,12 +64,8 @@
           "name": "driver_vehicle_history_driverId_drivers_id_fk",
           "tableFrom": "driver_vehicle_history",
           "tableTo": "drivers",
-          "columnsFrom": [
-            "driverId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["driverId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -77,12 +73,8 @@
           "name": "driver_vehicle_history_vehicleId_vehicles_id_fk",
           "tableFrom": "driver_vehicle_history",
           "tableTo": "vehicles",
-          "columnsFrom": [
-            "vehicleId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vehicleId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -90,9 +82,7 @@
       "compositePrimaryKeys": {
         "driver_vehicle_history_id": {
           "name": "driver_vehicle_history_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -238,12 +228,8 @@
           "name": "drivers_assignedVehicleId_vehicles_id_fk",
           "tableFrom": "drivers",
           "tableTo": "vehicles",
-          "columnsFrom": [
-            "assignedVehicleId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["assignedVehicleId"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -251,12 +237,8 @@
           "name": "drivers_createdBy_users_id_fk",
           "tableFrom": "drivers",
           "tableTo": "users",
-          "columnsFrom": [
-            "createdBy"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["createdBy"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -264,9 +246,7 @@
       "compositePrimaryKeys": {
         "drivers_id": {
           "name": "drivers_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -390,12 +370,8 @@
           "name": "maintenance_records_vehicleId_vehicles_id_fk",
           "tableFrom": "maintenance_records",
           "tableTo": "vehicles",
-          "columnsFrom": [
-            "vehicleId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vehicleId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -403,12 +379,8 @@
           "name": "maintenance_records_createdBy_users_id_fk",
           "tableFrom": "maintenance_records",
           "tableTo": "users",
-          "columnsFrom": [
-            "createdBy"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["createdBy"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -416,9 +388,7 @@
       "compositePrimaryKeys": {
         "maintenance_records_id": {
           "name": "maintenance_records_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -501,17 +471,13 @@
       "compositePrimaryKeys": {
         "users_id": {
           "name": "users_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "users_openId_unique": {
           "name": "users_openId_unique",
-          "columns": [
-            "openId"
-          ]
+          "columns": ["openId"]
         }
       },
       "checkConstraint": {}
@@ -620,12 +586,8 @@
           "name": "vehicle_documents_vehicleId_vehicles_id_fk",
           "tableFrom": "vehicle_documents",
           "tableTo": "vehicles",
-          "columnsFrom": [
-            "vehicleId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vehicleId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -633,12 +595,8 @@
           "name": "vehicle_documents_uploadedBy_users_id_fk",
           "tableFrom": "vehicle_documents",
           "tableTo": "users",
-          "columnsFrom": [
-            "uploadedBy"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["uploadedBy"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -646,9 +604,7 @@
       "compositePrimaryKeys": {
         "vehicle_documents_id": {
           "name": "vehicle_documents_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -794,12 +750,8 @@
           "name": "vehicles_createdBy_users_id_fk",
           "tableFrom": "vehicles",
           "tableTo": "users",
-          "columnsFrom": [
-            "createdBy"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["createdBy"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -807,9 +759,7 @@
       "compositePrimaryKeys": {
         "vehicles_id": {
           "name": "vehicles_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},

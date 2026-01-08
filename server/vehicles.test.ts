@@ -2,6 +2,39 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
+// Mock the database functions
+vi.mock("./db", () => ({
+  getVehicles: vi.fn(),
+  getVehicleById: vi.fn(),
+  createVehicle: vi.fn(),
+  updateVehicle: vi.fn(),
+  deleteVehicle: vi.fn(),
+  getVehicleFilterOptions: vi.fn(),
+  bulkCreateVehicles: vi.fn(),
+  getVehicleDocuments: vi.fn(),
+  createVehicleDocument: vi.fn(),
+  deleteVehicleDocument: vi.fn(),
+  getDocumentById: vi.fn(),
+  getVehicleStats: vi.fn(),
+  getMaintenanceRecords: vi.fn(),
+  getMaintenanceRecordById: vi.fn(),
+  createMaintenanceRecord: vi.fn(),
+  updateMaintenanceRecord: vi.fn(),
+  deleteMaintenanceRecord: vi.fn(),
+  getDrivers: vi.fn(),
+  getDriverById: vi.fn(),
+  createDriver: vi.fn(),
+  updateDriver: vi.fn(),
+  deleteDriver: vi.fn(),
+  bulkCreateDrivers: vi.fn(),
+  getDriverStats: vi.fn(),
+  assignVehicleToDriver: vi.fn(),
+  getDriverVehicleHistory: vi.fn(),
+  getDriverByVehicleId: vi.fn(),
+}));
+
+import * as db from "./db";
+
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
 function createAuthContext(): TrpcContext {
@@ -30,8 +63,14 @@ function createAuthContext(): TrpcContext {
 }
 
 describe("vehicles router", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   describe("vehicles.list", () => {
     it("returns an array of vehicles", async () => {
+      vi.mocked(db.getVehicles).mockResolvedValue([]);
+
       const ctx = createAuthContext();
       const caller = appRouter.createCaller(ctx);
 
@@ -41,6 +80,8 @@ describe("vehicles router", () => {
     });
 
     it("accepts filter parameters", async () => {
+      vi.mocked(db.getVehicles).mockResolvedValue([]);
+
       const ctx = createAuthContext();
       const caller = appRouter.createCaller(ctx);
 
@@ -56,6 +97,13 @@ describe("vehicles router", () => {
 
   describe("vehicles.filterOptions", () => {
     it("returns filter options with cities, makes, models, and years", async () => {
+      vi.mocked(db.getVehicleFilterOptions).mockResolvedValue({
+        cities: ["IW", "NN"],
+        makes: ["Honda", "Toyota"],
+        models: ["Odyssey", "Sienna"],
+        years: [2020, 2021],
+      });
+
       const ctx = createAuthContext();
       const caller = appRouter.createCaller(ctx);
 
@@ -74,6 +122,12 @@ describe("vehicles router", () => {
 
   describe("vehicles.stats", () => {
     it("returns dashboard statistics", async () => {
+      vi.mocked(db.getVehicleStats).mockResolvedValue({
+        total: 10,
+        active: 8,
+        expiringSoon: 2,
+      });
+
       const ctx = createAuthContext();
       const caller = appRouter.createCaller(ctx);
 
@@ -90,6 +144,29 @@ describe("vehicles router", () => {
 
   describe("vehicles.create and vehicles.getById", () => {
     it("creates a vehicle and retrieves it by ID", async () => {
+      const mockVehicle = {
+        id: 1,
+        vehicleNumber: "TEST001",
+        tagNumber: "TEST-TAG-001",
+        vin: "1HGCM82633A123456",
+        city: "IW",
+        make: "Honda",
+        model: "Odyssey",
+        year: 2020,
+        insurance: "SAHRAWI",
+        isActive: "active" as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        registrationExp: null,
+        stateInspectionExp: null,
+        insuranceExp: null,
+        cityInspectionExp: null,
+        notes: null,
+      };
+
+      vi.mocked(db.createVehicle).mockResolvedValue({ id: 1 });
+      vi.mocked(db.getVehicleById).mockResolvedValue(mockVehicle);
+
       const ctx = createAuthContext();
       const caller = appRouter.createCaller(ctx);
 
@@ -119,6 +196,30 @@ describe("vehicles router", () => {
 
   describe("vehicles.update", () => {
     it("updates a vehicle's information", async () => {
+      const mockVehicle = {
+        id: 1,
+        vehicleNumber: "TEST002",
+        tagNumber: "TEST-TAG-002",
+        make: "Honda",
+        model: "Odyssey",
+        year: 2021,
+        vin: null,
+        city: null,
+        insurance: null,
+        isActive: "active" as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        registrationExp: null,
+        stateInspectionExp: null,
+        insuranceExp: null,
+        cityInspectionExp: null,
+        notes: null,
+      };
+
+      vi.mocked(db.createVehicle).mockResolvedValue({ id: 1 });
+      vi.mocked(db.updateVehicle).mockResolvedValue({ success: true });
+      vi.mocked(db.getVehicleById).mockResolvedValue(mockVehicle);
+
       const ctx = createAuthContext();
       const caller = appRouter.createCaller(ctx);
 
@@ -152,6 +253,10 @@ describe("vehicles router", () => {
 
   describe("vehicles.delete", () => {
     it("deletes a vehicle", async () => {
+      vi.mocked(db.createVehicle).mockResolvedValue({ id: 1 });
+      vi.mocked(db.deleteVehicle).mockResolvedValue({ success: true });
+      vi.mocked(db.getVehicleById).mockResolvedValue(null);
+
       const ctx = createAuthContext();
       const caller = appRouter.createCaller(ctx);
 
@@ -162,7 +267,9 @@ describe("vehicles router", () => {
       });
 
       // Delete the vehicle
-      const deleteResult = await caller.vehicles.delete({ id: createResult.id });
+      const deleteResult = await caller.vehicles.delete({
+        id: createResult.id,
+      });
       expect(deleteResult).toEqual({ success: true });
 
       // Verify deletion
@@ -173,6 +280,8 @@ describe("vehicles router", () => {
 
   describe("vehicles.bulkImport", () => {
     it("imports multiple vehicles at once", async () => {
+      vi.mocked(db.bulkCreateVehicles).mockResolvedValue({ count: 2 });
+
       const ctx = createAuthContext();
       const caller = appRouter.createCaller(ctx);
 
@@ -193,7 +302,9 @@ describe("vehicles router", () => {
         },
       ];
 
-      const result = await caller.vehicles.bulkImport({ vehicles: vehiclesToImport });
+      const result = await caller.vehicles.bulkImport({
+        vehicles: vehiclesToImport,
+      });
 
       expect(result).toHaveProperty("count");
       expect(result.count).toBe(2);

@@ -21,10 +21,17 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, Car, Upload, LogOut, PanelLeft, Users } from "lucide-react";
+import {
+  LayoutDashboard,
+  Car,
+  Upload,
+  LogOut,
+  PanelLeft,
+  Users,
+} from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
+import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
 const menuItems = [
@@ -55,7 +62,7 @@ export default function DashboardLayout({
   }, [sidebarWidth]);
 
   if (loading) {
-    return <DashboardLayoutSkeleton />
+    return <DashboardLayoutSkeleton />;
   }
 
   if (!user) {
@@ -70,7 +77,8 @@ export default function DashboardLayout({
               Vehicle Fleet Dashboard
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Manage your fleet, track documents, and stay on top of inspections and registrations.
+              Manage your fleet, track documents, and stay on top of inspections
+              and registrations.
             </p>
           </div>
           <Button
@@ -117,7 +125,7 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const activeMenuItem = menuItems.find(item => 
+  const activeMenuItem = menuItems.find(item =>
     item.path === "/" ? location === "/" : location.startsWith(item.path)
   );
   const isMobile = useIsMobile();
@@ -189,9 +197,10 @@ function DashboardLayoutContent({
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
               {menuItems.map(item => {
-                const isActive = item.path === "/" 
-                  ? location === "/" 
-                  : location.startsWith(item.path);
+                const isActive =
+                  item.path === "/"
+                    ? location === "/"
+                    : location.startsWith(item.path);
                 return (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton

@@ -1,0 +1,17 @@
+# Repo Target Lock - DEVOPS-0
+# Date: 2026-01-08
+
+$ git rev-parse --show-toplevel
+/home/user/orange-cab
+
+$ git remote -v
+origin	http://local_proxy@127.0.0.1:53441/git/lemneya/orange-cab (fetch)
+origin	http://local_proxy@127.0.0.1:53441/git/lemneya/orange-cab (push)
+
+# Note: Proxy routes to https://github.com/lemneya/orange-cab.git
+
+$ git status -sb
+## gate/devops-0-repro-ci
+
+$ git log -1 --oneline
+8e5d9ef Checkpoint: Added driver management feature with CRUD operations, vehicle assignment, bulk import from spreadsheet, dashboard statistics for drivers, and 21 passing tests.

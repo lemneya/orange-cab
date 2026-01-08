@@ -1,11 +1,23 @@
 import { useEffect } from "react";
 import { trpc } from "@/lib/trpc";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { useLocation, useParams } from "wouter";
@@ -35,7 +47,14 @@ export default function VehicleForm() {
   const isEditing = !!vehicleId;
   const [, setLocation] = useLocation();
 
-  const { register, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm<VehicleFormData>({
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+    reset,
+  } = useForm<VehicleFormData>({
     defaultValues: {
       vehicleNumber: "",
       tagNumber: "",
@@ -60,11 +79,11 @@ export default function VehicleForm() {
   );
 
   const createMutation = trpc.vehicles.create.useMutation({
-    onSuccess: (result) => {
+    onSuccess: result => {
       toast.success("Vehicle created successfully");
       setLocation(`/vehicles/${result.id}`);
     },
-    onError: (error) => {
+    onError: error => {
       toast.error("Failed to create vehicle: " + error.message);
     },
   });
@@ -74,7 +93,7 @@ export default function VehicleForm() {
       toast.success("Vehicle updated successfully");
       setLocation(`/vehicles/${vehicleId}`);
     },
-    onError: (error) => {
+    onError: error => {
       toast.error("Failed to update vehicle: " + error.message);
     },
   });
@@ -90,9 +109,15 @@ export default function VehicleForm() {
         model: vehicle.model || "",
         year: vehicle.year?.toString() || "",
         tireSize: vehicle.tireSize || "",
-        registrationExp: vehicle.registrationExp ? new Date(vehicle.registrationExp).toISOString().split("T")[0] : "",
-        stateInspectionExp: vehicle.stateInspectionExp ? new Date(vehicle.stateInspectionExp).toISOString().split("T")[0] : "",
-        cityInspectionDate: vehicle.cityInspectionDate ? new Date(vehicle.cityInspectionDate).toISOString().split("T")[0] : "",
+        registrationExp: vehicle.registrationExp
+          ? new Date(vehicle.registrationExp).toISOString().split("T")[0]
+          : "",
+        stateInspectionExp: vehicle.stateInspectionExp
+          ? new Date(vehicle.stateInspectionExp).toISOString().split("T")[0]
+          : "",
+        cityInspectionDate: vehicle.cityInspectionDate
+          ? new Date(vehicle.cityInspectionDate).toISOString().split("T")[0]
+          : "",
         insurance: vehicle.insurance || "",
         isActive: vehicle.isActive || "active",
         notes: vehicle.notes || "",
@@ -140,7 +165,13 @@ export default function VehicleForm() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => setLocation(isEditing ? `/vehicles/${vehicleId}` : "/vehicles")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() =>
+            setLocation(isEditing ? `/vehicles/${vehicleId}` : "/vehicles")
+          }
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
@@ -148,7 +179,9 @@ export default function VehicleForm() {
             {isEditing ? "Edit Vehicle" : "Add New Vehicle"}
           </h1>
           <p className="text-muted-foreground">
-            {isEditing ? `Update vehicle #${vehicle?.vehicleNumber}` : "Enter the vehicle information below"}
+            {isEditing
+              ? `Update vehicle #${vehicle?.vehicleNumber}`
+              : "Enter the vehicle information below"}
           </p>
         </div>
       </div>
@@ -168,10 +201,14 @@ export default function VehicleForm() {
                   <Input
                     id="vehicleNumber"
                     placeholder="e.g., 1001"
-                    {...register("vehicleNumber", { required: "Vehicle number is required" })}
+                    {...register("vehicleNumber", {
+                      required: "Vehicle number is required",
+                    })}
                   />
                   {errors.vehicleNumber && (
-                    <p className="text-xs text-destructive">{errors.vehicleNumber.message}</p>
+                    <p className="text-xs text-destructive">
+                      {errors.vehicleNumber.message}
+                    </p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -179,10 +216,14 @@ export default function VehicleForm() {
                   <Input
                     id="tagNumber"
                     placeholder="e.g., H135941"
-                    {...register("tagNumber", { required: "TAG number is required" })}
+                    {...register("tagNumber", {
+                      required: "TAG number is required",
+                    })}
                   />
                   {errors.tagNumber && (
-                    <p className="text-xs text-destructive">{errors.tagNumber.message}</p>
+                    <p className="text-xs text-destructive">
+                      {errors.tagNumber.message}
+                    </p>
                   )}
                 </div>
               </div>
@@ -207,7 +248,9 @@ export default function VehicleForm() {
                 <Label htmlFor="isActive">Status</Label>
                 <Select
                   value={watch("isActive")}
-                  onValueChange={(v) => setValue("isActive", v as "active" | "inactive")}
+                  onValueChange={v =>
+                    setValue("isActive", v as "active" | "inactive")
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -280,7 +323,9 @@ export default function VehicleForm() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Compliance Dates</CardTitle>
-              <CardDescription>Registration and inspection dates</CardDescription>
+              <CardDescription>
+                Registration and inspection dates
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -292,7 +337,9 @@ export default function VehicleForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="stateInspectionExp">State Inspection Expiration</Label>
+                <Label htmlFor="stateInspectionExp">
+                  State Inspection Expiration
+                </Label>
                 <Input
                   id="stateInspectionExp"
                   type="date"
@@ -331,7 +378,9 @@ export default function VehicleForm() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => setLocation(isEditing ? `/vehicles/${vehicleId}` : "/vehicles")}
+            onClick={() =>
+              setLocation(isEditing ? `/vehicles/${vehicleId}` : "/vehicles")
+            }
           >
             Cancel
           </Button>

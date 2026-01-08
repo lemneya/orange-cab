@@ -3,7 +3,13 @@ import { useLocation, useParams } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -67,14 +73,18 @@ export default function DriverDetail() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const driverId = parseInt(params.id || "0");
-  const [activeTab, setActiveTab] = useState<"details" | "vehicle" | "history">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "vehicle" | "history">(
+    "details"
+  );
 
   const { data: driver, isLoading } = trpc.drivers.getById.useQuery(
     { id: driverId },
     { enabled: driverId > 0 }
   );
 
-  const { data: vehicles } = trpc.vehicles.list.useQuery({ isActive: "active" });
+  const { data: vehicles } = trpc.vehicles.list.useQuery({
+    isActive: "active",
+  });
   const { data: vehicleHistory } = trpc.drivers.vehicleHistory.useQuery(
     { driverId },
     { enabled: driverId > 0 }
@@ -87,7 +97,7 @@ export default function DriverDetail() {
       toast.success("Driver deleted successfully");
       setLocation("/drivers");
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Failed to delete driver: ${error.message}`);
     },
   });
@@ -98,7 +108,7 @@ export default function DriverDetail() {
       utils.drivers.getById.invalidate({ id: driverId });
       utils.drivers.vehicleHistory.invalidate({ driverId });
     },
-    onError: (error) => {
+    onError: error => {
       toast.error(`Failed to assign vehicle: ${error.message}`);
     },
   });
@@ -132,7 +142,9 @@ export default function DriverDetail() {
     );
   }
 
-  const assignedVehicle = vehicles?.find((v) => v.id === driver.assignedVehicleId);
+  const assignedVehicle = vehicles?.find(
+    v => v.id === driver.assignedVehicleId
+  );
 
   return (
     <DashboardLayout>
@@ -184,8 +196,8 @@ export default function DriverDetail() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete Driver</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to delete {driver.firstName} {driver.lastName}?
-                    This action cannot be undone.
+                    Are you sure you want to delete {driver.firstName}{" "}
+                    {driver.lastName}? This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -287,7 +299,9 @@ export default function DriverDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">License Number</p>
+                  <p className="text-sm text-muted-foreground">
+                    License Number
+                  </p>
                   <p className="font-medium">{driver.licenseNumber || "-"}</p>
                 </div>
                 <div>
@@ -295,9 +309,13 @@ export default function DriverDetail() {
                   <p className="font-medium">{driver.licenseState || "-"}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">License Expiration</p>
+                  <p className="text-sm text-muted-foreground">
+                    License Expiration
+                  </p>
                   {driver.licenseExpiration ? (
-                    <LicenseExpirationDisplay date={new Date(driver.licenseExpiration)} />
+                    <LicenseExpirationDisplay
+                      date={new Date(driver.licenseExpiration)}
+                    />
                   ) : (
                     <p className="font-medium">-</p>
                   )}
@@ -345,11 +363,15 @@ export default function DriverDetail() {
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Name</p>
-                  <p className="font-medium">{driver.emergencyContactName || "-"}</p>
+                  <p className="font-medium">
+                    {driver.emergencyContactName || "-"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium">{driver.emergencyContactPhone || "-"}</p>
+                  <p className="font-medium">
+                    {driver.emergencyContactPhone || "-"}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -386,15 +408,19 @@ export default function DriverDetail() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-lg">
-                        {assignedVehicle.vehicleNumber} - {assignedVehicle.tagNumber}
+                        {assignedVehicle.vehicleNumber} -{" "}
+                        {assignedVehicle.tagNumber}
                       </p>
                       <p className="text-muted-foreground">
-                        {assignedVehicle.year} {assignedVehicle.make} {assignedVehicle.model}
+                        {assignedVehicle.year} {assignedVehicle.make}{" "}
+                        {assignedVehicle.model}
                       </p>
                     </div>
                     <Button
                       variant="outline"
-                      onClick={() => setLocation(`/vehicles/${assignedVehicle.id}`)}
+                      onClick={() =>
+                        setLocation(`/vehicles/${assignedVehicle.id}`)
+                      }
                     >
                       View Vehicle
                     </Button>
@@ -411,7 +437,7 @@ export default function DriverDetail() {
                 <label className="text-sm font-medium">Change Assignment</label>
                 <Select
                   value={driver.assignedVehicleId?.toString() || "none"}
-                  onValueChange={(value) => {
+                  onValueChange={value => {
                     assignVehicleMutation.mutate({
                       driverId: driver.id,
                       vehicleId: value === "none" ? null : parseInt(value),
@@ -423,9 +449,13 @@ export default function DriverDetail() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No Vehicle</SelectItem>
-                    {vehicles?.map((vehicle) => (
-                      <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
-                        {vehicle.vehicleNumber} - {vehicle.tagNumber} ({vehicle.make} {vehicle.model})
+                    {vehicles?.map(vehicle => (
+                      <SelectItem
+                        key={vehicle.id}
+                        value={vehicle.id.toString()}
+                      >
+                        {vehicle.vehicleNumber} - {vehicle.tagNumber} (
+                        {vehicle.make} {vehicle.model})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -460,7 +490,7 @@ export default function DriverDetail() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {vehicleHistory.map((record) => (
+                    {vehicleHistory.map(record => (
                       <TableRow key={record.id}>
                         <TableCell className="font-medium">
                           {record.vehicleNumber} - {record.tagNumber}
@@ -474,9 +504,11 @@ export default function DriverDetail() {
                             : "-"}
                         </TableCell>
                         <TableCell>
-                          {record.unassignedDate
-                            ? new Date(record.unassignedDate).toLocaleDateString()
-                            : <Badge variant="secondary">Current</Badge>}
+                          {record.unassignedDate ? (
+                            new Date(record.unassignedDate).toLocaleDateString()
+                          ) : (
+                            <Badge variant="secondary">Current</Badge>
+                          )}
                         </TableCell>
                         <TableCell>{record.notes || "-"}</TableCell>
                       </TableRow>
@@ -486,7 +518,9 @@ export default function DriverDetail() {
               ) : (
                 <div className="text-center py-8">
                   <History className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">No vehicle history found</p>
+                  <p className="text-muted-foreground">
+                    No vehicle history found
+                  </p>
                 </div>
               )}
             </CardContent>

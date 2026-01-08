@@ -1,0 +1,17 @@
+# Docker Compose Up - DEVOPS-0
+# Date: 2026-01-08
+
+$ docker compose up -d
+
+Note: Docker is not available in this CI environment.
+The docker-compose.yml configuration has been created and validated syntactically.
+
+docker-compose.yml defines:
+- MySQL 8.0 on port 3306 with healthcheck
+- MinIO (S3-compatible) on ports 9000 (API) and 9001 (Console) with healthcheck
+
+To verify locally:
+1. Run: docker compose up -d
+2. Wait for healthchecks to pass
+3. Run: docker compose ps (should show both services as healthy)
+4. Run: pnpm db:push to initialize schema

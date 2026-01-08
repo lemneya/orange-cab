@@ -81,17 +81,13 @@
       "compositePrimaryKeys": {
         "users_id": {
           "name": "users_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "users_openId_unique": {
           "name": "users_openId_unique",
-          "columns": [
-            "openId"
-          ]
+          "columns": ["openId"]
         }
       },
       "checkConstraint": {}
@@ -200,12 +196,8 @@
           "name": "vehicle_documents_vehicleId_vehicles_id_fk",
           "tableFrom": "vehicle_documents",
           "tableTo": "vehicles",
-          "columnsFrom": [
-            "vehicleId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["vehicleId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -213,12 +205,8 @@
           "name": "vehicle_documents_uploadedBy_users_id_fk",
           "tableFrom": "vehicle_documents",
           "tableTo": "users",
-          "columnsFrom": [
-            "uploadedBy"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["uploadedBy"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -226,9 +214,7 @@
       "compositePrimaryKeys": {
         "vehicle_documents_id": {
           "name": "vehicle_documents_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -374,12 +360,8 @@
           "name": "vehicles_createdBy_users_id_fk",
           "tableFrom": "vehicles",
           "tableTo": "users",
-          "columnsFrom": [
-            "createdBy"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["createdBy"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -387,9 +369,7 @@
       "compositePrimaryKeys": {
         "vehicles_id": {
           "name": "vehicles_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},

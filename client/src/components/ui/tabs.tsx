@@ -57,10 +57,7 @@ function TabsContent({
     <TabsPrimitive.Content
       data-slot="tabs-content"
       forceMount={forceMount}
-      className={cn(
-        "flex-1 outline-none",
-        className
-      )}
+      className={cn("flex-1 outline-none", className)}
       {...props}
     />
   );

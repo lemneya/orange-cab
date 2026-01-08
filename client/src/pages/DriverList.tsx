@@ -22,7 +22,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Users, Car, AlertTriangle, UserCheck } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Users,
+  Car,
+  AlertTriangle,
+  UserCheck,
+} from "lucide-react";
 
 const statusColors: Record<string, string> = {
   active: "bg-green-100 text-green-800 border-green-200",
@@ -47,9 +54,17 @@ export default function DriverList() {
 
   const { data: drivers, isLoading } = trpc.drivers.list.useQuery({
     search: search || undefined,
-    status: statusFilter !== "all" ? statusFilter as "active" | "inactive" | "on_leave" | "terminated" : undefined,
+    status:
+      statusFilter !== "all"
+        ? (statusFilter as "active" | "inactive" | "on_leave" | "terminated")
+        : undefined,
     city: cityFilter !== "all" ? cityFilter : undefined,
-    hasVehicle: vehicleFilter === "assigned" ? true : vehicleFilter === "unassigned" ? false : undefined,
+    hasVehicle:
+      vehicleFilter === "assigned"
+        ? true
+        : vehicleFilter === "unassigned"
+          ? false
+          : undefined,
   });
 
   const { data: stats } = trpc.drivers.stats.useQuery();
@@ -78,7 +93,9 @@ export default function DriverList() {
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Drivers</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Drivers
+              </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -100,7 +117,9 @@ export default function DriverList() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Assigned to Vehicle</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Assigned to Vehicle
+              </CardTitle>
               <Car className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
@@ -111,7 +130,9 @@ export default function DriverList() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">License Expiring</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                License Expiring
+              </CardTitle>
               <AlertTriangle className="h-4 w-4 text-amber-600" />
             </CardHeader>
             <CardContent>
@@ -132,7 +153,7 @@ export default function DriverList() {
                 <Input
                   placeholder="Search by name, phone, email, or license..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={e => setSearch(e.target.value)}
                   className="pl-9"
                 />
               </div>
@@ -154,7 +175,7 @@ export default function DriverList() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Cities</SelectItem>
-                  {cities.map((city) => (
+                  {cities.map(city => (
                     <SelectItem key={city} value={city}>
                       {city}
                     </SelectItem>
@@ -202,7 +223,7 @@ export default function DriverList() {
                     </TableRow>
                   ))
                 ) : drivers && drivers.length > 0 ? (
-                  drivers.map((driver) => (
+                  drivers.map(driver => (
                     <TableRow
                       key={driver.id}
                       className="cursor-pointer hover:bg-muted/50"
@@ -216,7 +237,9 @@ export default function DriverList() {
                       <TableCell>{driver.licenseNumber || "-"}</TableCell>
                       <TableCell>
                         {driver.licenseExpiration ? (
-                          <LicenseExpirationBadge date={new Date(driver.licenseExpiration)} />
+                          <LicenseExpirationBadge
+                            date={new Date(driver.licenseExpiration)}
+                          />
                         ) : (
                           "-"
                         )}
@@ -243,7 +266,9 @@ export default function DriverList() {
                     <TableCell colSpan={7} className="text-center py-8">
                       <div className="flex flex-col items-center gap-2">
                         <Users className="h-8 w-8 text-muted-foreground" />
-                        <p className="text-muted-foreground">No drivers found</p>
+                        <p className="text-muted-foreground">
+                          No drivers found
+                        </p>
                         <Button
                           variant="outline"
                           size="sm"
