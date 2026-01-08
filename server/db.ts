@@ -1,6 +1,6 @@
 import { eq, like, or, and, desc, asc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, vehicles, vehicleDocuments, maintenanceRecords, InsertVehicle, InsertVehicleDocument, InsertMaintenanceRecord, Vehicle, MaintenanceRecord } from "../drizzle/schema";
+import { InsertUser, users, vehicles, vehicleDocuments, maintenanceRecords, drivers, driverVehicleHistory, InsertVehicle, InsertVehicleDocument, InsertMaintenanceRecord, InsertDriver, InsertDriverVehicleHistory, Vehicle, MaintenanceRecord, Driver } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -340,4 +340,197 @@ export async function getRecentMaintenanceForVehicle(vehicleId: number, limit: n
     .where(eq(maintenanceRecords.vehicleId, vehicleId))
     .orderBy(desc(maintenanceRecords.serviceDate))
     .limit(limit);
+}
+
+
+// ============ DRIVER QUERIES ============
+
+export interface DriverFilters {
+  search?: string;
+  city?: string;
+  status?: "active" | "inactive" | "on_leave" | "terminated";
+  hasVehicle?: boolean;
+}
+
+export async function getDrivers(filters: DriverFilters = {}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const conditions = [];
+
+  if (filters.search) {
+    const searchTerm = `%${filters.search}%`;
+    conditions.push(
+      or(
+        like(drivers.firstName, searchTerm),
+        like(drivers.lastName, searchTerm),
+        like(drivers.phone, searchTerm),
+        like(drivers.email, searchTerm),
+        like(drivers.licenseNumber, searchTerm)
+      )
+    );
+  }
+
+  if (filters.city) {
+    conditions.push(eq(drivers.city, filters.city));
+  }
+
+  if (filters.status) {
+    conditions.push(eq(drivers.status, filters.status));
+  }
+
+  if (filters.hasVehicle === true) {
+    conditions.push(sql`${drivers.assignedVehicleId} IS NOT NULL`);
+  } else if (filters.hasVehicle === false) {
+    conditions.push(sql`${drivers.assignedVehicleId} IS NULL`);
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  return db
+    .select()
+    .from(drivers)
+    .where(whereClause)
+    .orderBy(asc(drivers.lastName), asc(drivers.firstName));
+}
+
+export async function getDriverById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.select().from(drivers).where(eq(drivers.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function getDriverByVehicleId(vehicleId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.select().from(drivers).where(eq(drivers.assignedVehicleId, vehicleId)).limit(1);
+  return result[0] || null;
+}
+
+export async function createDriver(data: InsertDriver) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(drivers).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updateDriver(id: number, data: Partial<InsertDriver>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(drivers).set(data).where(eq(drivers.id, id));
+  return { success: true };
+}
+
+export async function deleteDriver(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(drivers).where(eq(drivers.id, id));
+  return { success: true };
+}
+
+export async function assignVehicleToDriver(driverId: number, vehicleId: number | null, notes?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Get current driver info
+  const driver = await getDriverById(driverId);
+  if (!driver) throw new Error("Driver not found");
+
+  // If driver had a previous vehicle, record the unassignment
+  if (driver.assignedVehicleId) {
+    await db.update(driverVehicleHistory)
+      .set({ unassignedDate: new Date() })
+      .where(
+        and(
+          eq(driverVehicleHistory.driverId, driverId),
+          eq(driverVehicleHistory.vehicleId, driver.assignedVehicleId),
+          sql`${driverVehicleHistory.unassignedDate} IS NULL`
+        )
+      );
+  }
+
+  // Update driver's assigned vehicle
+  await db.update(drivers)
+    .set({ assignedVehicleId: vehicleId })
+    .where(eq(drivers.id, driverId));
+
+  // If assigning a new vehicle, create history record
+  if (vehicleId) {
+    await db.insert(driverVehicleHistory).values({
+      driverId,
+      vehicleId,
+      assignedDate: new Date(),
+      notes,
+    });
+  }
+
+  return { success: true };
+}
+
+export async function getDriverVehicleHistory(driverId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select({
+      id: driverVehicleHistory.id,
+      vehicleId: driverVehicleHistory.vehicleId,
+      assignedDate: driverVehicleHistory.assignedDate,
+      unassignedDate: driverVehicleHistory.unassignedDate,
+      notes: driverVehicleHistory.notes,
+      vehicleNumber: vehicles.vehicleNumber,
+      tagNumber: vehicles.tagNumber,
+      make: vehicles.make,
+      model: vehicles.model,
+      year: vehicles.year,
+    })
+    .from(driverVehicleHistory)
+    .leftJoin(vehicles, eq(driverVehicleHistory.vehicleId, vehicles.id))
+    .where(eq(driverVehicleHistory.driverId, driverId))
+    .orderBy(desc(driverVehicleHistory.assignedDate));
+}
+
+export async function bulkCreateDrivers(driverList: InsertDriver[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  if (driverList.length === 0) return { count: 0 };
+
+  await db.insert(drivers).values(driverList);
+  return { count: driverList.length };
+}
+
+export async function getDriverStats() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const today = new Date();
+  const thirtyDaysFromNow = new Date(today);
+  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+  const [totalResult, activeResult, assignedResult, licenseExpiringResult] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(drivers),
+    db.select({ count: sql<number>`count(*)` }).from(drivers).where(eq(drivers.status, "active")),
+    db.select({ count: sql<number>`count(*)` }).from(drivers).where(sql`${drivers.assignedVehicleId} IS NOT NULL`),
+    db.select({ count: sql<number>`count(*)` }).from(drivers).where(
+      and(
+        eq(drivers.status, "active"),
+        sql`${drivers.licenseExpiration} IS NOT NULL`,
+        sql`${drivers.licenseExpiration} <= ${thirtyDaysFromNow.toISOString().split('T')[0]}`
+      )
+    ),
+  ]);
+
+  return {
+    total: totalResult[0]?.count || 0,
+    active: activeResult[0]?.count || 0,
+    assigned: assignedResult[0]?.count || 0,
+    licenseExpiring: licenseExpiringResult[0]?.count || 0,
+  };
 }

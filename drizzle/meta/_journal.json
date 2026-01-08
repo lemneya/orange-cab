@@ -22,6 +22,13 @@
       "when": 1767837282359,
       "tag": "0002_easy_lizard",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1767839406406,
+      "tag": "0003_hesitant_spitfire",
+      "breakpoints": true
     }
   ]
 }

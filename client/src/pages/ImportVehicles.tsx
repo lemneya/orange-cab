@@ -6,9 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Info } from "lucide-react";
+import { ArrowLeft, Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Info, Car, Users } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+
+type ImportType = "vehicles" | "drivers" | "maintenance";
 
 interface ParsedVehicle {
   vehicleNumber: string;
@@ -25,16 +27,36 @@ interface ParsedVehicle {
   insurance?: string;
 }
 
+interface ParsedDriver {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+  licenseNumber?: string;
+  licenseExpiration?: string;
+  licenseState?: string;
+  city?: string;
+  hireDate?: string;
+}
+
+interface ParsedMaintenance {
+  vehicleNumber: string;
+  maintenanceType: string;
+  serviceDate: string;
+  description?: string;
+  mileage?: number;
+  cost?: number;
+  serviceProvider?: string;
+}
+
 function parseDate(dateStr: string | undefined): string | undefined {
-  if (!dateStr || dateStr === "NA" || dateStr === "-") return undefined;
+  if (!dateStr || dateStr === "NA" || dateStr === "-" || dateStr === "") return undefined;
   
-  // Try to parse various date formats
   const date = new Date(dateStr);
   if (!isNaN(date.getTime())) {
     return date.toISOString().split("T")[0];
   }
   
-  // Try MM/DD/YYYY format
   const parts = dateStr.split("/");
   if (parts.length === 3) {
     const [month, day, year] = parts;
@@ -47,22 +69,18 @@ function parseDate(dateStr: string | undefined): string | undefined {
   return undefined;
 }
 
-function parseSpreadsheetData(text: string): ParsedVehicle[] {
+function parseVehicleData(text: string): ParsedVehicle[] {
   const lines = text.trim().split("\n");
   const vehicles: ParsedVehicle[] = [];
   
-  // Skip header row if present
   const startIndex = lines[0]?.toLowerCase().includes("tag") || lines[0]?.toLowerCase().includes("vehicle") ? 1 : 0;
   
   for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
     
-    // Split by tab (from spreadsheet copy) or comma (CSV)
     const cells = line.includes("\t") ? line.split("\t") : line.split(",");
     
-    // Expected format based on the Google Sheets structure:
-    // vehicleNumber, tagNumber, city, vin, registrationExp, stateInspectionExp, cityInspectionDate, insurance, make, model, year, tireSize
     if (cells.length >= 2) {
       const vehicle: ParsedVehicle = {
         vehicleNumber: cells[0]?.trim() || "",
@@ -79,7 +97,6 @@ function parseSpreadsheetData(text: string): ParsedVehicle[] {
         tireSize: cells[11]?.trim() || undefined,
       };
       
-      // Only add if we have at least vehicle number and tag
       if (vehicle.vehicleNumber && vehicle.tagNumber) {
         vehicles.push(vehicle);
       }
@@ -89,13 +106,96 @@ function parseSpreadsheetData(text: string): ParsedVehicle[] {
   return vehicles;
 }
 
+function parseDriverData(text: string): ParsedDriver[] {
+  const lines = text.trim().split("\n");
+  const drivers: ParsedDriver[] = [];
+  
+  const startIndex = lines[0]?.toLowerCase().includes("name") || lines[0]?.toLowerCase().includes("driver") ? 1 : 0;
+  
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    const cells = line.includes("\t") ? line.split("\t") : line.split(",");
+    
+    if (cells.length >= 1) {
+      // Try to parse name - could be "First Last" or separate columns
+      let firstName = "";
+      let lastName = "";
+      
+      const firstCell = cells[0]?.trim() || "";
+      if (firstCell.includes(" ")) {
+        const nameParts = firstCell.split(" ");
+        firstName = nameParts[0] || "";
+        lastName = nameParts.slice(1).join(" ") || "";
+      } else {
+        firstName = firstCell;
+        lastName = cells[1]?.trim() || "";
+      }
+      
+      if (!firstName) continue;
+      
+      const driver: ParsedDriver = {
+        firstName,
+        lastName,
+        phone: cells[2]?.trim() || undefined,
+        email: cells[3]?.trim() || undefined,
+        licenseNumber: cells[4]?.trim() || undefined,
+        licenseExpiration: parseDate(cells[5]?.trim()),
+        licenseState: cells[6]?.trim() || undefined,
+        city: cells[7]?.trim() || undefined,
+        hireDate: parseDate(cells[8]?.trim()),
+      };
+      
+      drivers.push(driver);
+    }
+  }
+  
+  return drivers;
+}
+
+function parseMaintenanceData(text: string): ParsedMaintenance[] {
+  const lines = text.trim().split("\n");
+  const records: ParsedMaintenance[] = [];
+  
+  const startIndex = lines[0]?.toLowerCase().includes("vehicle") || lines[0]?.toLowerCase().includes("date") ? 1 : 0;
+  
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    const cells = line.includes("\t") ? line.split("\t") : line.split(",");
+    
+    if (cells.length >= 2) {
+      const record: ParsedMaintenance = {
+        vehicleNumber: cells[0]?.trim() || "",
+        maintenanceType: cells[1]?.trim()?.toLowerCase().replace(/\s+/g, "_") || "oil_change",
+        serviceDate: parseDate(cells[2]?.trim()) || new Date().toISOString().split("T")[0],
+        description: cells[3]?.trim() || undefined,
+        mileage: cells[4]?.trim() ? parseInt(cells[4].trim()) : undefined,
+        cost: cells[5]?.trim() ? parseFloat(cells[5].trim().replace(/[$,]/g, "")) * 100 : undefined,
+        serviceProvider: cells[6]?.trim() || undefined,
+      };
+      
+      if (record.vehicleNumber) {
+        records.push(record);
+      }
+    }
+  }
+  
+  return records;
+}
+
 export default function ImportVehicles() {
   const [, setLocation] = useLocation();
+  const [importType, setImportType] = useState<ImportType>("vehicles");
   const [rawData, setRawData] = useState("");
   const [parsedVehicles, setParsedVehicles] = useState<ParsedVehicle[]>([]);
+  const [parsedDrivers, setParsedDrivers] = useState<ParsedDriver[]>([]);
+  const [parsedMaintenance, setParsedMaintenance] = useState<ParsedMaintenance[]>([]);
   const [isParsed, setIsParsed] = useState(false);
 
-  const importMutation = trpc.vehicles.bulkImport.useMutation({
+  const vehicleImportMutation = trpc.vehicles.bulkImport.useMutation({
     onSuccess: (result) => {
       toast.success(`Successfully imported ${result.count} vehicles`);
       setLocation("/vehicles");
@@ -105,58 +205,134 @@ export default function ImportVehicles() {
     },
   });
 
+  const driverImportMutation = trpc.drivers.bulkImport.useMutation({
+    onSuccess: (result) => {
+      toast.success(`Successfully imported ${result.count} drivers`);
+      setLocation("/drivers");
+    },
+    onError: (error) => {
+      toast.error("Failed to import drivers: " + error.message);
+    },
+  });
+
   const handleParse = () => {
-    const vehicles = parseSpreadsheetData(rawData);
-    setParsedVehicles(vehicles);
-    setIsParsed(true);
-    
-    if (vehicles.length === 0) {
-      toast.error("No valid vehicles found in the data. Please check the format.");
-    } else {
-      toast.success(`Parsed ${vehicles.length} vehicles. Review and confirm import.`);
+    if (importType === "vehicles") {
+      const vehicles = parseVehicleData(rawData);
+      setParsedVehicles(vehicles);
+      if (vehicles.length === 0) {
+        toast.error("No valid vehicles found. Please check the format.");
+      } else {
+        toast.success(`Parsed ${vehicles.length} vehicles. Review and confirm.`);
+      }
+    } else if (importType === "drivers") {
+      const drivers = parseDriverData(rawData);
+      setParsedDrivers(drivers);
+      if (drivers.length === 0) {
+        toast.error("No valid drivers found. Please check the format.");
+      } else {
+        toast.success(`Parsed ${drivers.length} drivers. Review and confirm.`);
+      }
+    } else if (importType === "maintenance") {
+      const records = parseMaintenanceData(rawData);
+      setParsedMaintenance(records);
+      if (records.length === 0) {
+        toast.error("No valid maintenance records found. Please check the format.");
+      } else {
+        toast.success(`Parsed ${records.length} records. Review and confirm.`);
+      }
     }
+    setIsParsed(true);
   };
 
   const handleImport = () => {
-    if (parsedVehicles.length === 0) return;
-    
-    const vehiclesToImport = parsedVehicles.map(v => ({
-      vehicleNumber: v.vehicleNumber,
-      tagNumber: v.tagNumber,
-      vin: v.vin || null,
-      city: v.city || null,
-      make: v.make || null,
-      model: v.model || null,
-      year: v.year || null,
-      tireSize: v.tireSize || null,
-      registrationExp: v.registrationExp || null,
-      stateInspectionExp: v.stateInspectionExp || null,
-      cityInspectionDate: v.cityInspectionDate || null,
-      insurance: v.insurance || null,
-    }));
-    
-    importMutation.mutate({ vehicles: vehiclesToImport });
+    if (importType === "vehicles" && parsedVehicles.length > 0) {
+      const vehiclesToImport = parsedVehicles.map(v => ({
+        vehicleNumber: v.vehicleNumber,
+        tagNumber: v.tagNumber,
+        vin: v.vin || null,
+        city: v.city || null,
+        make: v.make || null,
+        model: v.model || null,
+        year: v.year || null,
+        tireSize: v.tireSize || null,
+        registrationExp: v.registrationExp || null,
+        stateInspectionExp: v.stateInspectionExp || null,
+        cityInspectionDate: v.cityInspectionDate || null,
+        insurance: v.insurance || null,
+      }));
+      vehicleImportMutation.mutate({ vehicles: vehiclesToImport });
+    } else if (importType === "drivers" && parsedDrivers.length > 0) {
+      const driversToImport = parsedDrivers.map(d => ({
+        firstName: d.firstName,
+        lastName: d.lastName,
+        phone: d.phone || null,
+        email: d.email || null,
+        licenseNumber: d.licenseNumber || null,
+        licenseExpiration: d.licenseExpiration || null,
+        licenseState: d.licenseState || null,
+        city: d.city || null,
+        hireDate: d.hireDate || null,
+      }));
+      driverImportMutation.mutate({ drivers: driversToImport });
+    }
   };
 
   const handleReset = () => {
     setRawData("");
     setParsedVehicles([]);
+    setParsedDrivers([]);
+    setParsedMaintenance([]);
     setIsParsed(false);
   };
+
+  const handleTypeChange = (type: ImportType) => {
+    setImportType(type);
+    handleReset();
+  };
+
+  const isPending = vehicleImportMutation.isPending || driverImportMutation.isPending;
+  const parsedCount = importType === "vehicles" ? parsedVehicles.length : 
+                      importType === "drivers" ? parsedDrivers.length : 
+                      parsedMaintenance.length;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => setLocation("/vehicles")}>
+        <Button variant="ghost" size="icon" onClick={() => setLocation("/")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Import Vehicles</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Import Data</h1>
           <p className="text-muted-foreground">
-            Import vehicle data from a spreadsheet
+            Import vehicles, drivers, or service records from a spreadsheet
           </p>
         </div>
+      </div>
+
+      {/* Import Type Selection */}
+      <div className="flex gap-2">
+        <Button
+          variant={importType === "vehicles" ? "default" : "outline"}
+          onClick={() => handleTypeChange("vehicles")}
+        >
+          <Car className="mr-2 h-4 w-4" />
+          Vehicles
+        </Button>
+        <Button
+          variant={importType === "drivers" ? "default" : "outline"}
+          onClick={() => handleTypeChange("drivers")}
+        >
+          <Users className="mr-2 h-4 w-4" />
+          Drivers
+        </Button>
+        <Button
+          variant={importType === "maintenance" ? "default" : "outline"}
+          onClick={() => handleTypeChange("maintenance")}
+        >
+          <FileSpreadsheet className="mr-2 h-4 w-4" />
+          Service Records
+        </Button>
       </div>
 
       {/* Instructions */}
@@ -165,12 +341,24 @@ export default function ImportVehicles() {
         <AlertTitle>How to import from Google Sheets</AlertTitle>
         <AlertDescription className="mt-2 space-y-2">
           <p>1. Open your Google Sheets spreadsheet</p>
-          <p>2. Select the rows you want to import (including data columns)</p>
+          <p>2. Select the rows you want to import</p>
           <p>3. Copy the selection (Ctrl+C or Cmd+C)</p>
           <p>4. Paste the data into the text area below</p>
-          <p className="text-xs text-muted-foreground mt-2">
-            Expected columns: Vehicle#, TAG#, City, VIN, Registration Exp, State Inspection Exp, City Inspection, Insurance, Make, Model, Year, Tire Size
-          </p>
+          {importType === "vehicles" && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Expected columns: Vehicle#, TAG#, City, VIN, Registration Exp, State Inspection Exp, City Inspection, Insurance, Make, Model, Year, Tire Size
+            </p>
+          )}
+          {importType === "drivers" && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Expected columns: Name (or First, Last), Phone, Email, License#, License Exp, License State, City, Hire Date
+            </p>
+          )}
+          {importType === "maintenance" && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Expected columns: Vehicle#, Service Type, Date, Description, Mileage, Cost, Service Provider
+            </p>
+          )}
         </AlertDescription>
       </Alert>
 
@@ -188,21 +376,20 @@ export default function ImportVehicles() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Textarea
-              placeholder="Paste your spreadsheet data here...
-
-Example format:
-1001	TYE9504	IW	5FNRL6H7XJB094488	4/30/2027	9/30/2026		SAHRAWI	HONDA	odyssey	2018	
-1008	H135941	NN	5FNRL5H95DB051712	10/31/2026	11/30/2026	04/03/2024	SAHRAWI	Honda	Odyssey	2013	235/60/R18"
+              placeholder={
+                importType === "vehicles" 
+                  ? "Paste vehicle data here...\n\nExample:\n1001\tTYE9504\tIW\t5FNRL6H7XJB094488\t4/30/2027\t9/30/2026\t\tSAHRAWI\tHONDA\todyssey\t2018"
+                  : importType === "drivers"
+                  ? "Paste driver data here...\n\nExample:\nJohn Doe\t555-123-4567\tjohn@email.com\tDL12345\t12/31/2025\tVA\tNN"
+                  : "Paste service records here...\n\nExample:\n1001\tOil Change\t1/15/2024\tRegular oil change\t45000\t45.99\tQuick Lube"
+              }
               value={rawData}
               onChange={(e) => setRawData(e.target.value)}
               rows={12}
               className="font-mono text-sm"
             />
             <div className="flex justify-end gap-2">
-              <Button
-                onClick={handleParse}
-                disabled={!rawData.trim()}
-              >
+              <Button onClick={handleParse} disabled={!rawData.trim()}>
                 <Upload className="mr-2 h-4 w-4" />
                 Parse Data
               </Button>
@@ -218,40 +405,92 @@ Example format:
               Review Import Data
             </CardTitle>
             <CardDescription>
-              {parsedVehicles.length} vehicles ready to import
+              {parsedCount} {importType} ready to import
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {parsedVehicles.length > 0 ? (
+            {parsedCount > 0 ? (
               <div className="border rounded-lg overflow-x-auto max-h-96">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Vehicle #</TableHead>
-                      <TableHead>TAG #</TableHead>
-                      <TableHead>City</TableHead>
-                      <TableHead>Make/Model</TableHead>
-                      <TableHead>Year</TableHead>
-                      <TableHead>Insurance</TableHead>
-                      <TableHead>Reg Exp</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {parsedVehicles.map((vehicle, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{vehicle.vehicleNumber}</TableCell>
-                        <TableCell>{vehicle.tagNumber}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{vehicle.city || "-"}</Badge>
-                        </TableCell>
-                        <TableCell>{vehicle.make} {vehicle.model}</TableCell>
-                        <TableCell>{vehicle.year || "-"}</TableCell>
-                        <TableCell>{vehicle.insurance || "-"}</TableCell>
-                        <TableCell>{vehicle.registrationExp || "-"}</TableCell>
+                {importType === "vehicles" && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Vehicle #</TableHead>
+                        <TableHead>TAG #</TableHead>
+                        <TableHead>City</TableHead>
+                        <TableHead>Make/Model</TableHead>
+                        <TableHead>Year</TableHead>
+                        <TableHead>Insurance</TableHead>
+                        <TableHead>Reg Exp</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {parsedVehicles.map((vehicle, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{vehicle.vehicleNumber}</TableCell>
+                          <TableCell>{vehicle.tagNumber}</TableCell>
+                          <TableCell><Badge variant="outline">{vehicle.city || "-"}</Badge></TableCell>
+                          <TableCell>{vehicle.make} {vehicle.model}</TableCell>
+                          <TableCell>{vehicle.year || "-"}</TableCell>
+                          <TableCell>{vehicle.insurance || "-"}</TableCell>
+                          <TableCell>{vehicle.registrationExp || "-"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+                {importType === "drivers" && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>License #</TableHead>
+                        <TableHead>License Exp</TableHead>
+                        <TableHead>City</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {parsedDrivers.map((driver, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{driver.firstName} {driver.lastName}</TableCell>
+                          <TableCell>{driver.phone || "-"}</TableCell>
+                          <TableCell>{driver.email || "-"}</TableCell>
+                          <TableCell>{driver.licenseNumber || "-"}</TableCell>
+                          <TableCell>{driver.licenseExpiration || "-"}</TableCell>
+                          <TableCell><Badge variant="outline">{driver.city || "-"}</Badge></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+                {importType === "maintenance" && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Vehicle #</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Mileage</TableHead>
+                        <TableHead>Cost</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {parsedMaintenance.map((record, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{record.vehicleNumber}</TableCell>
+                          <TableCell><Badge variant="outline">{record.maintenanceType}</Badge></TableCell>
+                          <TableCell>{record.serviceDate}</TableCell>
+                          <TableCell>{record.description || "-"}</TableCell>
+                          <TableCell>{record.mileage?.toLocaleString() || "-"}</TableCell>
+                          <TableCell>{record.cost ? `$${(record.cost / 100).toFixed(2)}` : "-"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -267,11 +506,8 @@ Example format:
               <Button variant="outline" onClick={handleReset}>
                 Start Over
               </Button>
-              <Button
-                onClick={handleImport}
-                disabled={parsedVehicles.length === 0 || importMutation.isPending}
-              >
-                {importMutation.isPending ? (
+              <Button onClick={handleImport} disabled={parsedCount === 0 || isPending}>
+                {isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Importing...
@@ -279,7 +515,7 @@ Example format:
                 ) : (
                   <>
                     <Upload className="mr-2 h-4 w-4" />
-                    Import {parsedVehicles.length} Vehicles
+                    Import {parsedCount} {importType}
                   </>
                 )}
               </Button>
@@ -287,104 +523,6 @@ Example format:
           </CardContent>
         </Card>
       )}
-
-      {/* Sample Data Format */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Expected Data Format</CardTitle>
-          <CardDescription>
-            Your spreadsheet should have columns in this order
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Column</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Required</TableHead>
-                  <TableHead>Example</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">1. Vehicle #</TableCell>
-                  <TableCell>Unique vehicle identifier</TableCell>
-                  <TableCell><Badge>Required</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">1001</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">2. TAG #</TableCell>
-                  <TableCell>License plate number</TableCell>
-                  <TableCell><Badge>Required</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">H135941</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">3. City</TableCell>
-                  <TableCell>Location code</TableCell>
-                  <TableCell><Badge variant="outline">Optional</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">IW, NN, HPT</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">4. VIN</TableCell>
-                  <TableCell>Vehicle Identification Number</TableCell>
-                  <TableCell><Badge variant="outline">Optional</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">5FNRL6H7XJB094488</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">5. Registration Exp</TableCell>
-                  <TableCell>Registration expiration date</TableCell>
-                  <TableCell><Badge variant="outline">Optional</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">4/30/2027</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">6. State Inspection Exp</TableCell>
-                  <TableCell>State inspection expiration</TableCell>
-                  <TableCell><Badge variant="outline">Optional</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">9/30/2026</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">7. City Inspection</TableCell>
-                  <TableCell>City inspection date</TableCell>
-                  <TableCell><Badge variant="outline">Optional</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">04/03/2024</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">8. Insurance</TableCell>
-                  <TableCell>Insurance provider</TableCell>
-                  <TableCell><Badge variant="outline">Optional</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">SAHRAWI</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">9. Make</TableCell>
-                  <TableCell>Vehicle manufacturer</TableCell>
-                  <TableCell><Badge variant="outline">Optional</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">Honda</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">10. Model</TableCell>
-                  <TableCell>Vehicle model</TableCell>
-                  <TableCell><Badge variant="outline">Optional</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">Odyssey</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">11. Year</TableCell>
-                  <TableCell>Model year</TableCell>
-                  <TableCell><Badge variant="outline">Optional</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">2018</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">12. Tire Size</TableCell>
-                  <TableCell>Tire specifications</TableCell>
-                  <TableCell><Badge variant="outline">Optional</Badge></TableCell>
-                  <TableCell className="font-mono text-sm">235/60/R18</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

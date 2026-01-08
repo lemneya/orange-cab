@@ -161,3 +161,77 @@ export const maintenanceRecords = mysqlTable("maintenance_records", {
 
 export type MaintenanceRecord = typeof maintenanceRecords.$inferSelect;
 export type InsertMaintenanceRecord = typeof maintenanceRecords.$inferInsert;
+
+
+/**
+ * Driver status enum
+ */
+export const driverStatusEnum = mysqlEnum("driverStatus", [
+  "active",
+  "inactive",
+  "on_leave",
+  "terminated"
+]);
+
+/**
+ * Drivers table - stores driver information
+ */
+export const drivers = mysqlTable("drivers", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Basic info
+  firstName: varchar("firstName", { length: 100 }).notNull(),
+  lastName: varchar("lastName", { length: 100 }).notNull(),
+  
+  // Contact info
+  phone: varchar("phone", { length: 20 }),
+  email: varchar("email", { length: 320 }),
+  
+  // License info
+  licenseNumber: varchar("licenseNumber", { length: 50 }),
+  licenseExpiration: date("licenseExpiration"),
+  licenseState: varchar("licenseState", { length: 10 }),
+  
+  // Assignment
+  assignedVehicleId: int("assignedVehicleId").references(() => vehicles.id, { onDelete: "set null" }),
+  city: varchar("city", { length: 10 }), // IW, NN, HPT, VB
+  
+  // Status
+  status: driverStatusEnum.default("active").notNull(),
+  hireDate: date("hireDate"),
+  
+  // Emergency contact
+  emergencyContactName: varchar("emergencyContactName", { length: 200 }),
+  emergencyContactPhone: varchar("emergencyContactPhone", { length: 20 }),
+  
+  // Notes
+  notes: text("notes"),
+  
+  // Audit
+  createdBy: int("createdBy").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Driver = typeof drivers.$inferSelect;
+export type InsertDriver = typeof drivers.$inferInsert;
+
+/**
+ * Driver vehicle assignment history - tracks which drivers were assigned to which vehicles
+ */
+export const driverVehicleHistory = mysqlTable("driver_vehicle_history", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  driverId: int("driverId").notNull().references(() => drivers.id, { onDelete: "cascade" }),
+  vehicleId: int("vehicleId").notNull().references(() => vehicles.id, { onDelete: "cascade" }),
+  
+  assignedDate: date("assignedDate").notNull(),
+  unassignedDate: date("unassignedDate"),
+  
+  notes: text("notes"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type DriverVehicleHistory = typeof driverVehicleHistory.$inferSelect;
+export type InsertDriverVehicleHistory = typeof driverVehicleHistory.$inferInsert;

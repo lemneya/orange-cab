@@ -49,6 +49,16 @@ import {
   createMaintenanceRecord,
   updateMaintenanceRecord,
   deleteMaintenanceRecord,
+  getDrivers,
+  getDriverById,
+  getDriverByVehicleId,
+  createDriver,
+  updateDriver,
+  deleteDriver,
+  assignVehicleToDriver,
+  getDriverVehicleHistory,
+  bulkCreateDrivers,
+  getDriverStats,
 } from "./db";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
@@ -146,6 +156,45 @@ const maintenanceInputSchema = z.object({
   nextServiceDate: z.string().optional().nullable(),
   nextServiceMileage: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),
+});
+
+// Driver schemas
+const driverStatusSchema = z.enum(["active", "inactive", "on_leave", "terminated"]);
+
+const driverFiltersSchema = z.object({
+  search: z.string().optional(),
+  city: z.string().optional(),
+  status: driverStatusSchema.optional(),
+  hasVehicle: z.boolean().optional(),
+});
+
+const driverInputSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  phone: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  licenseNumber: z.string().optional().nullable(),
+  licenseExpiration: z.string().optional().nullable(),
+  licenseState: z.string().optional().nullable(),
+  assignedVehicleId: z.number().optional().nullable(),
+  city: z.string().optional().nullable(),
+  status: driverStatusSchema.optional(),
+  hireDate: z.string().optional().nullable(),
+  emergencyContactName: z.string().optional().nullable(),
+  emergencyContactPhone: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
+const bulkDriverSchema = z.object({
+  firstName: z.string(),
+  lastName: z.string(),
+  phone: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  licenseNumber: z.string().optional().nullable(),
+  licenseExpiration: z.string().optional().nullable(),
+  licenseState: z.string().optional().nullable(),
+  city: z.string().optional().nullable(),
+  hireDate: z.string().optional().nullable(),
 });
 
 export const appRouter = router({
@@ -295,6 +344,104 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return getDocumentById(input.id);
       }),
+  }),
+
+  drivers: router({
+    // List drivers with optional filters
+    list: protectedProcedure
+      .input(driverFiltersSchema.optional())
+      .query(async ({ input }) => {
+        return getDrivers(input || {});
+      }),
+
+    // Get single driver by ID
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return getDriverById(input.id);
+      }),
+
+    // Get driver by vehicle ID
+    getByVehicleId: protectedProcedure
+      .input(z.object({ vehicleId: z.number() }))
+      .query(async ({ input }) => {
+        return getDriverByVehicleId(input.vehicleId);
+      }),
+
+    // Create new driver
+    create: protectedProcedure
+      .input(driverInputSchema)
+      .mutation(async ({ input, ctx }) => {
+        const data = {
+          ...input,
+          licenseExpiration: parseDate(input.licenseExpiration),
+          hireDate: parseDate(input.hireDate),
+          createdBy: ctx.user.id,
+        };
+        return createDriver(data);
+      }),
+
+    // Update driver
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: driverInputSchema.partial(),
+      }))
+      .mutation(async ({ input }) => {
+        const updateData: Record<string, unknown> = { ...input.data };
+        
+        if (input.data.licenseExpiration !== undefined) {
+          updateData.licenseExpiration = parseDate(input.data.licenseExpiration);
+        }
+        if (input.data.hireDate !== undefined) {
+          updateData.hireDate = parseDate(input.data.hireDate);
+        }
+        
+        return updateDriver(input.id, updateData);
+      }),
+
+    // Delete driver
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        return deleteDriver(input.id);
+      }),
+
+    // Assign vehicle to driver
+    assignVehicle: protectedProcedure
+      .input(z.object({
+        driverId: z.number(),
+        vehicleId: z.number().nullable(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return assignVehicleToDriver(input.driverId, input.vehicleId, input.notes);
+      }),
+
+    // Get driver's vehicle history
+    vehicleHistory: protectedProcedure
+      .input(z.object({ driverId: z.number() }))
+      .query(async ({ input }) => {
+        return getDriverVehicleHistory(input.driverId);
+      }),
+
+    // Bulk import drivers
+    bulkImport: protectedProcedure
+      .input(z.object({ drivers: z.array(bulkDriverSchema) }))
+      .mutation(async ({ input, ctx }) => {
+        const driverData = input.drivers.map(d => ({
+          ...d,
+          licenseExpiration: parseDate(d.licenseExpiration),
+          hireDate: parseDate(d.hireDate),
+          createdBy: ctx.user.id,
+        }));
+        return bulkCreateDrivers(driverData);
+      }),
+
+    // Get driver stats
+    stats: protectedProcedure.query(async () => {
+      return getDriverStats();
+    }),
   }),
 
   maintenance: router({

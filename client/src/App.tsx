@@ -10,6 +10,9 @@ import VehicleList from "./pages/VehicleList";
 import VehicleDetail from "./pages/VehicleDetail";
 import VehicleForm from "./pages/VehicleForm";
 import ImportVehicles from "./pages/ImportVehicles";
+import DriverList from "./pages/DriverList";
+import DriverDetail from "./pages/DriverDetail";
+import DriverForm from "./pages/DriverForm";
 
 function Router() {
   return (
@@ -21,6 +24,10 @@ function Router() {
         <Route path="/vehicles/:id" component={VehicleDetail} />
         <Route path="/vehicles/:id/edit" component={VehicleForm} />
         <Route path="/import" component={ImportVehicles} />
+        <Route path="/drivers" component={DriverList} />
+        <Route path="/drivers/new" component={DriverForm} />
+        <Route path="/drivers/:id" component={DriverDetail} />
+        <Route path="/drivers/:id/edit" component={DriverForm} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

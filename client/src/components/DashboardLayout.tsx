@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, Car, Upload, LogOut, PanelLeft } from "lucide-react";
+import { LayoutDashboard, Car, Upload, LogOut, PanelLeft, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -30,6 +30,7 @@ import { Button } from "./ui/button";
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Car, label: "Vehicles", path: "/vehicles" },
+  { icon: Users, label: "Drivers", path: "/drivers" },
   { icon: Upload, label: "Import Data", path: "/import" },
 ];
 

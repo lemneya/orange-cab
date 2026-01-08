@@ -39,3 +39,16 @@
 - [x] Maintenance CRUD API procedures
 - [x] Maintenance history UI in vehicle detail page
 - [x] Add maintenance record form
+
+
+## New Features - Drivers & Service Integration
+- [x] Drivers database table (name, phone, email, license, assigned vehicle)
+- [x] Driver CRUD API procedures
+- [x] Driver management UI page
+- [x] Link drivers to vehicles (vehicle assignment)
+- [x] Service records enhancement (oil changes, tire rotations, repairs)
+- [x] Service type categories (Oil Change, Tire Service, Brake Service, etc.)
+- [x] Import drivers from spreadsheet
+- [x] Import service/oil change records from spreadsheet
+- [x] Dashboard statistics for drivers and services
+- [x] Driver detail view with assigned vehicle history
