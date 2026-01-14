@@ -48,6 +48,8 @@ import RevenueReports from "./pages/billing/RevenueReports";
 
 // Payroll
 import DriverPayments from "./pages/payroll/DriverPayments";
+import DriverPayrollDetail from "./pages/payroll/DriverPayrollDetail";
+import ImportErrors from "./pages/payroll/ImportErrors";
 import EmployeePayroll from "./pages/payroll/EmployeePayroll";
 import BillPayments from "./pages/payroll/BillPayments";
 
@@ -109,6 +111,8 @@ function Router() {
         
         {/* Payroll */}
         <Route path="/payroll/drivers" component={DriverPayments} />
+        <Route path="/payroll/drivers/:id" component={DriverPayrollDetail} />
+        <Route path="/payroll/import-errors" component={ImportErrors} />
         <Route path="/payroll/employees" component={EmployeePayroll} />
         <Route path="/payroll/bills" component={BillPayments} />
         

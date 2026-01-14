@@ -939,3 +939,166 @@ export const activityLog = mysqlTable("activity_log", {
 
 export type ActivityLog = typeof activityLog.$inferSelect;
 export type InsertActivityLog = typeof activityLog.$inferInsert;
+
+
+// =====================================================
+// OC-PAY-2: PAYROLL SHEET PARITY TABLES
+// =====================================================
+
+/**
+ * Pay scheme types for driver contracts
+ */
+export const paySchemeEnum = mysqlEnum("payScheme", [
+  "per_trip",      // Flat rate per trip
+  "per_mile",      // Rate per mile
+  "hybrid"         // Base + mileage
+]);
+
+/**
+ * Contract type for drivers
+ */
+export const contractTypeEnum = mysqlEnum("contractType", [
+  "standard",
+  "wheelchair",
+  "long_distance",
+  "premium"
+]);
+
+/**
+ * Driver pay contracts - tracks pay scheme and rates (OC-PAY-2)
+ * This extends the existing driverContracts table with pay-specific fields
+ */
+export const driverPayContracts = mysqlTable("driver_pay_contracts", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  driverId: int("driverId").notNull().references(() => drivers.id, { onDelete: "cascade" }),
+  
+  // Contract details
+  contractType: contractTypeEnum.default("standard").notNull(),
+  payScheme: paySchemeEnum.default("per_mile").notNull(),
+  
+  // Rates (in cents for precision)
+  ratePerMile: int("ratePerMile"), // cents per mile
+  ratePerTrip: int("ratePerTrip"), // cents per trip (flat)
+  baseRate: int("baseRate"),       // base amount for hybrid
+  
+  // Effective dates
+  effectiveDate: date("effectiveDate").notNull(),
+  endDate: date("endDate"),
+  
+  // Status
+  isActive: boolean("isActive").default(true).notNull(),
+  
+  // Document reference
+  contractDocumentUrl: varchar("contractDocumentUrl", { length: 1000 }),
+  
+  notes: text("notes"),
+  createdBy: int("createdBy").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DriverPayContract = typeof driverPayContracts.$inferSelect;
+export type InsertDriverPayContract = typeof driverPayContracts.$inferInsert;
+
+/**
+ * Payroll adjustment types
+ */
+export const adjustmentTypeEnum = mysqlEnum("adjustmentType", [
+  "gas",        // Gas reimbursement
+  "credit",     // Credits/bonuses
+  "advance",    // Pay advance
+  "deduction"   // General deductions (tickets, tolls, etc.)
+]);
+
+/**
+ * Payroll adjustments - tracks gas, credits, advances, deductions
+ * Formula: net = (miles * rate) + total_dollars + credits - gas - deductions
+ */
+export const payrollAdjustments = mysqlTable("payroll_adjustments", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Link to driver payment record
+  driverPaymentId: int("driverPaymentId").references(() => driverPayments.id, { onDelete: "cascade" }),
+  
+  // Or link directly to driver + period for flexibility
+  driverId: int("driverId").notNull().references(() => drivers.id, { onDelete: "cascade" }),
+  payrollPeriodId: int("payrollPeriodId").notNull().references(() => payrollPeriods.id, { onDelete: "cascade" }),
+  
+  // Adjustment details
+  adjustmentType: adjustmentTypeEnum.notNull(),
+  amount: int("amount").notNull(), // in cents (positive value, sign determined by type)
+  
+  // Description and reference
+  memo: text("memo"),
+  sourceRef: varchar("sourceRef", { length: 100 }), // e.g., "TICKET-123", "TOLL-456"
+  sourceType: varchar("sourceType", { length: 50 }), // "ticket", "toll", "manual", etc.
+  sourceId: int("sourceId"), // Reference to tickets_and_tolls.id if applicable
+  
+  // Auto-suggested flag
+  isAutoSuggested: boolean("isAutoSuggested").default(false),
+  isApproved: boolean("isApproved").default(true), // Auto-suggested items need approval
+  
+  createdBy: int("createdBy").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PayrollAdjustment = typeof payrollAdjustments.$inferSelect;
+export type InsertPayrollAdjustment = typeof payrollAdjustments.$inferInsert;
+
+/**
+ * Payroll import errors - tracks failed imports from MediRoute
+ */
+export const payrollImportErrors = mysqlTable("payroll_import_errors", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Import batch info
+  importBatchId: varchar("importBatchId", { length: 50 }).notNull(),
+  importDate: timestamp("importDate").defaultNow().notNull(),
+  
+  // Error details
+  rowNumber: int("rowNumber").notNull(),
+  reason: text("reason").notNull(),
+  rawPayload: text("rawPayload"), // JSON string of the original row data
+  
+  // Resolution
+  isResolved: boolean("isResolved").default(false),
+  resolvedBy: int("resolvedBy").references(() => users.id),
+  resolvedDate: timestamp("resolvedDate"),
+  resolutionNotes: text("resolutionNotes"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PayrollImportError = typeof payrollImportErrors.$inferSelect;
+export type InsertPayrollImportError = typeof payrollImportErrors.$inferInsert;
+
+/**
+ * Payroll import batches - tracks MediRoute import sessions
+ */
+export const payrollImportBatches = mysqlTable("payroll_import_batches", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  batchId: varchar("batchId", { length: 50 }).notNull().unique(),
+  
+  payrollPeriodId: int("payrollPeriodId").notNull().references(() => payrollPeriods.id, { onDelete: "cascade" }),
+  
+  // Import stats
+  totalRows: int("totalRows").default(0),
+  successfulRows: int("successfulRows").default(0),
+  failedRows: int("failedRows").default(0),
+  
+  // Source info
+  sourceFile: varchar("sourceFile", { length: 255 }),
+  sourceType: mysqlEnum("sourceType", ["mediroute_api", "csv_upload", "manual"]).default("mediroute_api"),
+  
+  status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending"),
+  
+  importedBy: int("importedBy").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export type PayrollImportBatch = typeof payrollImportBatches.$inferSelect;
+export type InsertPayrollImportBatch = typeof payrollImportBatches.$inferInsert;
