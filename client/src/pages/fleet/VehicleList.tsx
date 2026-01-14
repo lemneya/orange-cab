@@ -48,7 +48,7 @@ export default function VehicleList() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const isExpiringSoon = (dateStr: string | null) => {
+  const isExpiringSoon = (dateStr: string | Date | null) => {
     if (!dateStr) return false;
     const date = new Date(dateStr);
     const thirtyDaysFromNow = new Date();

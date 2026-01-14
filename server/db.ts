@@ -19,6 +19,7 @@ import {
   payrollPeriods,
   driverPayments,
   driverContracts,
+  driverPayContracts,
   payrollAdjustments,
   payrollImportErrors,
   payrollImportBatches,
@@ -30,6 +31,7 @@ import {
   InsertPayrollAdjustment,
   InsertPayrollImportError,
   InsertPayrollImportBatch,
+  InsertDriverPayContract,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -705,26 +707,55 @@ export async function getActiveContractForDriver(driverId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  // First try to get pay contract from driverPayContracts
   const today = new Date().toISOString().split('T')[0];
   
+  const payContract = await db
+    .select()
+    .from(driverPayContracts)
+    .where(
+      and(
+        eq(driverPayContracts.driverId, driverId),
+        eq(driverPayContracts.isActive, true),
+        sql`${driverPayContracts.effectiveDate} <= ${today}`,
+        or(
+          sql`${driverPayContracts.endDate} IS NULL`,
+          sql`${driverPayContracts.endDate} >= ${today}`
+        )
+      )
+    )
+    .orderBy(desc(driverPayContracts.effectiveDate))
+    .limit(1);
+
+  if (payContract[0]) {
+    return payContract[0];
+  }
+
+  // Fallback to regular driverContracts
   const result = await db
     .select()
     .from(driverContracts)
     .where(
       and(
         eq(driverContracts.driverId, driverId),
-        eq(driverContracts.isActive, true),
-        sql`${driverContracts.effectiveDate} <= ${today}`,
-        or(
-          sql`${driverContracts.endDate} IS NULL`,
-          sql`${driverContracts.endDate} >= ${today}`
-        )
+        eq(driverContracts.status, "active")
       )
     )
-    .orderBy(desc(driverContracts.effectiveDate))
+    .orderBy(desc(driverContracts.startDate))
     .limit(1);
 
   return result[0] || null;
+}
+
+export async function getDriverPayContracts(driverId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select()
+    .from(driverPayContracts)
+    .where(eq(driverPayContracts.driverId, driverId))
+    .orderBy(desc(driverPayContracts.effectiveDate));
 }
 
 export async function getDriverContracts(driverId: number) {
@@ -735,7 +766,15 @@ export async function getDriverContracts(driverId: number) {
     .select()
     .from(driverContracts)
     .where(eq(driverContracts.driverId, driverId))
-    .orderBy(desc(driverContracts.effectiveDate));
+    .orderBy(desc(driverContracts.startDate));
+}
+
+export async function createDriverPayContract(data: InsertDriverPayContract) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(driverPayContracts).values(data);
+  return { id: Number(result[0].insertId) };
 }
 
 export async function createDriverContract(data: InsertDriverContract) {

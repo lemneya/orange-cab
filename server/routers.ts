@@ -648,12 +648,19 @@ export const appRouter = router({
           notes: z.string().optional(),
         }))
         .mutation(async ({ input, ctx }) => {
-          return createDriverContract({
-            ...input,
-            effectiveDate: new Date(input.effectiveDate),
-            endDate: input.endDate ? new Date(input.endDate) : null,
+          return createDriverPayContract({
+            driverId: input.driverId,
+            contractType: input.contractType,
+            payScheme: input.payScheme,
+            ratePerMile: input.ratePerMile,
+            ratePerTrip: input.ratePerTrip,
+            baseRate: input.baseRate,
+            effectiveDate: input.effectiveDate, // Drizzle date type accepts string in YYYY-MM-DD format
+            endDate: input.endDate, // Drizzle date type accepts string in YYYY-MM-DD format
+            contractDocumentUrl: input.contractDocumentUrl,
+            notes: input.notes,
             createdBy: ctx.user.id,
-          });
+          } as any);
         }),
 
       update: protectedProcedure
@@ -824,10 +831,16 @@ export const appRouter = router({
           }
 
           // Create/update driver payments
-          for (const [driverId, data] of driverTrips) {
+          for (const [driverId, data] of Array.from(driverTrips.entries())) {
             // Get driver's contract rate
             const contract = await getActiveContractForDriver(driverId);
-            const ratePerMile = contract?.ratePerMile || 150; // Default $1.50/mile in cents
+            // Handle both driverPayContracts (ratePerMile) and driverContracts (payRate)
+            let ratePerMile = 150; // Default $1.50/mile in cents
+            if (contract && 'ratePerMile' in contract && contract.ratePerMile) {
+              ratePerMile = contract.ratePerMile;
+            } else if (contract && 'payRate' in contract && contract.payRate) {
+              ratePerMile = Math.round(parseFloat(contract.payRate) * 100);
+            }
 
             // Calculate pay
             const grossPay = Math.round(data.totalMiles * ratePerMile);
@@ -886,7 +899,7 @@ export const appRouter = router({
           payment.tripCount?.toString() || "0",
           payment.totalMiles?.toString() || "0",
           (payment.grossPay / 100).toFixed(2),
-          (payment.deductions / 100).toFixed(2),
+          ((payment.deductions || 0) / 100).toFixed(2),
           (payment.netPay / 100).toFixed(2),
           payment.status,
         ]);
@@ -920,7 +933,9 @@ import {
   upsertDriverPayment,
   getActiveContractForDriver,
   getDriverContracts,
+  getDriverPayContracts,
   createDriverContract,
+  createDriverPayContract,
   updateDriverContract,
   getAdjustmentsForPayment,
   getAdjustmentsForDriverPeriod,

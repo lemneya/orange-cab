@@ -1,9 +1,18 @@
 /**
  * OC-PAY-2: Payroll Calculation Utilities
  * 
- * This module implements the spreadsheet parity formula for calculating driver net pay:
+ * STANDARDIZED FORMULA (Spreadsheet Parity):
  * net = (miles * rate) + total_dollars + credits - gas - deductions
+ * 
+ * Where:
+ * - miles * rate = gross pay from mileage
+ * - total_dollars = MAT/bonus bucket (flat amounts)
+ * - credits = advances, bonuses applied
+ * - gas = gas expenses deducted
+ * - deductions = tickets, tolls, other deductions
  */
+
+// ============ CORE INTERFACES ============
 
 export interface PayrollAdjustment {
   id: number;
@@ -15,12 +24,13 @@ export interface PayrollAdjustment {
 export interface DriverPayrollData {
   miles: number;
   ratePerMile: number; // in cents (e.g., 150 = $1.50)
-  totalDollars?: number; // additional flat amounts in cents
+  totalDollars?: number; // MAT/bonus bucket in cents
   adjustments: PayrollAdjustment[];
 }
 
 export interface PayrollCalculationResult {
-  grossPay: number; // in cents
+  grossPay: number; // in cents (miles * rate)
+  totalDollars: number; // in cents (MAT/bonus)
   gas: number; // in cents
   credits: number; // in cents
   deductions: number; // in cents
@@ -30,19 +40,58 @@ export interface PayrollCalculationResult {
   exceptions: string[];
 }
 
+// ============ SIMPLE CALCULATION INTERFACE (for tests) ============
+
+export interface SimplePayrollInput {
+  miles: number;
+  ratePerMile: number; // in dollars (e.g., 1.50)
+  totalDollars?: number; // in dollars
+  credits?: number; // in dollars
+  gas?: number; // in dollars
+  deductions?: number; // in dollars
+}
+
+export interface SimplePayrollResult {
+  gross: number; // in dollars (miles * rate)
+  net: number; // in dollars
+}
+
 /**
- * Calculate net pay using the spreadsheet formula:
+ * Simple calculation function for testing and direct use
+ * Uses the STANDARDIZED FORMULA:
  * net = (miles * rate) + total_dollars + credits - gas - deductions
- * 
- * @param data - Driver payroll data including miles, rate, and adjustments
- * @returns Calculation result with gross, net, and breakdown
  */
-export function calculateNetPay(data: DriverPayrollData): PayrollCalculationResult {
+export function calculateNetPay(input: SimplePayrollInput): SimplePayrollResult {
+  const {
+    miles,
+    ratePerMile,
+    totalDollars = 0,
+    credits = 0,
+    gas = 0,
+    deductions = 0,
+  } = input;
+
+  // Gross = miles * rate
+  const gross = miles * ratePerMile;
+  
+  // Net = gross + total_dollars + credits - gas - deductions
+  const net = gross + totalDollars + credits - gas - deductions;
+
+  return { gross, net };
+}
+
+// ============ FULL CALCULATION (with adjustments array) ============
+
+/**
+ * Full calculation with adjustment breakdown
+ * Uses the STANDARDIZED FORMULA:
+ * net = (miles * rate) + total_dollars + credits - gas - deductions
+ */
+export function calculateFullPayroll(data: DriverPayrollData): PayrollCalculationResult {
   const { miles, ratePerMile, totalDollars = 0, adjustments } = data;
 
-  // Calculate gross pay from miles
-  const grossFromMiles = Math.round(miles * ratePerMile);
-  const grossPay = grossFromMiles + totalDollars;
+  // Calculate gross pay from miles (in cents)
+  const grossPay = Math.round(miles * ratePerMile);
 
   // Sum up adjustments by type (only approved ones)
   let gas = 0;
@@ -69,8 +118,9 @@ export function calculateNetPay(data: DriverPayrollData): PayrollCalculationResu
   // Calculate total adjustments (positive = adds to pay, negative = subtracts)
   const totalAdjustments = credits - gas - deductions;
 
-  // Calculate net pay using spreadsheet formula
-  const netPay = grossPay + totalAdjustments;
+  // Calculate net pay using STANDARDIZED FORMULA:
+  // net = (miles * rate) + total_dollars + credits - gas - deductions
+  const netPay = grossPay + totalDollars + totalAdjustments;
 
   // Check for exceptions
   const exceptions: string[] = [];
@@ -95,6 +145,7 @@ export function calculateNetPay(data: DriverPayrollData): PayrollCalculationResu
 
   return {
     grossPay,
+    totalDollars,
     gas,
     credits,
     deductions,
@@ -105,12 +156,14 @@ export function calculateNetPay(data: DriverPayrollData): PayrollCalculationResu
   };
 }
 
+// ============ CURRENCY FORMATTING ============
+
 /**
  * Format cents to dollar string
  * @param cents - Amount in cents
  * @returns Formatted dollar string (e.g., "$1,234.56")
  */
-export function formatCurrency(cents: number): string {
+export function formatCurrencyCents(cents: number): string {
   const dollars = cents / 100;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -119,87 +172,52 @@ export function formatCurrency(cents: number): string {
 }
 
 /**
+ * Format dollars to string (for simple interface)
+ * @param dollars - Amount in dollars
+ * @returns Formatted dollar string (e.g., "$1,234.56")
+ */
+export function formatCurrency(dollars: number): string {
+  if (dollars < 0) {
+    return `-$${Math.abs(dollars).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return `$${dollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Parse dollar string to number
+ * @param dollarString - Dollar string (e.g., "$1,234.56" or "1234.56")
+ * @returns Amount in dollars
+ */
+export function parseCurrency(dollarString: string): number {
+  if (!dollarString || dollarString.trim() === "") return 0;
+  const cleaned = dollarString.replace(/[$,]/g, "");
+  const dollars = parseFloat(cleaned);
+  if (isNaN(dollars)) return 0;
+  return dollars;
+}
+
+/**
  * Parse dollar string to cents
  * @param dollarString - Dollar string (e.g., "$1,234.56" or "1234.56")
  * @returns Amount in cents
  */
-export function parseCurrency(dollarString: string): number {
-  const cleaned = dollarString.replace(/[$,]/g, "");
-  const dollars = parseFloat(cleaned);
-  if (isNaN(dollars)) return 0;
-  return Math.round(dollars * 100);
+export function parseCurrencyToCents(dollarString: string): number {
+  return Math.round(parseCurrency(dollarString) * 100);
 }
 
-/**
- * Calculate suggested deduction amount from tickets/tolls
- * @param tickets - Array of ticket/toll records
- * @returns Total suggested deduction in cents
- */
-export function calculateSuggestedDeductions(
-  tickets: Array<{ amount: number; status: string }>
-): number {
-  return tickets
-    .filter(t => t.status === "pending")
-    .reduce((sum, t) => sum + t.amount, 0);
-}
+// ============ CSV EXPORT ============
 
-/**
- * Validate payroll data before submission
- * @param data - Driver payroll data
- * @returns Validation result with errors if any
- */
-export function validatePayrollData(data: DriverPayrollData): {
-  isValid: boolean;
-  errors: string[];
-} {
-  const errors: string[] = [];
-
-  if (data.miles < 0) {
-    errors.push("Miles cannot be negative");
-  }
-
-  if (data.ratePerMile <= 0) {
-    errors.push("Rate per mile must be positive");
-  }
-
-  for (const adj of data.adjustments) {
-    if (adj.amount < 0) {
-      errors.push(`Adjustment amount cannot be negative (ID: ${adj.id})`);
-    }
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-  };
-}
-
-/**
- * Generate CSV row for payroll export
- * @param driver - Driver payment data
- * @param calculation - Calculation result
- * @returns CSV row as array of strings
- */
-export function generateCsvRow(
-  driver: {
-    name: string;
-    driverId: string;
-    trips: number;
-    miles: number;
-  },
-  calculation: PayrollCalculationResult
-): string[] {
-  return [
-    driver.name,
-    driver.driverId,
-    driver.trips.toString(),
-    driver.miles.toString(),
-    (calculation.grossPay / 100).toFixed(2),
-    (calculation.gas / 100).toFixed(2),
-    (calculation.credits / 100).toFixed(2),
-    (calculation.deductions / 100).toFixed(2),
-    (calculation.netPay / 100).toFixed(2),
-  ];
+export interface DriverForCsv {
+  id: number;
+  name: string;
+  driverId: string;
+  trips: number;
+  miles: number;
+  rate: number; // in dollars
+  totalDollars: number; // in dollars (MAT/bonus)
+  gas: number; // in dollars
+  credits: number; // in dollars
+  deductions: number; // in dollars
 }
 
 /**
@@ -207,89 +225,83 @@ export function generateCsvRow(
  * Export payroll CSV includes: driver, trips, miles, gross, deductions, net.
  * 
  * Generate full CSV content for payroll export with all required fields
- * @param payments - Array of driver payments with calculations
- * @param periodInfo - Pay period information
- * @returns CSV content as string
+ * Including Total$/MAT column for spreadsheet parity
  */
-export function generatePayrollCsv(
-  payments: Array<{
-    driver: {
-      name: string;
-      driverId: string;
-      trips: number;
-      miles: number;
-      ratePerMile?: number;
-    };
-    calculation: PayrollCalculationResult;
-    status: string;
-  }>,
-  periodInfo?: {
-    periodStart: string;
-    periodEnd: string;
-    payDate: string;
-  }
-): string {
-  // CSV Headers as per acceptance criteria
+export function generatePayrollCsv(drivers: DriverForCsv[], weekEnding: string): string {
+  // CSV Headers - includes Total$/MAT for spreadsheet parity
   const headers = [
     "Driver Name",
     "Driver ID",
     "Trips",
     "Miles",
     "Rate/Mile",
-    "Gross Pay",
+    "Gross",
+    "Total$/MAT",
     "Gas",
     "Credits",
     "Deductions",
-    "Net Pay",
-    "Status",
+    "Net",
   ];
 
-  const rows = payments.map(({ driver, calculation, status }) => [
-    // Escape driver name if it contains commas
-    driver.name.includes(",") ? `"${driver.name}"` : driver.name,
-    driver.driverId,
-    driver.trips.toString(),
-    driver.miles.toFixed(2),
-    driver.ratePerMile ? (driver.ratePerMile / 100).toFixed(2) : "1.50",
-    (calculation.grossPay / 100).toFixed(2),
-    (calculation.gas / 100).toFixed(2),
-    (calculation.credits / 100).toFixed(2),
-    (calculation.deductions / 100).toFixed(2),
-    (calculation.netPay / 100).toFixed(2),
-    status,
-  ]);
+  const rows = drivers.map(driver => {
+    const { gross, net } = calculateNetPay({
+      miles: driver.miles,
+      ratePerMile: driver.rate,
+      totalDollars: driver.totalDollars,
+      credits: driver.credits,
+      gas: driver.gas,
+      deductions: driver.deductions,
+    });
 
-  // Build CSV with optional period header
+    return [
+      driver.name.includes(",") ? `"${driver.name}"` : driver.name,
+      driver.driverId,
+      driver.trips.toString(),
+      driver.miles.toFixed(2),
+      driver.rate.toFixed(2),
+      gross.toFixed(2),
+      driver.totalDollars.toFixed(2),
+      driver.gas.toFixed(2),
+      driver.credits.toFixed(2),
+      driver.deductions.toFixed(2),
+      net.toFixed(2),
+    ];
+  });
+
+  // Build CSV
   const csvLines: string[] = [];
-  
-  if (periodInfo) {
-    csvLines.push(`# Payroll Export`);
-    csvLines.push(`# Period: ${periodInfo.periodStart} to ${periodInfo.periodEnd}`);
-    csvLines.push(`# Pay Date: ${periodInfo.payDate}`);
-    csvLines.push(`# Generated: ${new Date().toISOString()}`);
-    csvLines.push("");
-  }
-  
+  csvLines.push(`# Orange Cab Payroll Export`);
+  csvLines.push(`# Week Ending: ${weekEnding}`);
+  csvLines.push(`# Generated: ${new Date().toISOString()}`);
+  csvLines.push(`# Formula: Net = (Miles × Rate) + Total$/MAT + Credits − Gas − Deductions`);
+  csvLines.push("");
   csvLines.push(headers.join(","));
   csvLines.push(...rows.map(row => row.join(",")));
-  
-  // Add summary row
-  const summary = calculatePayrollSummary(payments.map(p => p.calculation));
+
+  // Add summary
+  const summary = calculatePayrollSummary(drivers.map(d => ({
+    net: calculateNetPay({
+      miles: d.miles,
+      ratePerMile: d.rate,
+      totalDollars: d.totalDollars,
+      credits: d.credits,
+      gas: d.gas,
+      deductions: d.deductions,
+    }).net,
+    status: "pending",
+    hasException: false,
+  })));
+
   csvLines.push("");
   csvLines.push(`# Summary`);
-  csvLines.push(`# Total Drivers: ${payments.length}`);
-  csvLines.push(`# Total Gross: $${(summary.totalGross / 100).toFixed(2)}`);
-  csvLines.push(`# Total Deductions: $${(summary.totalDeductions / 100).toFixed(2)}`);
-  csvLines.push(`# Total Net: $${(summary.totalNet / 100).toFixed(2)}`);
-  csvLines.push(`# Exceptions: ${summary.exceptionsCount}`);
+  csvLines.push(`# Total Drivers: ${drivers.length}`);
+  csvLines.push(`# Total Payout: $${summary.totalPayout.toFixed(2)}`);
 
   return csvLines.join("\n");
 }
 
 /**
  * Generate a downloadable CSV file
- * @param csvContent - CSV content string
- * @param filename - Filename for download
  */
 export function downloadCsv(csvContent: string, filename: string): void {
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -304,47 +316,32 @@ export function downloadCsv(csvContent: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-/**
- * Calculate payroll summary statistics
- * @param payments - Array of payment calculations
- * @returns Summary statistics
- */
-export function calculatePayrollSummary(
-  payments: PayrollCalculationResult[]
-): {
-  totalGross: number;
-  totalGas: number;
-  totalCredits: number;
-  totalDeductions: number;
-  totalNet: number;
-  averageNet: number;
-  exceptionsCount: number;
-} {
-  const summary = payments.reduce(
-    (acc, p) => ({
-      totalGross: acc.totalGross + p.grossPay,
-      totalGas: acc.totalGas + p.gas,
-      totalCredits: acc.totalCredits + p.credits,
-      totalDeductions: acc.totalDeductions + p.deductions,
-      totalNet: acc.totalNet + p.netPay,
-      exceptionsCount: acc.exceptionsCount + (p.hasExceptions ? 1 : 0),
-    }),
-    {
-      totalGross: 0,
-      totalGas: 0,
-      totalCredits: 0,
-      totalDeductions: 0,
-      totalNet: 0,
-      exceptionsCount: 0,
-    }
-  );
+// ============ PAYROLL SUMMARY ============
 
-  return {
-    ...summary,
-    averageNet: payments.length > 0 ? summary.totalNet / payments.length : 0,
-  };
+export interface PayrollSummaryInput {
+  net: number;
+  status: string;
+  hasException: boolean;
 }
 
+export interface PayrollSummary {
+  totalDrivers: number;
+  totalPayout: number;
+  pendingCount: number;
+  exceptionsCount: number;
+}
+
+/**
+ * Calculate payroll summary statistics
+ */
+export function calculatePayrollSummary(drivers: PayrollSummaryInput[]): PayrollSummary {
+  return {
+    totalDrivers: drivers.length,
+    totalPayout: drivers.reduce((sum, d) => sum + d.net, 0),
+    pendingCount: drivers.filter(d => d.status === "pending").length,
+    exceptionsCount: drivers.filter(d => d.hasException).length,
+  };
+}
 
 // ============ AUTO-SUGGEST DEDUCTIONS FROM TICKETS/TOLLS ============
 
@@ -379,13 +376,6 @@ export interface SuggestedDeduction {
 /**
  * OC-PAY-2 Auto-suggest feature:
  * If Tickets/Tolls exist for the driver+period → prefill deductions
- * 
- * Get suggested deductions from tickets/tolls for a driver in a pay period
- * @param tickets - Array of ticket/toll records
- * @param periodStart - Pay period start date
- * @param periodEnd - Pay period end date
- * @param existingAdjustmentSourceIds - Set of ticket IDs already added as adjustments
- * @returns Array of suggested deductions
  */
 export function getSuggestedDeductionsFromTickets(
   tickets: TicketToll[],
@@ -426,8 +416,6 @@ export function getSuggestedDeductionsFromTickets(
 
 /**
  * Calculate total suggested deductions for a driver
- * @param suggestions - Array of suggested deductions
- * @returns Total amount in cents
  */
 export function calculateTotalSuggestedDeductions(
   suggestions: SuggestedDeduction[]
@@ -437,8 +425,6 @@ export function calculateTotalSuggestedDeductions(
 
 /**
  * Format ticket type for display
- * @param type - Ticket type
- * @returns Formatted display string
  */
 export function formatTicketType(type: string): string {
   const typeMap: Record<string, string> = {
@@ -450,44 +436,106 @@ export function formatTicketType(type: string): string {
   return typeMap[type] || type;
 }
 
+// ============ VALIDATION ============
+
 /**
- * Check if a driver has pending tickets that should be deducted
- * @param tickets - Array of ticket/toll records
- * @param driverId - Driver ID
- * @param periodStart - Pay period start date
- * @param periodEnd - Pay period end date
- * @returns Boolean indicating if there are pending deductions
+ * Validate payroll data before submission
  */
-export function hasPendingDeductions(
-  tickets: TicketToll[],
-  driverId: number,
-  periodStart: Date,
-  periodEnd: Date
-): boolean {
-  return tickets.some(ticket => {
-    if (ticket.driverId !== driverId) return false;
-    if (ticket.status !== "pending") return false;
-    
-    const issueDate = new Date(ticket.issueDate);
-    return issueDate >= periodStart && issueDate <= periodEnd;
-  });
+export function validatePayrollData(data: DriverPayrollData): {
+  isValid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+
+  if (data.miles < 0) {
+    errors.push("Miles cannot be negative");
+  }
+
+  if (data.ratePerMile <= 0) {
+    errors.push("Rate per mile must be positive");
+  }
+
+  for (const adj of data.adjustments) {
+    if (adj.amount < 0) {
+      errors.push(`Adjustment amount cannot be negative (ID: ${adj.id})`);
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
+// ============ EXCEPTION FLAGS ============
+
+export interface ExceptionFlag {
+  type: "missing_contract" | "zero_miles" | "unconfirmed_deduction" | "import_error" | "high_deduction" | "negative_pay";
+  message: string;
+  severity: "warning" | "error";
 }
 
 /**
- * Group tickets by type for summary display
- * @param tickets - Array of ticket/toll records
- * @returns Object with counts and totals by type
+ * Generate exception flags for a driver
  */
-export function groupTicketsByType(
-  tickets: TicketToll[]
-): Record<string, { count: number; total: number }> {
-  return tickets.reduce((acc, ticket) => {
-    const type = ticket.ticketType;
-    if (!acc[type]) {
-      acc[type] = { count: 0, total: 0 };
-    }
-    acc[type].count++;
-    acc[type].total += ticket.amount;
-    return acc;
-  }, {} as Record<string, { count: number; total: number }>);
+export function getDriverExceptionFlags(driver: {
+  hasContract: boolean;
+  miles: number;
+  hasSuggestedDeductions: boolean;
+  hasImportErrors: boolean;
+  deductions: number;
+  gross: number;
+  net: number;
+}): ExceptionFlag[] {
+  const flags: ExceptionFlag[] = [];
+
+  if (!driver.hasContract) {
+    flags.push({
+      type: "missing_contract",
+      message: "Driver missing contract/rate",
+      severity: "error",
+    });
+  }
+
+  if (driver.miles === 0 && driver.gross === 0) {
+    flags.push({
+      type: "zero_miles",
+      message: "Imported trips but 0 payable miles",
+      severity: "warning",
+    });
+  }
+
+  if (driver.hasSuggestedDeductions) {
+    flags.push({
+      type: "unconfirmed_deduction",
+      message: "Deductions suggested but not confirmed",
+      severity: "warning",
+    });
+  }
+
+  if (driver.hasImportErrors) {
+    flags.push({
+      type: "import_error",
+      message: "Import row errors",
+      severity: "error",
+    });
+  }
+
+  if (driver.gross > 0 && driver.deductions > driver.gross * 0.5) {
+    flags.push({
+      type: "high_deduction",
+      message: `High deductions (${((driver.deductions / driver.gross) * 100).toFixed(0)}% of gross)`,
+      severity: "warning",
+    });
+  }
+
+  if (driver.net < 0) {
+    flags.push({
+      type: "negative_pay",
+      message: "Negative net pay",
+      severity: "error",
+    });
+  }
+
+  return flags;
 }

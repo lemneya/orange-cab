@@ -118,9 +118,11 @@ const navigationGroups = [
   {
     label: "Payroll",
     items: [
-      { icon: DollarSign, label: "Driver Payments", path: "/payroll/drivers" },
-      { icon: Users, label: "Employee Payroll", path: "/payroll/employees" },
-      { icon: CreditCard, label: "Bill Payments", path: "/payroll/bills" },
+      { icon: DollarSign, label: "Pay Runs", path: "/payroll/runs" },
+      { icon: Users, label: "Drivers", path: "/payroll/drivers" },
+      { icon: Receipt, label: "Adjustments", path: "/payroll/adjustments" },
+      { icon: AlertTriangle, label: "Import Errors", path: "/payroll/import-errors" },
+      { icon: FileText, label: "Exports", path: "/payroll/exports" },
     ],
   },
   {
