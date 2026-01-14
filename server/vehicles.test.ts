@@ -1,8 +1,12 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeAll } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
+
+// Check if database is available
+const DATABASE_URL = process.env.DATABASE_URL;
+const skipDbTests = !DATABASE_URL;
 
 function createAuthContext(): TrpcContext {
   const user: AuthenticatedUser = {
@@ -29,7 +33,7 @@ function createAuthContext(): TrpcContext {
   };
 }
 
-describe("vehicles router", () => {
+describe.skipIf(skipDbTests)("vehicles router", () => {
   describe("vehicles.list", () => {
     it("returns an array of vehicles", async () => {
       const ctx = createAuthContext();
