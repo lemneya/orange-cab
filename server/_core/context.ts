@@ -8,16 +8,35 @@ export type TrpcContext = {
   user: User | null;
 };
 
+// Demo user for development when OAuth is not configured
+const DEMO_USER: User = {
+  id: "demo-user-001",
+  name: "Demo Admin",
+  email: "admin@orangecab.com",
+  avatarUrl: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
 export async function createContext(
   opts: CreateExpressContextOptions
 ): Promise<TrpcContext> {
   let user: User | null = null;
 
-  try {
-    user = await sdk.authenticateRequest(opts.req);
-  } catch (error) {
-    // Authentication is optional for public procedures.
-    user = null;
+  // Check if OAuth is properly configured
+  const oauthConfigured = process.env.OAUTH_SERVER_URL && 
+    process.env.OAUTH_SERVER_URL !== 'https://oauth.example.com';
+
+  if (!oauthConfigured) {
+    // Use demo user in development when OAuth is not configured
+    user = DEMO_USER;
+  } else {
+    try {
+      user = await sdk.authenticateRequest(opts.req);
+    } catch (error) {
+      // Authentication is optional for public procedures.
+      user = null;
+    }
   }
 
   return {
