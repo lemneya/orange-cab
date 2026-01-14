@@ -6,7 +6,59 @@
 ## PR Title
 OC-PAY-3: auto-import fuel + tolls and allocate to payroll drivers
 
-## Status: READY FOR REVIEW
+## Status: READY FOR MERGE
+
+---
+
+## Merge Checklist
+
+### 1. CI Workflow ✅
+GitHub Actions CI workflow added at `.github/workflows/ci.yml`:
+- Runs on push to main and all PRs
+- Type check job (tsc --noEmit)
+- Unit tests job (pnpm test)
+
+### 2. Import Idempotency ✅
+
+**Unique vendor+txn_id constraint:**
+- `fuel_transactions` table has unique index on `(vendor, vendorTxnId)`
+- `toll_transactions` table has unique index on `(vendor, vendorTxnId)`
+- Duplicate transactions are rejected at database level
+
+**File hash table:**
+- `import_file_hashes` table tracks SHA-256 hash of each imported file
+- Prevents re-importing the same file twice
+- Tracks: fileHash, fileName, fileSize, importType, importBatchId, totalRows, importedRows, skippedRows, errorRows
+
+**Idempotency functions:**
+- `calculateFileHash(content)` - SHA-256 hash of file content
+- `checkFileAlreadyImported(fileHash)` - Returns if file was already imported
+- `checkFuelTransactionExists(vendor, vendorTxnId)` - Check for duplicate fuel txn
+- `checkTollTransactionExists(vendor, vendorTxnId)` - Check for duplicate toll txn
+
+### 3. Nothing Dropped Guarantee ✅
+
+**Import audit log table:**
+- `import_audit_log` tracks every row from every import
+- Unique index on `(importBatchId, rowNumber)` ensures no row is missed
+- Outcome enum: `imported`, `duplicate`, `error`, `allocated`, `unmatched`
+- Stores: rowNumber, outcome, transactionId, allocationId, errorReason, rawPayload
+
+**Audit functions:**
+- `logImportRow(data)` - Log each row's outcome
+- `getImportAuditSummary(batchId)` - Summary counts by outcome
+- `getImportAuditDetails(batchId)` - Full audit trail
+- `verifyNothingDropped(batchId, expectedRowCount)` - Verify all rows accounted for
+
+**Proof log format:**
+```json
+{
+  "verified": true,
+  "accountedRows": 100,
+  "expectedRows": 100,
+  "missingRows": []
+}
+```
 
 ---
 

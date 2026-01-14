@@ -1215,3 +1215,79 @@ export const vehicleTransponders = mysqlTable("vehicle_transponders", {
 
 export type VehicleTransponder = typeof vehicleTransponders.$inferSelect;
 export type InsertVehicleTransponder = typeof vehicleTransponders.$inferInsert;
+
+
+/**
+ * Import file hashes - for idempotency (prevent duplicate imports)
+ */
+export const importFileHashes = mysqlTable("import_file_hashes", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // File identification
+  fileHash: varchar("fileHash", { length: 64 }).notNull(), // SHA-256 hash of file content
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  fileSize: int("fileSize").notNull(), // File size in bytes
+  
+  // Import type
+  importType: mysqlEnum("importType", ["fuel", "toll"]).notNull(),
+  
+  // Import batch reference
+  importBatchId: varchar("importBatchId", { length: 50 }).notNull(),
+  
+  // Import statistics
+  totalRows: int("totalRows").notNull(),
+  importedRows: int("importedRows").notNull(),
+  skippedRows: int("skippedRows").notNull().default(0), // Duplicates skipped
+  errorRows: int("errorRows").notNull().default(0),
+  
+  // Import user
+  importedBy: int("importedBy").references(() => users.id),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  fileHashIdx: uniqueIndex("file_hash_idx").on(table.fileHash),
+}));
+
+export type ImportFileHash = typeof importFileHashes.$inferSelect;
+export type InsertImportFileHash = typeof importFileHashes.$inferInsert;
+
+/**
+ * Import audit log - for "nothing dropped" guarantee
+ * Every row from every import is logged here with its outcome
+ */
+export const importAuditLog = mysqlTable("import_audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Import batch reference
+  importBatchId: varchar("importBatchId", { length: 50 }).notNull(),
+  importType: mysqlEnum("importType", ["fuel", "toll"]).notNull(),
+  
+  // Row identification
+  rowNumber: int("rowNumber").notNull(), // 1-indexed row number in source file
+  
+  // Outcome
+  outcome: mysqlEnum("outcome", [
+    "imported",        // Successfully imported and created transaction
+    "duplicate",       // Skipped - already exists (vendor+txnId match)
+    "error",           // Failed to import due to validation error
+    "allocated",       // Successfully allocated to a driver
+    "unmatched"        // Imported but could not be matched to a driver
+  ]).notNull(),
+  
+  // Reference to created records
+  transactionId: int("transactionId"), // ID in fuel_transactions or toll_transactions
+  allocationId: int("allocationId"),   // ID in payroll_allocations
+  
+  // Error details (if outcome is 'error')
+  errorReason: text("errorReason"),
+  
+  // Raw data for debugging
+  rawPayload: text("rawPayload"), // Original CSV row as JSON
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  batchRowIdx: uniqueIndex("batch_row_idx").on(table.importBatchId, table.rowNumber),
+}));
+
+export type ImportAuditLog = typeof importAuditLog.$inferSelect;
+export type InsertImportAuditLog = typeof importAuditLog.$inferInsert;

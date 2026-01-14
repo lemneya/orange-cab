@@ -1,6 +1,6 @@
 import { eq, like, or, and, desc, asc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, vehicles, vehicleDocuments, maintenanceRecords, drivers, driverVehicleHistory, InsertVehicle, InsertVehicleDocument, InsertMaintenanceRecord, InsertDriver, InsertDriverVehicleHistory, Vehicle, MaintenanceRecord, Driver } from "../drizzle/schema";
+import { InsertUser, users, vehicles, vehicleDocuments, maintenanceRecords, drivers, driverVehicleHistory, InsertVehicle, InsertVehicleDocument, InsertMaintenanceRecord, InsertDriver, InsertDriverVehicleHistory, Vehicle, MaintenanceRecord, Driver, fuelTransactions, tollTransactions, payrollAllocations, importBatches, driverFuelCards, vehicleTransponders, importFileHashes, importAuditLog, InsertFuelTransaction, InsertTollTransaction, InsertPayrollAllocation, InsertImportBatch, InsertImportFileHash, InsertImportAuditLog, FuelTransaction, TollTransaction, PayrollAllocation, ImportBatch } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -538,23 +538,6 @@ export async function getDriverStats() {
 
 // ============ OC-PAY-3: FUEL + TOLL IMPORT FUNCTIONS ============
 
-import { 
-  fuelTransactions, 
-  tollTransactions, 
-  payrollAllocations, 
-  importBatches,
-  driverFuelCards,
-  vehicleTransponders,
-  InsertFuelTransaction,
-  InsertTollTransaction,
-  InsertPayrollAllocation,
-  InsertImportBatch,
-  FuelTransaction,
-  TollTransaction,
-  PayrollAllocation,
-  ImportBatch
-} from "../drizzle/schema";
-
 // ============ IMPORT BATCH FUNCTIONS ============
 
 export async function createImportBatch(data: InsertImportBatch) {
@@ -1061,4 +1044,186 @@ export async function autoMatchTollTransaction(
   }
   
   return { matched: false, reason: "No matching vehicle or driver found" };
+}
+
+
+// ============ IMPORT IDEMPOTENCY & AUDIT ============
+
+import * as crypto from "crypto";
+
+/**
+ * Calculate SHA-256 hash of file content
+ */
+export function calculateFileHash(content: string): string {
+  return crypto.createHash("sha256").update(content).digest("hex");
+}
+
+/**
+ * Check if a file has already been imported (by hash)
+ */
+export async function checkFileAlreadyImported(fileHash: string): Promise<{ imported: boolean; batchId?: string; importedAt?: Date }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const existing = await db.select()
+    .from(importFileHashes)
+    .where(eq(importFileHashes.fileHash, fileHash))
+    .limit(1);
+  
+  if (existing[0]) {
+    return {
+      imported: true,
+      batchId: existing[0].importBatchId,
+      importedAt: existing[0].createdAt,
+    };
+  }
+  
+  return { imported: false };
+}
+
+/**
+ * Record a file import for idempotency tracking
+ */
+export async function recordFileImport(data: InsertImportFileHash) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.insert(importFileHashes).values(data);
+}
+
+/**
+ * Check if a specific transaction already exists (by vendor + txnId)
+ */
+export async function checkFuelTransactionExists(vendor: string, vendorTxnId: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const existing = await db.select({ id: fuelTransactions.id })
+    .from(fuelTransactions)
+    .where(
+      and(
+        eq(fuelTransactions.vendor, vendor as any),
+        eq(fuelTransactions.vendorTxnId, vendorTxnId)
+      )
+    )
+    .limit(1);
+  
+  return existing.length > 0;
+}
+
+/**
+ * Check if a specific toll transaction already exists (by vendor + txnId)
+ */
+export async function checkTollTransactionExists(vendor: string, vendorTxnId: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const existing = await db.select({ id: tollTransactions.id })
+    .from(tollTransactions)
+    .where(
+      and(
+        eq(tollTransactions.vendor, vendor as any),
+        eq(tollTransactions.vendorTxnId, vendorTxnId)
+      )
+    )
+    .limit(1);
+  
+  return existing.length > 0;
+}
+
+/**
+ * Log an import row outcome for "nothing dropped" guarantee
+ */
+export async function logImportRow(data: InsertImportAuditLog) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.insert(importAuditLog).values(data);
+}
+
+/**
+ * Get import audit summary for a batch
+ */
+export async function getImportAuditSummary(importBatchId: string): Promise<{
+  totalRows: number;
+  imported: number;
+  duplicates: number;
+  errors: number;
+  allocated: number;
+  unmatched: number;
+}> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const rows = await db.select()
+    .from(importAuditLog)
+    .where(eq(importAuditLog.importBatchId, importBatchId));
+  
+  const summary = {
+    totalRows: rows.length,
+    imported: 0,
+    duplicates: 0,
+    errors: 0,
+    allocated: 0,
+    unmatched: 0,
+  };
+  
+  for (const row of rows) {
+    switch (row.outcome) {
+      case "imported": summary.imported++; break;
+      case "duplicate": summary.duplicates++; break;
+      case "error": summary.errors++; break;
+      case "allocated": summary.allocated++; break;
+      case "unmatched": summary.unmatched++; break;
+    }
+  }
+  
+  return summary;
+}
+
+/**
+ * Get detailed import audit log for a batch
+ */
+export async function getImportAuditDetails(importBatchId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.select()
+    .from(importAuditLog)
+    .where(eq(importAuditLog.importBatchId, importBatchId))
+    .orderBy(importAuditLog.rowNumber);
+}
+
+/**
+ * Verify "nothing dropped" - all rows from file are accounted for
+ */
+export async function verifyNothingDropped(importBatchId: string, expectedRowCount: number): Promise<{
+  verified: boolean;
+  accountedRows: number;
+  expectedRows: number;
+  missingRows: number[];
+}> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const auditRows = await db.select({ rowNumber: importAuditLog.rowNumber })
+    .from(importAuditLog)
+    .where(eq(importAuditLog.importBatchId, importBatchId))
+    .orderBy(importAuditLog.rowNumber);
+  
+  const loggedRows = new Set(auditRows.map(r => r.rowNumber));
+  const missingRows: number[] = [];
+  
+  for (let i = 1; i <= expectedRowCount; i++) {
+    if (!loggedRows.has(i)) {
+      missingRows.push(i);
+    }
+  }
+  
+  return {
+    verified: missingRows.length === 0,
+    accountedRows: loggedRows.size,
+    expectedRows: expectedRowCount,
+    missingRows,
+  };
 }
