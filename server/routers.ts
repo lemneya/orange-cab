@@ -498,6 +498,459 @@ export const appRouter = router({
         return deleteMaintenanceRecord(input.id);
       }),
   }),
+
+  // OC-PAY-2: Payroll router
+  payroll: router({
+    // ============ PAYROLL PERIODS ============
+    
+    // List payroll periods
+    periods: router({
+      list: protectedProcedure
+        .input(z.object({ status: z.enum(["open", "processing", "completed"]).optional() }).optional())
+        .query(async ({ input }) => {
+          return getPayrollPeriods(input?.status);
+        }),
+
+      getById: protectedProcedure
+        .input(z.object({ id: z.number() }))
+        .query(async ({ input }) => {
+          return getPayrollPeriodById(input.id);
+        }),
+
+      create: protectedProcedure
+        .input(z.object({
+          periodStart: z.string(),
+          periodEnd: z.string(),
+          payDate: z.string(),
+          notes: z.string().optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          return createPayrollPeriod({
+            periodStart: new Date(input.periodStart),
+            periodEnd: new Date(input.periodEnd),
+            payDate: new Date(input.payDate),
+            notes: input.notes,
+            processedBy: ctx.user.id,
+          });
+        }),
+
+      update: protectedProcedure
+        .input(z.object({
+          id: z.number(),
+          data: z.object({
+            status: z.enum(["open", "processing", "completed"]).optional(),
+            totalDriverPay: z.number().optional(),
+            totalEmployeePay: z.number().optional(),
+            notes: z.string().optional(),
+          }),
+        }))
+        .mutation(async ({ input }) => {
+          return updatePayrollPeriod(input.id, input.data);
+        }),
+    }),
+
+    // ============ DRIVER PAYMENTS ============
+    
+    payments: router({
+      listByPeriod: protectedProcedure
+        .input(z.object({ payrollPeriodId: z.number() }))
+        .query(async ({ input }) => {
+          return getDriverPaymentsByPeriod(input.payrollPeriodId);
+        }),
+
+      getById: protectedProcedure
+        .input(z.object({ id: z.number() }))
+        .query(async ({ input }) => {
+          return getDriverPaymentById(input.id);
+        }),
+
+      // Update payment with inline editing (Gas/Credits/Deductions)
+      update: protectedProcedure
+        .input(z.object({
+          id: z.number(),
+          data: z.object({
+            tripCount: z.number().optional(),
+            totalMiles: z.string().optional(),
+            grossPay: z.number().optional(),
+            deductions: z.number().optional(),
+            netPay: z.number().optional(),
+            status: z.enum(["pending", "approved", "paid"]).optional(),
+            notes: z.string().optional(),
+          }),
+        }))
+        .mutation(async ({ input }) => {
+          return updateDriverPayment(input.id, input.data);
+        }),
+
+      // Upsert payment (create or update)
+      upsert: protectedProcedure
+        .input(z.object({
+          driverId: z.number(),
+          payrollPeriodId: z.number(),
+          tripCount: z.number(),
+          totalMiles: z.string(),
+          grossPay: z.number(),
+          deductions: z.number().default(0),
+          netPay: z.number(),
+          status: z.enum(["pending", "approved", "paid"]).default("pending"),
+          notes: z.string().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          return upsertDriverPayment(input);
+        }),
+
+      // Recalculate net pay for a driver payment
+      recalculate: protectedProcedure
+        .input(z.object({
+          driverId: z.number(),
+          payrollPeriodId: z.number(),
+          miles: z.number(),
+          ratePerMile: z.number(),
+          totalDollars: z.number().default(0),
+        }))
+        .mutation(async ({ input }) => {
+          return calculateDriverNetPay(
+            input.driverId,
+            input.payrollPeriodId,
+            input.miles,
+            input.ratePerMile,
+            input.totalDollars
+          );
+        }),
+    }),
+
+    // ============ DRIVER CONTRACTS ============
+    
+    contracts: router({
+      getActive: protectedProcedure
+        .input(z.object({ driverId: z.number() }))
+        .query(async ({ input }) => {
+          return getActiveContractForDriver(input.driverId);
+        }),
+
+      listByDriver: protectedProcedure
+        .input(z.object({ driverId: z.number() }))
+        .query(async ({ input }) => {
+          return getDriverContracts(input.driverId);
+        }),
+
+      create: protectedProcedure
+        .input(z.object({
+          driverId: z.number(),
+          contractType: z.enum(["standard", "wheelchair", "long_distance", "premium"]).default("standard"),
+          payScheme: z.enum(["per_trip", "per_mile", "hybrid"]).default("per_mile"),
+          ratePerMile: z.number().optional(),
+          ratePerTrip: z.number().optional(),
+          baseRate: z.number().optional(),
+          effectiveDate: z.string(),
+          endDate: z.string().optional(),
+          contractDocumentUrl: z.string().optional(),
+          notes: z.string().optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          return createDriverPayContract({
+            driverId: input.driverId,
+            contractType: input.contractType,
+            payScheme: input.payScheme,
+            ratePerMile: input.ratePerMile,
+            ratePerTrip: input.ratePerTrip,
+            baseRate: input.baseRate,
+            effectiveDate: input.effectiveDate, // Drizzle date type accepts string in YYYY-MM-DD format
+            endDate: input.endDate, // Drizzle date type accepts string in YYYY-MM-DD format
+            contractDocumentUrl: input.contractDocumentUrl,
+            notes: input.notes,
+            createdBy: ctx.user.id,
+          } as any);
+        }),
+
+      update: protectedProcedure
+        .input(z.object({
+          id: z.number(),
+          data: z.object({
+            contractType: z.enum(["standard", "wheelchair", "long_distance", "premium"]).optional(),
+            payScheme: z.enum(["per_trip", "per_mile", "hybrid"]).optional(),
+            ratePerMile: z.number().optional(),
+            ratePerTrip: z.number().optional(),
+            baseRate: z.number().optional(),
+            endDate: z.string().optional(),
+            isActive: z.boolean().optional(),
+            notes: z.string().optional(),
+          }),
+        }))
+        .mutation(async ({ input }) => {
+          const data: Record<string, unknown> = { ...input.data };
+          if (input.data.endDate) {
+            data.endDate = new Date(input.data.endDate);
+          }
+          return updateDriverContract(input.id, data);
+        }),
+    }),
+
+    // ============ PAYROLL ADJUSTMENTS ============
+    
+    adjustments: router({
+      listByPayment: protectedProcedure
+        .input(z.object({ driverPaymentId: z.number() }))
+        .query(async ({ input }) => {
+          return getAdjustmentsForPayment(input.driverPaymentId);
+        }),
+
+      listByDriverPeriod: protectedProcedure
+        .input(z.object({ driverId: z.number(), payrollPeriodId: z.number() }))
+        .query(async ({ input }) => {
+          return getAdjustmentsForDriverPeriod(input.driverId, input.payrollPeriodId);
+        }),
+
+      create: protectedProcedure
+        .input(z.object({
+          driverPaymentId: z.number().optional(),
+          driverId: z.number(),
+          payrollPeriodId: z.number(),
+          adjustmentType: z.enum(["gas", "credit", "advance", "deduction"]),
+          amount: z.number(),
+          memo: z.string().optional(),
+          sourceRef: z.string().optional(),
+          sourceType: z.string().optional(),
+          sourceId: z.number().optional(),
+          isAutoSuggested: z.boolean().default(false),
+          isApproved: z.boolean().default(true),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          return createPayrollAdjustment({
+            ...input,
+            createdBy: ctx.user.id,
+          });
+        }),
+
+      update: protectedProcedure
+        .input(z.object({
+          id: z.number(),
+          data: z.object({
+            amount: z.number().optional(),
+            memo: z.string().optional(),
+            isApproved: z.boolean().optional(),
+          }),
+        }))
+        .mutation(async ({ input }) => {
+          return updatePayrollAdjustment(input.id, input.data);
+        }),
+
+      delete: protectedProcedure
+        .input(z.object({ id: z.number() }))
+        .mutation(async ({ input }) => {
+          return deletePayrollAdjustment(input.id);
+        }),
+
+      // Get suggested deductions from tickets/tolls
+      getSuggested: protectedProcedure
+        .input(z.object({ driverId: z.number(), payrollPeriodId: z.number() }))
+        .query(async ({ input }) => {
+          return getSuggestedDeductions(input.driverId, input.payrollPeriodId);
+        }),
+    }),
+
+    // ============ IMPORT MANAGEMENT ============
+    
+    import: router({
+      // Get import errors
+      errors: protectedProcedure
+        .input(z.object({
+          batchId: z.string().optional(),
+          includeResolved: z.boolean().default(false),
+        }).optional())
+        .query(async ({ input }) => {
+          return getImportErrors(input?.batchId, input?.includeResolved);
+        }),
+
+      // Resolve an import error
+      resolveError: protectedProcedure
+        .input(z.object({
+          id: z.number(),
+          notes: z.string().optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          return resolveImportError(input.id, ctx.user.id, input.notes);
+        }),
+
+      // Get import batches
+      batches: protectedProcedure
+        .input(z.object({ payrollPeriodId: z.number().optional() }).optional())
+        .query(async ({ input }) => {
+          return getImportBatches(input?.payrollPeriodId);
+        }),
+
+      // Import trips from MediRoute for payroll
+      importTrips: protectedProcedure
+        .input(z.object({
+          payrollPeriodId: z.number(),
+          periodStart: z.string(),
+          periodEnd: z.string(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          const batchId = `IMPORT-${Date.now()}`;
+          
+          // Create import batch record
+          await createImportBatch({
+            batchId,
+            payrollPeriodId: input.payrollPeriodId,
+            sourceType: "mediroute_api",
+            importedBy: ctx.user.id,
+          });
+
+          // Get completed trips for the period
+          const tripsData = await getCompletedTripsForPayroll(
+            new Date(input.periodStart),
+            new Date(input.periodEnd)
+          );
+
+          // Group trips by driver
+          const driverTrips = new Map<number, { trips: typeof tripsData, totalMiles: number, tripCount: number }>();
+          
+          let successCount = 0;
+          let errorCount = 0;
+
+          for (const { trip, driver } of tripsData) {
+            if (!driver?.id) {
+              // Log error for unassigned trip
+              await createImportError({
+                importBatchId: batchId,
+                rowNumber: successCount + errorCount + 1,
+                reason: "Trip has no assigned driver",
+                rawPayload: JSON.stringify(trip),
+              });
+              errorCount++;
+              continue;
+            }
+
+            const existing = driverTrips.get(driver.id) || { trips: [], totalMiles: 0, tripCount: 0 };
+            existing.trips.push({ trip, driver });
+            existing.totalMiles += parseFloat(trip.actualMiles?.toString() || "0");
+            existing.tripCount++;
+            driverTrips.set(driver.id, existing);
+            successCount++;
+          }
+
+          // Create/update driver payments
+          for (const [driverId, data] of Array.from(driverTrips.entries())) {
+            // Get driver's contract rate
+            const contract = await getActiveContractForDriver(driverId);
+            // Handle both driverPayContracts (ratePerMile) and driverContracts (payRate)
+            let ratePerMile = 150; // Default $1.50/mile in cents
+            if (contract && 'ratePerMile' in contract && contract.ratePerMile) {
+              ratePerMile = contract.ratePerMile;
+            } else if (contract && 'payRate' in contract && contract.payRate) {
+              ratePerMile = Math.round(parseFloat(contract.payRate) * 100);
+            }
+
+            // Calculate pay
+            const grossPay = Math.round(data.totalMiles * ratePerMile);
+            
+            await upsertDriverPayment({
+              driverId,
+              payrollPeriodId: input.payrollPeriodId,
+              tripCount: data.tripCount,
+              totalMiles: data.totalMiles.toFixed(2),
+              grossPay,
+              deductions: 0,
+              netPay: grossPay,
+              status: "pending",
+            });
+          }
+
+          // Update batch status
+          await updateImportBatch(1, {
+            totalRows: successCount + errorCount,
+            successfulRows: successCount,
+            failedRows: errorCount,
+            status: "completed",
+            completedAt: new Date(),
+          });
+
+          return {
+            batchId,
+            totalRows: successCount + errorCount,
+            successfulRows: successCount,
+            failedRows: errorCount,
+            driversProcessed: driverTrips.size,
+          };
+        }),
+    }),
+
+    // ============ EXCEPTIONS & REPORTS ============
+    
+    exceptions: protectedProcedure
+      .input(z.object({ payrollPeriodId: z.number() }))
+      .query(async ({ input }) => {
+        return getPayrollExceptions(input.payrollPeriodId);
+      }),
+
+    // Export payroll data as CSV
+    exportCsv: protectedProcedure
+      .input(z.object({ payrollPeriodId: z.number() }))
+      .query(async ({ input }) => {
+        const payments = await getDriverPaymentsByPeriod(input.payrollPeriodId);
+        const period = await getPayrollPeriodById(input.payrollPeriodId);
+
+        // Build CSV data
+        const headers = ["Driver", "Driver ID", "Trips", "Miles", "Gross Pay", "Deductions", "Net Pay", "Status"];
+        const rows = payments.map(({ payment, driver }) => [
+          driver ? `${driver.firstName} ${driver.lastName}` : "Unknown",
+          payment.driverId.toString(),
+          payment.tripCount?.toString() || "0",
+          payment.totalMiles?.toString() || "0",
+          (payment.grossPay / 100).toFixed(2),
+          ((payment.deductions || 0) / 100).toFixed(2),
+          (payment.netPay / 100).toFixed(2),
+          payment.status,
+        ]);
+
+        const csvContent = [
+          headers.join(","),
+          ...rows.map(row => row.join(",")),
+        ].join("\n");
+
+        return {
+          filename: `payroll_${period?.periodStart}_${period?.periodEnd}.csv`,
+          content: csvContent,
+          period,
+        };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
+
+// OC-PAY-2: Payroll router imports
+import {
+  getPayrollPeriods,
+  getPayrollPeriodById,
+  createPayrollPeriod,
+  updatePayrollPeriod,
+  getDriverPaymentsByPeriod,
+  getDriverPaymentById,
+  createDriverPayment,
+  updateDriverPayment,
+  upsertDriverPayment,
+  getActiveContractForDriver,
+  getDriverContracts,
+  getDriverPayContracts,
+  createDriverContract,
+  createDriverPayContract,
+  updateDriverContract,
+  getAdjustmentsForPayment,
+  getAdjustmentsForDriverPeriod,
+  createPayrollAdjustment,
+  updatePayrollAdjustment,
+  deletePayrollAdjustment,
+  getSuggestedDeductions,
+  getImportErrors,
+  createImportError,
+  resolveImportError,
+  getImportBatches,
+  createImportBatch,
+  updateImportBatch,
+  getCompletedTripsForPayroll,
+  getDriverTripsForPeriod,
+  calculateDriverNetPay,
+  getPayrollExceptions,
+} from "./db";

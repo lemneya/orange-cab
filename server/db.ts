@@ -1,6 +1,38 @@
 import { eq, like, or, and, desc, asc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, vehicles, vehicleDocuments, maintenanceRecords, drivers, driverVehicleHistory, InsertVehicle, InsertVehicleDocument, InsertMaintenanceRecord, InsertDriver, InsertDriverVehicleHistory, Vehicle, MaintenanceRecord, Driver } from "../drizzle/schema";
+import { 
+  InsertUser, 
+  users, 
+  vehicles, 
+  vehicleDocuments, 
+  maintenanceRecords, 
+  drivers, 
+  driverVehicleHistory, 
+  InsertVehicle, 
+  InsertVehicleDocument, 
+  InsertMaintenanceRecord, 
+  InsertDriver, 
+  InsertDriverVehicleHistory, 
+  Vehicle, 
+  MaintenanceRecord, 
+  Driver,
+  payrollPeriods,
+  driverPayments,
+  driverContracts,
+  driverPayContracts,
+  payrollAdjustments,
+  payrollImportErrors,
+  payrollImportBatches,
+  ticketsAndTolls,
+  trips,
+  InsertPayrollPeriod,
+  InsertDriverPayment,
+  InsertDriverContract,
+  InsertPayrollAdjustment,
+  InsertPayrollImportError,
+  InsertPayrollImportBatch,
+  InsertDriverPayContract,
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -533,4 +565,584 @@ export async function getDriverStats() {
     assigned: assignedResult[0]?.count || 0,
     licenseExpiring: licenseExpiringResult[0]?.count || 0,
   };
+}
+
+
+// ============ OC-PAY-2: PAYROLL QUERIES ============
+
+// ============ PAYROLL PERIODS ============
+
+export async function getPayrollPeriods(status?: "open" | "processing" | "completed") {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const conditions = [];
+  if (status) {
+    conditions.push(eq(payrollPeriods.status, status));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  return db
+    .select()
+    .from(payrollPeriods)
+    .where(whereClause)
+    .orderBy(desc(payrollPeriods.periodEnd));
+}
+
+export async function getPayrollPeriodById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, id)).limit(1);
+  return result[0] || null;
+}
+
+export async function createPayrollPeriod(data: InsertPayrollPeriod) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(payrollPeriods).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updatePayrollPeriod(id: number, data: Partial<InsertPayrollPeriod>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(payrollPeriods).set(data).where(eq(payrollPeriods.id, id));
+  return { success: true };
+}
+
+// ============ DRIVER PAYMENTS ============
+
+export async function getDriverPaymentsByPeriod(payrollPeriodId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select({
+      payment: driverPayments,
+      driver: {
+        id: drivers.id,
+        firstName: drivers.firstName,
+        lastName: drivers.lastName,
+        phone: drivers.phone,
+        email: drivers.email,
+      },
+    })
+    .from(driverPayments)
+    .leftJoin(drivers, eq(driverPayments.driverId, drivers.id))
+    .where(eq(driverPayments.payrollPeriodId, payrollPeriodId))
+    .orderBy(asc(drivers.lastName), asc(drivers.firstName));
+}
+
+export async function getDriverPaymentById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db
+    .select({
+      payment: driverPayments,
+      driver: {
+        id: drivers.id,
+        firstName: drivers.firstName,
+        lastName: drivers.lastName,
+        phone: drivers.phone,
+        email: drivers.email,
+      },
+    })
+    .from(driverPayments)
+    .leftJoin(drivers, eq(driverPayments.driverId, drivers.id))
+    .where(eq(driverPayments.id, id))
+    .limit(1);
+  
+  return result[0] || null;
+}
+
+export async function createDriverPayment(data: InsertDriverPayment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(driverPayments).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updateDriverPayment(id: number, data: Partial<InsertDriverPayment>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(driverPayments).set(data).where(eq(driverPayments.id, id));
+  return { success: true };
+}
+
+export async function upsertDriverPayment(data: InsertDriverPayment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Check if payment exists for this driver and period
+  const existing = await db
+    .select()
+    .from(driverPayments)
+    .where(
+      and(
+        eq(driverPayments.driverId, data.driverId),
+        eq(driverPayments.payrollPeriodId, data.payrollPeriodId)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db.update(driverPayments).set(data).where(eq(driverPayments.id, existing[0].id));
+    return { id: existing[0].id, updated: true };
+  } else {
+    const result = await db.insert(driverPayments).values(data);
+    return { id: Number(result[0].insertId), updated: false };
+  }
+}
+
+// ============ DRIVER CONTRACTS ============
+
+export async function getActiveContractForDriver(driverId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // First try to get pay contract from driverPayContracts
+  const today = new Date().toISOString().split('T')[0];
+  
+  const payContract = await db
+    .select()
+    .from(driverPayContracts)
+    .where(
+      and(
+        eq(driverPayContracts.driverId, driverId),
+        eq(driverPayContracts.isActive, true),
+        sql`${driverPayContracts.effectiveDate} <= ${today}`,
+        or(
+          sql`${driverPayContracts.endDate} IS NULL`,
+          sql`${driverPayContracts.endDate} >= ${today}`
+        )
+      )
+    )
+    .orderBy(desc(driverPayContracts.effectiveDate))
+    .limit(1);
+
+  if (payContract[0]) {
+    return payContract[0];
+  }
+
+  // Fallback to regular driverContracts
+  const result = await db
+    .select()
+    .from(driverContracts)
+    .where(
+      and(
+        eq(driverContracts.driverId, driverId),
+        eq(driverContracts.status, "active")
+      )
+    )
+    .orderBy(desc(driverContracts.startDate))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+export async function getDriverPayContracts(driverId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select()
+    .from(driverPayContracts)
+    .where(eq(driverPayContracts.driverId, driverId))
+    .orderBy(desc(driverPayContracts.effectiveDate));
+}
+
+export async function getDriverContracts(driverId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select()
+    .from(driverContracts)
+    .where(eq(driverContracts.driverId, driverId))
+    .orderBy(desc(driverContracts.startDate));
+}
+
+export async function createDriverPayContract(data: InsertDriverPayContract) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(driverPayContracts).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function createDriverContract(data: InsertDriverContract) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(driverContracts).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updateDriverContract(id: number, data: Partial<InsertDriverContract>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(driverContracts).set(data).where(eq(driverContracts.id, id));
+  return { success: true };
+}
+
+// ============ PAYROLL ADJUSTMENTS ============
+
+export async function getAdjustmentsForPayment(driverPaymentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select()
+    .from(payrollAdjustments)
+    .where(eq(payrollAdjustments.driverPaymentId, driverPaymentId))
+    .orderBy(desc(payrollAdjustments.createdAt));
+}
+
+export async function getAdjustmentsForDriverPeriod(driverId: number, payrollPeriodId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select()
+    .from(payrollAdjustments)
+    .where(
+      and(
+        eq(payrollAdjustments.driverId, driverId),
+        eq(payrollAdjustments.payrollPeriodId, payrollPeriodId)
+      )
+    )
+    .orderBy(desc(payrollAdjustments.createdAt));
+}
+
+export async function createPayrollAdjustment(data: InsertPayrollAdjustment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(payrollAdjustments).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updatePayrollAdjustment(id: number, data: Partial<InsertPayrollAdjustment>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(payrollAdjustments).set(data).where(eq(payrollAdjustments.id, id));
+  return { success: true };
+}
+
+export async function deletePayrollAdjustment(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(payrollAdjustments).where(eq(payrollAdjustments.id, id));
+  return { success: true };
+}
+
+// ============ AUTO-SUGGEST DEDUCTIONS FROM TICKETS/TOLLS ============
+
+export async function getUnpaidTicketsForDriver(driverId: number, periodStart: Date, periodEnd: Date) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select()
+    .from(ticketsAndTolls)
+    .where(
+      and(
+        eq(ticketsAndTolls.driverId, driverId),
+        eq(ticketsAndTolls.status, "pending"),
+        sql`${ticketsAndTolls.issueDate} >= ${periodStart.toISOString().split('T')[0]}`,
+        sql`${ticketsAndTolls.issueDate} <= ${periodEnd.toISOString().split('T')[0]}`
+      )
+    )
+    .orderBy(desc(ticketsAndTolls.issueDate));
+}
+
+export async function getSuggestedDeductions(driverId: number, payrollPeriodId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Get the payroll period dates
+  const period = await getPayrollPeriodById(payrollPeriodId);
+  if (!period) return [];
+
+  // Get unpaid tickets/tolls for this driver in the period
+  const tickets = await getUnpaidTicketsForDriver(
+    driverId,
+    new Date(period.periodStart),
+    new Date(period.periodEnd)
+  );
+
+  // Check which ones are not already added as adjustments
+  const existingAdjustments = await db
+    .select()
+    .from(payrollAdjustments)
+    .where(
+      and(
+        eq(payrollAdjustments.driverId, driverId),
+        eq(payrollAdjustments.payrollPeriodId, payrollPeriodId),
+        eq(payrollAdjustments.sourceType, "ticket")
+      )
+    );
+
+  const existingSourceIds = new Set(existingAdjustments.map(a => a.sourceId));
+
+  return tickets
+    .filter(t => !existingSourceIds.has(t.id))
+    .map(t => ({
+      ticketId: t.id,
+      ticketType: t.ticketType,
+      ticketNumber: t.ticketNumber,
+      amount: t.amount,
+      issueDate: t.issueDate,
+      suggestedAdjustment: {
+        adjustmentType: "deduction" as const,
+        amount: t.amount,
+        memo: `${t.ticketType.toUpperCase()} - ${t.ticketNumber || 'No number'}`,
+        sourceRef: t.ticketNumber || `TICKET-${t.id}`,
+        sourceType: "ticket",
+        sourceId: t.id,
+      },
+    }));
+}
+
+// ============ PAYROLL IMPORT ERRORS ============
+
+export async function getImportErrors(batchId?: string, includeResolved: boolean = false) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const conditions = [];
+  if (batchId) {
+    conditions.push(eq(payrollImportErrors.importBatchId, batchId));
+  }
+  if (!includeResolved) {
+    conditions.push(eq(payrollImportErrors.isResolved, false));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  return db
+    .select()
+    .from(payrollImportErrors)
+    .where(whereClause)
+    .orderBy(desc(payrollImportErrors.importDate), asc(payrollImportErrors.rowNumber));
+}
+
+export async function createImportError(data: InsertPayrollImportError) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(payrollImportErrors).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function resolveImportError(id: number, userId: number, notes?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(payrollImportErrors).set({
+    isResolved: true,
+    resolvedBy: userId,
+    resolvedDate: new Date(),
+    resolutionNotes: notes,
+  }).where(eq(payrollImportErrors.id, id));
+
+  return { success: true };
+}
+
+// ============ PAYROLL IMPORT BATCHES ============
+
+export async function getImportBatches(payrollPeriodId?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const conditions = [];
+  if (payrollPeriodId) {
+    conditions.push(eq(payrollImportBatches.payrollPeriodId, payrollPeriodId));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  return db
+    .select()
+    .from(payrollImportBatches)
+    .where(whereClause)
+    .orderBy(desc(payrollImportBatches.createdAt));
+}
+
+export async function createImportBatch(data: InsertPayrollImportBatch) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(payrollImportBatches).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function updateImportBatch(id: number, data: Partial<InsertPayrollImportBatch>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(payrollImportBatches).set(data).where(eq(payrollImportBatches.id, id));
+  return { success: true };
+}
+
+// ============ TRIP DATA FOR PAYROLL ============
+
+export async function getCompletedTripsForPayroll(periodStart: Date, periodEnd: Date) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select({
+      trip: trips,
+      driver: {
+        id: drivers.id,
+        firstName: drivers.firstName,
+        lastName: drivers.lastName,
+      },
+    })
+    .from(trips)
+    .leftJoin(drivers, eq(trips.assignedDriverId, drivers.id))
+    .where(
+      and(
+        eq(trips.status, "completed"),
+        sql`${trips.tripDate} >= ${periodStart.toISOString().split('T')[0]}`,
+        sql`${trips.tripDate} <= ${periodEnd.toISOString().split('T')[0]}`
+      )
+    )
+    .orderBy(asc(drivers.lastName), asc(trips.tripDate));
+}
+
+export async function getDriverTripsForPeriod(driverId: number, periodStart: Date, periodEnd: Date) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select()
+    .from(trips)
+    .where(
+      and(
+        eq(trips.assignedDriverId, driverId),
+        eq(trips.status, "completed"),
+        sql`${trips.tripDate} >= ${periodStart.toISOString().split('T')[0]}`,
+        sql`${trips.tripDate} <= ${periodEnd.toISOString().split('T')[0]}`
+      )
+    )
+    .orderBy(asc(trips.tripDate));
+}
+
+// ============ PAYROLL CALCULATION HELPERS ============
+
+/**
+ * Calculate net pay using the spreadsheet formula:
+ * net = (miles * rate) + total_dollars + credits - gas - deductions
+ */
+export async function calculateDriverNetPay(
+  driverId: number,
+  payrollPeriodId: number,
+  miles: number,
+  ratePerMile: number, // in cents
+  totalDollars: number = 0 // additional flat amounts in cents
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Get all adjustments for this driver and period
+  const adjustments = await getAdjustmentsForDriverPeriod(driverId, payrollPeriodId);
+
+  // Sum up by type
+  let gas = 0;
+  let credits = 0;
+  let deductions = 0;
+
+  for (const adj of adjustments) {
+    if (!adj.isApproved) continue;
+    
+    switch (adj.adjustmentType) {
+      case "gas":
+        gas += adj.amount;
+        break;
+      case "credit":
+      case "advance":
+        credits += adj.amount;
+        break;
+      case "deduction":
+        deductions += adj.amount;
+        break;
+    }
+  }
+
+  // Calculate using spreadsheet formula
+  const grossPay = Math.round(miles * ratePerMile) + totalDollars;
+  const netPay = grossPay + credits - gas - deductions;
+
+  return {
+    grossPay,
+    netPay,
+    adjustments: {
+      gas,
+      credits,
+      deductions,
+      total: credits - gas - deductions,
+    },
+  };
+}
+
+// ============ PAYROLL EXCEPTIONS ============
+
+export async function getPayrollExceptions(payrollPeriodId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Get all driver payments for the period
+  const payments = await getDriverPaymentsByPeriod(payrollPeriodId);
+
+  const exceptions = [];
+
+  for (const { payment, driver } of payments) {
+    const issues = [];
+
+    // Check for negative net pay
+    if (payment.netPay < 0) {
+      issues.push("Negative net pay");
+    }
+
+    // Check for zero trips but has adjustments
+    if (payment.tripCount === 0) {
+      issues.push("No trips recorded");
+    }
+
+    // Check for large deductions (> 50% of gross)
+    if (payment.deductions && payment.grossPay > 0) {
+      const deductionPercent = (payment.deductions / payment.grossPay) * 100;
+      if (deductionPercent > 50) {
+        issues.push(`High deductions (${deductionPercent.toFixed(1)}%)`);
+      }
+    }
+
+    // Check for pending status with past pay date
+    const period = await getPayrollPeriodById(payrollPeriodId);
+    if (period && payment.status === "pending" && new Date(period.payDate) < new Date()) {
+      issues.push("Past due payment");
+    }
+
+    if (issues.length > 0) {
+      exceptions.push({
+        payment,
+        driver,
+        issues,
+      });
+    }
+  }
+
+  return exceptions;
 }
