@@ -59,6 +59,24 @@ import {
   getDriverVehicleHistory,
   bulkCreateDrivers,
   getDriverStats,
+  // OC-PAY-3: Fuel + Toll Import
+  createImportBatch,
+  updateImportBatch,
+  getImportBatches,
+  createFuelTransaction,
+  getFuelTransactions,
+  checkDuplicateFuelTransaction,
+  createTollTransaction,
+  getTollTransactions,
+  checkDuplicateTollTransaction,
+  createPayrollAllocation,
+  getPayrollAllocations,
+  getUnmatchedAllocations,
+  updatePayrollAllocation,
+  assignAllocationToDriver,
+  getDriverAllocationTotals,
+  autoMatchFuelTransaction,
+  autoMatchTollTransaction,
 } from "./db";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
@@ -496,6 +514,353 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         return deleteMaintenanceRecord(input.id);
+      }),
+  }),
+
+  // OC-PAY-3: Fuel + Toll Import
+  fuelImport: router({
+    // Get import batches
+    getBatches: protectedProcedure
+      .input(z.object({ type: z.enum(["fuel", "toll"]).optional() }).optional())
+      .query(async ({ input }) => {
+        return getImportBatches(input?.type);
+      }),
+
+    // Get fuel transactions
+    getFuelTransactions: protectedProcedure
+      .input(z.object({
+        batchId: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return getFuelTransactions({
+          batchId: input?.batchId,
+          startDate: input?.startDate ? new Date(input.startDate) : undefined,
+          endDate: input?.endDate ? new Date(input.endDate) : undefined,
+        });
+      }),
+
+    // Get toll transactions
+    getTollTransactions: protectedProcedure
+      .input(z.object({
+        batchId: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return getTollTransactions({
+          batchId: input?.batchId,
+          startDate: input?.startDate ? new Date(input.startDate) : undefined,
+          endDate: input?.endDate ? new Date(input.endDate) : undefined,
+        });
+      }),
+
+    // Import fuel transactions from CSV
+    importFuel: protectedProcedure
+      .input(z.object({
+        vendor: z.enum(["shell", "exxon", "bp", "chevron", "wawa", "sheetz", "other"]),
+        payPeriodId: z.number().optional(),
+        fileName: z.string(),
+        transactions: z.array(z.object({
+          vendorTxnId: z.string(),
+          transactionDate: z.string(),
+          amount: z.number(), // in cents
+          gallons: z.number().optional(),
+          pricePerGallon: z.number().optional(),
+          cardId: z.string().optional(),
+          cardLastFour: z.string().optional(),
+          licensePlate: z.string().optional(),
+          unitNumber: z.string().optional(),
+          stationName: z.string().optional(),
+          stationAddress: z.string().optional(),
+          stationCity: z.string().optional(),
+          stationState: z.string().optional(),
+          productType: z.string().optional(),
+          rawPayload: z.string().optional(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const batchId = `FUEL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Create import batch
+        await createImportBatch({
+          batchId,
+          importType: "fuel",
+          vendor: input.vendor,
+          fileName: input.fileName,
+          totalRows: input.transactions.length,
+          status: "processing",
+          payPeriodId: input.payPeriodId,
+          importedBy: ctx.user.id,
+        });
+
+        let successfulRows = 0;
+        let failedRows = 0;
+        let duplicateRows = 0;
+        let autoMatchedCount = 0;
+        let unmatchedCount = 0;
+
+        for (const txn of input.transactions) {
+          try {
+            // Check for duplicate
+            const isDuplicate = await checkDuplicateFuelTransaction(input.vendor, txn.vendorTxnId);
+            if (isDuplicate) {
+              duplicateRows++;
+              continue;
+            }
+
+            // Create fuel transaction
+            const result = await createFuelTransaction({
+              vendor: input.vendor,
+              vendorTxnId: txn.vendorTxnId,
+              transactionDate: new Date(txn.transactionDate),
+              amount: txn.amount,
+              gallons: txn.gallons?.toString(),
+              pricePerGallon: txn.pricePerGallon,
+              cardId: txn.cardId,
+              cardLastFour: txn.cardLastFour,
+              licensePlate: txn.licensePlate,
+              unitNumber: txn.unitNumber,
+              stationName: txn.stationName,
+              stationAddress: txn.stationAddress,
+              stationCity: txn.stationCity,
+              stationState: txn.stationState,
+              productType: txn.productType,
+              importBatchId: batchId,
+              rawPayload: txn.rawPayload,
+            });
+
+            // Auto-match to driver
+            const fuelTxn = { ...txn, id: result.id, vendor: input.vendor } as any;
+            const matchResult = await autoMatchFuelTransaction(fuelTxn, input.payPeriodId || 0);
+
+            // Create allocation
+            await createPayrollAllocation({
+              sourceType: "fuel",
+              sourceTxnId: result.id,
+              payPeriodId: input.payPeriodId,
+              driverId: matchResult.driverId,
+              amount: txn.amount,
+              confidence: matchResult.confidence as any || "vehicle_time",
+              matchReason: matchResult.reason,
+              status: matchResult.matched ? "matched" : "unmatched",
+            });
+
+            if (matchResult.matched) {
+              autoMatchedCount++;
+            } else {
+              unmatchedCount++;
+            }
+
+            successfulRows++;
+          } catch (error) {
+            failedRows++;
+          }
+        }
+
+        // Update batch stats
+        await updateImportBatch(batchId, {
+          successfulRows,
+          failedRows,
+          duplicateRows,
+          autoMatchedCount,
+          unmatchedCount,
+          status: "completed",
+        });
+
+        return {
+          batchId,
+          totalRows: input.transactions.length,
+          successfulRows,
+          failedRows,
+          duplicateRows,
+          autoMatchedCount,
+          unmatchedCount,
+        };
+      }),
+
+    // Import toll transactions from CSV
+    importToll: protectedProcedure
+      .input(z.object({
+        vendor: z.enum(["ezpass", "sunpass", "ipass", "fastrak", "txtag", "other"]),
+        payPeriodId: z.number().optional(),
+        fileName: z.string(),
+        transactions: z.array(z.object({
+          vendorTxnId: z.string(),
+          transactionDate: z.string(),
+          amount: z.number(), // in cents
+          transponderNumber: z.string().optional(),
+          licensePlate: z.string().optional(),
+          unitNumber: z.string().optional(),
+          tollPlaza: z.string().optional(),
+          tollRoad: z.string().optional(),
+          entryPlaza: z.string().optional(),
+          exitPlaza: z.string().optional(),
+          rawPayload: z.string().optional(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const batchId = `TOLL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Create import batch
+        await createImportBatch({
+          batchId,
+          importType: "toll",
+          vendor: input.vendor,
+          fileName: input.fileName,
+          totalRows: input.transactions.length,
+          status: "processing",
+          payPeriodId: input.payPeriodId,
+          importedBy: ctx.user.id,
+        });
+
+        let successfulRows = 0;
+        let failedRows = 0;
+        let duplicateRows = 0;
+        let autoMatchedCount = 0;
+        let unmatchedCount = 0;
+
+        for (const txn of input.transactions) {
+          try {
+            // Check for duplicate
+            const isDuplicate = await checkDuplicateTollTransaction(input.vendor, txn.vendorTxnId);
+            if (isDuplicate) {
+              duplicateRows++;
+              continue;
+            }
+
+            // Create toll transaction
+            const result = await createTollTransaction({
+              vendor: input.vendor,
+              vendorTxnId: txn.vendorTxnId,
+              transactionDate: new Date(txn.transactionDate),
+              amount: txn.amount,
+              transponderNumber: txn.transponderNumber,
+              licensePlate: txn.licensePlate,
+              unitNumber: txn.unitNumber,
+              tollPlaza: txn.tollPlaza,
+              tollRoad: txn.tollRoad,
+              entryPlaza: txn.entryPlaza,
+              exitPlaza: txn.exitPlaza,
+              importBatchId: batchId,
+              rawPayload: txn.rawPayload,
+            });
+
+            // Auto-match to driver
+            const tollTxn = { ...txn, id: result.id, vendor: input.vendor } as any;
+            const matchResult = await autoMatchTollTransaction(tollTxn, input.payPeriodId || 0);
+
+            // Create allocation
+            await createPayrollAllocation({
+              sourceType: "toll",
+              sourceTxnId: result.id,
+              payPeriodId: input.payPeriodId,
+              driverId: matchResult.driverId,
+              vehicleId: matchResult.vehicleId,
+              amount: txn.amount,
+              confidence: matchResult.confidence as any || "vehicle_time",
+              matchReason: matchResult.reason,
+              status: matchResult.matched ? "matched" : "unmatched",
+            });
+
+            if (matchResult.matched) {
+              autoMatchedCount++;
+            } else {
+              unmatchedCount++;
+            }
+
+            successfulRows++;
+          } catch (error) {
+            failedRows++;
+          }
+        }
+
+        // Update batch stats
+        await updateImportBatch(batchId, {
+          successfulRows,
+          failedRows,
+          duplicateRows,
+          autoMatchedCount,
+          unmatchedCount,
+          status: "completed",
+        });
+
+        return {
+          batchId,
+          totalRows: input.transactions.length,
+          successfulRows,
+          failedRows,
+          duplicateRows,
+          autoMatchedCount,
+          unmatchedCount,
+        };
+      }),
+
+    // Get unmatched allocations (reconciliation queue)
+    getUnmatched: protectedProcedure
+      .input(z.object({ payPeriodId: z.number().optional() }).optional())
+      .query(async ({ input }) => {
+        return getUnmatchedAllocations(input?.payPeriodId);
+      }),
+
+    // Get all allocations
+    getAllocations: protectedProcedure
+      .input(z.object({
+        payPeriodId: z.number().optional(),
+        driverId: z.number().optional(),
+        sourceType: z.enum(["fuel", "toll"]).optional(),
+        status: z.enum(["matched", "unmatched", "disputed", "excluded"]).optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return getPayrollAllocations(input);
+      }),
+
+    // Manually assign allocation to driver
+    assignToDriver: protectedProcedure
+      .input(z.object({
+        allocationId: z.number(),
+        driverId: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await assignAllocationToDriver(input.allocationId, input.driverId, ctx.user.id, "manual");
+        return { success: true };
+      }),
+
+    // Get driver allocation totals for a pay period
+    getDriverTotals: protectedProcedure
+      .input(z.object({
+        driverId: z.number(),
+        payPeriodId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        return getDriverAllocationTotals(input.driverId, input.payPeriodId);
+      }),
+
+    // Update allocation status
+    updateAllocationStatus: protectedProcedure
+      .input(z.object({
+        allocationId: z.number(),
+        status: z.enum(["matched", "unmatched", "disputed", "excluded"]),
+        disputeReason: z.string().optional(),
+        resolutionNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const updateData: any = { status: input.status };
+        
+        if (input.status === "disputed") {
+          updateData.disputeReason = input.disputeReason;
+          updateData.disputedAt = new Date();
+        }
+        
+        if (input.resolutionNotes) {
+          updateData.resolutionNotes = input.resolutionNotes;
+          updateData.resolvedBy = ctx.user.id;
+          updateData.resolvedAt = new Date();
+        }
+        
+        await updatePayrollAllocation(input.allocationId, updateData);
+        return { success: true };
       }),
   }),
 });

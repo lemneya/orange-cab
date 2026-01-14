@@ -9,6 +9,10 @@ type CookieCall = {
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
+// Check if database is available
+const DATABASE_URL = process.env.DATABASE_URL;
+const skipDbTests = !DATABASE_URL;
+
 function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] } {
   const clearedCookies: CookieCall[] = [];
 
@@ -40,7 +44,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
   return { ctx, clearedCookies };
 }
 
-describe("drivers router", () => {
+describe.skipIf(skipDbTests)("drivers router", () => {
   it("drivers.list returns an array", async () => {
     const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);

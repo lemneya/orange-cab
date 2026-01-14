@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, date, boolean, decimal, time } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, date, boolean, decimal, time, uniqueIndex } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -939,3 +939,355 @@ export const activityLog = mysqlTable("activity_log", {
 
 export type ActivityLog = typeof activityLog.$inferSelect;
 export type InsertActivityLog = typeof activityLog.$inferInsert;
+
+
+// =====================================================
+// OC-PAY-3: FUEL + TOLL AUTO-IMPORT
+// =====================================================
+
+/**
+ * Fuel transaction vendor enum
+ */
+export const fuelVendorEnum = mysqlEnum("fuelVendor", [
+  "shell",
+  "exxon",
+  "bp",
+  "chevron",
+  "wawa",
+  "sheetz",
+  "other"
+]);
+
+/**
+ * Fuel transactions from vendor imports (Shell, etc.)
+ */
+export const fuelTransactions = mysqlTable("fuel_transactions", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Vendor identification
+  vendor: fuelVendorEnum.default("shell").notNull(),
+  vendorTxnId: varchar("vendorTxnId", { length: 100 }).notNull(), // Unique transaction ID from vendor
+  
+  // Transaction details
+  transactionDate: timestamp("transactionDate").notNull(),
+  amount: int("amount").notNull(), // Amount in cents
+  gallons: decimal("gallons", { precision: 10, scale: 3 }), // Gallons purchased
+  pricePerGallon: int("pricePerGallon"), // Price per gallon in cents
+  
+  // Card/Vehicle identification
+  cardId: varchar("cardId", { length: 50 }), // Fuel card ID
+  cardLastFour: varchar("cardLastFour", { length: 4 }), // Last 4 digits of card
+  licensePlate: varchar("licensePlate", { length: 20 }), // Vehicle plate if available
+  unitNumber: varchar("unitNumber", { length: 20 }), // Vehicle unit number if available
+  
+  // Location
+  stationName: varchar("stationName", { length: 200 }),
+  stationAddress: varchar("stationAddress", { length: 500 }),
+  stationCity: varchar("stationCity", { length: 100 }),
+  stationState: varchar("stationState", { length: 2 }),
+  
+  // Product details
+  productType: varchar("productType", { length: 50 }), // Regular, Premium, Diesel, etc.
+  
+  // Import tracking
+  importBatchId: varchar("importBatchId", { length: 50 }).notNull(),
+  rawPayload: text("rawPayload"), // Original CSV row as JSON
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  vendorTxnIdx: uniqueIndex("vendor_txn_idx").on(table.vendor, table.vendorTxnId),
+}));
+
+export type FuelTransaction = typeof fuelTransactions.$inferSelect;
+export type InsertFuelTransaction = typeof fuelTransactions.$inferInsert;
+
+/**
+ * Toll transaction vendor enum
+ */
+export const tollVendorEnum = mysqlEnum("tollVendor", [
+  "ezpass",
+  "sunpass",
+  "ipass",
+  "fastrak",
+  "txtag",
+  "other"
+]);
+
+/**
+ * Toll transactions from vendor imports (EZPass, etc.)
+ */
+export const tollTransactions = mysqlTable("toll_transactions", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Vendor identification
+  vendor: tollVendorEnum.default("ezpass").notNull(),
+  vendorTxnId: varchar("vendorTxnId", { length: 100 }).notNull(), // Unique transaction ID from vendor
+  
+  // Transaction details
+  transactionDate: timestamp("transactionDate").notNull(),
+  amount: int("amount").notNull(), // Amount in cents
+  
+  // Vehicle identification
+  transponderNumber: varchar("transponderNumber", { length: 50 }), // Transponder ID
+  licensePlate: varchar("licensePlate", { length: 20 }), // Vehicle plate
+  unitNumber: varchar("unitNumber", { length: 20 }), // Vehicle unit number if available
+  
+  // Toll location
+  tollPlaza: varchar("tollPlaza", { length: 200 }),
+  tollRoad: varchar("tollRoad", { length: 200 }),
+  entryPlaza: varchar("entryPlaza", { length: 200 }),
+  exitPlaza: varchar("exitPlaza", { length: 200 }),
+  
+  // Import tracking
+  importBatchId: varchar("importBatchId", { length: 50 }).notNull(),
+  rawPayload: text("rawPayload"), // Original CSV row as JSON
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  vendorTxnIdx: uniqueIndex("toll_vendor_txn_idx").on(table.vendor, table.vendorTxnId),
+}));
+
+export type TollTransaction = typeof tollTransactions.$inferSelect;
+export type InsertTollTransaction = typeof tollTransactions.$inferInsert;
+
+/**
+ * Allocation source type enum
+ */
+export const allocationSourceTypeEnum = mysqlEnum("allocationSourceType", [
+  "fuel",
+  "toll"
+]);
+
+/**
+ * Allocation confidence level enum
+ */
+export const allocationConfidenceEnum = mysqlEnum("allocationConfidence", [
+  "direct",       // Direct match via card/transponder assigned to driver
+  "vehicle_time", // Matched via vehicle assignment during time window
+  "manual"        // Manually assigned by payroll user
+]);
+
+/**
+ * Allocation status enum
+ */
+export const allocationStatusEnum = mysqlEnum("allocationStatus", [
+  "matched",    // Successfully allocated
+  "unmatched",  // Could not be automatically matched
+  "disputed",   // Driver disputed the allocation
+  "excluded"    // Excluded from payroll (e.g., personal use)
+]);
+
+/**
+ * Payroll allocations - links fuel/toll transactions to drivers for payroll
+ */
+export const payrollAllocations = mysqlTable("payroll_allocations", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Source transaction
+  sourceType: allocationSourceTypeEnum.notNull(),
+  sourceTxnId: int("sourceTxnId").notNull(), // ID in fuel_transactions or toll_transactions
+  
+  // Payroll period
+  payPeriodId: int("payPeriodId").references(() => payrollPeriods.id, { onDelete: "cascade" }),
+  
+  // Assignment
+  driverId: int("driverId").references(() => drivers.id, { onDelete: "set null" }),
+  vehicleId: int("vehicleId").references(() => vehicles.id, { onDelete: "set null" }),
+  
+  // Allocation details
+  amount: int("amount").notNull(), // Amount in cents (copied from source for quick access)
+  
+  // Matching metadata
+  confidence: allocationConfidenceEnum.default("vehicle_time").notNull(),
+  matchReason: text("matchReason"), // Explanation of how match was made
+  
+  // Status
+  status: allocationStatusEnum.default("unmatched").notNull(),
+  
+  // Manual assignment tracking
+  assignedBy: int("assignedBy").references(() => users.id),
+  assignedAt: timestamp("assignedAt"),
+  
+  // Dispute handling
+  disputeReason: text("disputeReason"),
+  disputedAt: timestamp("disputedAt"),
+  resolvedBy: int("resolvedBy").references(() => users.id),
+  resolvedAt: timestamp("resolvedAt"),
+  resolutionNotes: text("resolutionNotes"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PayrollAllocation = typeof payrollAllocations.$inferSelect;
+export type InsertPayrollAllocation = typeof payrollAllocations.$inferInsert;
+
+/**
+ * Import batch tracking for fuel/toll imports
+ */
+export const importBatches = mysqlTable("import_batches", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  batchId: varchar("batchId", { length: 50 }).notNull().unique(),
+  
+  // Import type
+  importType: mysqlEnum("importType", ["fuel", "toll"]).notNull(),
+  vendor: varchar("vendor", { length: 50 }).notNull(),
+  
+  // File info
+  fileName: varchar("fileName", { length: 255 }),
+  fileSize: int("fileSize"), // bytes
+  
+  // Stats
+  totalRows: int("totalRows").default(0),
+  successfulRows: int("successfulRows").default(0),
+  failedRows: int("failedRows").default(0),
+  duplicateRows: int("duplicateRows").default(0),
+  
+  // Allocation stats
+  autoMatchedCount: int("autoMatchedCount").default(0),
+  unmatchedCount: int("unmatchedCount").default(0),
+  
+  // Status
+  status: mysqlEnum("importStatus", ["pending", "processing", "completed", "failed"]).default("pending"),
+  errorMessage: text("errorMessage"),
+  
+  // Pay period association
+  payPeriodId: int("payPeriodId").references(() => payrollPeriods.id),
+  
+  importedBy: int("importedBy").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export type ImportBatch = typeof importBatches.$inferSelect;
+export type InsertImportBatch = typeof importBatches.$inferInsert;
+
+/**
+ * Driver fuel card assignments - for direct matching
+ */
+export const driverFuelCards = mysqlTable("driver_fuel_cards", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  driverId: int("driverId").notNull().references(() => drivers.id, { onDelete: "cascade" }),
+  
+  cardId: varchar("cardId", { length: 50 }).notNull(),
+  cardLastFour: varchar("cardLastFour", { length: 4 }),
+  vendor: fuelVendorEnum.default("shell").notNull(),
+  
+  isActive: boolean("isActive").default(true).notNull(),
+  
+  assignedDate: date("assignedDate"),
+  deactivatedDate: date("deactivatedDate"),
+  
+  notes: text("notes"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DriverFuelCard = typeof driverFuelCards.$inferSelect;
+export type InsertDriverFuelCard = typeof driverFuelCards.$inferInsert;
+
+/**
+ * Vehicle transponder assignments - for toll matching
+ */
+export const vehicleTransponders = mysqlTable("vehicle_transponders", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  vehicleId: int("vehicleId").notNull().references(() => vehicles.id, { onDelete: "cascade" }),
+  
+  transponderNumber: varchar("transponderNumber", { length: 50 }).notNull(),
+  vendor: tollVendorEnum.default("ezpass").notNull(),
+  
+  isActive: boolean("isActive").default(true).notNull(),
+  
+  assignedDate: date("assignedDate"),
+  deactivatedDate: date("deactivatedDate"),
+  
+  notes: text("notes"),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VehicleTransponder = typeof vehicleTransponders.$inferSelect;
+export type InsertVehicleTransponder = typeof vehicleTransponders.$inferInsert;
+
+
+/**
+ * Import file hashes - for idempotency (prevent duplicate imports)
+ */
+export const importFileHashes = mysqlTable("import_file_hashes", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // File identification
+  fileHash: varchar("fileHash", { length: 64 }).notNull(), // SHA-256 hash of file content
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  fileSize: int("fileSize").notNull(), // File size in bytes
+  
+  // Import type
+  importType: mysqlEnum("importType", ["fuel", "toll"]).notNull(),
+  
+  // Import batch reference
+  importBatchId: varchar("importBatchId", { length: 50 }).notNull(),
+  
+  // Import statistics
+  totalRows: int("totalRows").notNull(),
+  importedRows: int("importedRows").notNull(),
+  skippedRows: int("skippedRows").notNull().default(0), // Duplicates skipped
+  errorRows: int("errorRows").notNull().default(0),
+  
+  // Import user
+  importedBy: int("importedBy").references(() => users.id),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  fileHashIdx: uniqueIndex("file_hash_idx").on(table.fileHash),
+}));
+
+export type ImportFileHash = typeof importFileHashes.$inferSelect;
+export type InsertImportFileHash = typeof importFileHashes.$inferInsert;
+
+/**
+ * Import audit log - for "nothing dropped" guarantee
+ * Every row from every import is logged here with its outcome
+ */
+export const importAuditLog = mysqlTable("import_audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Import batch reference
+  importBatchId: varchar("importBatchId", { length: 50 }).notNull(),
+  importType: mysqlEnum("importType", ["fuel", "toll"]).notNull(),
+  
+  // Row identification
+  rowNumber: int("rowNumber").notNull(), // 1-indexed row number in source file
+  
+  // Outcome
+  outcome: mysqlEnum("outcome", [
+    "imported",        // Successfully imported and created transaction
+    "duplicate",       // Skipped - already exists (vendor+txnId match)
+    "error",           // Failed to import due to validation error
+    "allocated",       // Successfully allocated to a driver
+    "unmatched"        // Imported but could not be matched to a driver
+  ]).notNull(),
+  
+  // Reference to created records
+  transactionId: int("transactionId"), // ID in fuel_transactions or toll_transactions
+  allocationId: int("allocationId"),   // ID in payroll_allocations
+  
+  // Error details (if outcome is 'error')
+  errorReason: text("errorReason"),
+  
+  // Raw data for debugging
+  rawPayload: text("rawPayload"), // Original CSV row as JSON
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  batchRowIdx: uniqueIndex("batch_row_idx").on(table.importBatchId, table.rowNumber),
+}));
+
+export type ImportAuditLog = typeof importAuditLog.$inferSelect;
+export type InsertImportAuditLog = typeof importAuditLog.$inferInsert;
