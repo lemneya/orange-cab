@@ -534,3 +534,531 @@ export async function getDriverStats() {
     licenseExpiring: licenseExpiringResult[0]?.count || 0,
   };
 }
+
+
+// ============ OC-PAY-3: FUEL + TOLL IMPORT FUNCTIONS ============
+
+import { 
+  fuelTransactions, 
+  tollTransactions, 
+  payrollAllocations, 
+  importBatches,
+  driverFuelCards,
+  vehicleTransponders,
+  InsertFuelTransaction,
+  InsertTollTransaction,
+  InsertPayrollAllocation,
+  InsertImportBatch,
+  FuelTransaction,
+  TollTransaction,
+  PayrollAllocation,
+  ImportBatch
+} from "../drizzle/schema";
+
+// ============ IMPORT BATCH FUNCTIONS ============
+
+export async function createImportBatch(data: InsertImportBatch) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(importBatches).values(data);
+  return { id: Number(result[0].insertId), batchId: data.batchId };
+}
+
+export async function updateImportBatch(batchId: string, data: Partial<InsertImportBatch>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(importBatches)
+    .set({ ...data, completedAt: new Date() })
+    .where(eq(importBatches.batchId, batchId));
+}
+
+export async function getImportBatches(type?: "fuel" | "toll") {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const query = db.select().from(importBatches);
+  if (type) {
+    return query.where(eq(importBatches.importType, type)).orderBy(desc(importBatches.createdAt));
+  }
+  return query.orderBy(desc(importBatches.createdAt));
+}
+
+// ============ FUEL TRANSACTION FUNCTIONS ============
+
+export async function createFuelTransaction(data: InsertFuelTransaction) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(fuelTransactions).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function bulkCreateFuelTransactions(transactions: InsertFuelTransaction[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  if (transactions.length === 0) return { count: 0, ids: [] };
+  
+  const result = await db.insert(fuelTransactions).values(transactions);
+  return { count: transactions.length, insertId: Number(result[0].insertId) };
+}
+
+export async function getFuelTransactions(filters?: { 
+  batchId?: string; 
+  startDate?: Date; 
+  endDate?: Date;
+  cardId?: string;
+  unitNumber?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  let query = db.select().from(fuelTransactions);
+  
+  const conditions = [];
+  if (filters?.batchId) {
+    conditions.push(eq(fuelTransactions.importBatchId, filters.batchId));
+  }
+  if (filters?.startDate) {
+    conditions.push(sql`${fuelTransactions.transactionDate} >= ${filters.startDate}`);
+  }
+  if (filters?.endDate) {
+    conditions.push(sql`${fuelTransactions.transactionDate} <= ${filters.endDate}`);
+  }
+  if (filters?.cardId) {
+    conditions.push(eq(fuelTransactions.cardId, filters.cardId));
+  }
+  if (filters?.unitNumber) {
+    conditions.push(eq(fuelTransactions.unitNumber, filters.unitNumber));
+  }
+  
+  if (conditions.length > 0) {
+    return query.where(and(...conditions)).orderBy(desc(fuelTransactions.transactionDate));
+  }
+  return query.orderBy(desc(fuelTransactions.transactionDate));
+}
+
+export async function checkDuplicateFuelTransaction(vendor: string, vendorTxnId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const existing = await db.select({ id: fuelTransactions.id })
+    .from(fuelTransactions)
+    .where(and(
+      eq(fuelTransactions.vendor, vendor as any),
+      eq(fuelTransactions.vendorTxnId, vendorTxnId)
+    ))
+    .limit(1);
+  
+  return existing.length > 0;
+}
+
+// ============ TOLL TRANSACTION FUNCTIONS ============
+
+export async function createTollTransaction(data: InsertTollTransaction) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(tollTransactions).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function bulkCreateTollTransactions(transactions: InsertTollTransaction[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  if (transactions.length === 0) return { count: 0, ids: [] };
+  
+  const result = await db.insert(tollTransactions).values(transactions);
+  return { count: transactions.length, insertId: Number(result[0].insertId) };
+}
+
+export async function getTollTransactions(filters?: { 
+  batchId?: string; 
+  startDate?: Date; 
+  endDate?: Date;
+  transponderNumber?: string;
+  licensePlate?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  let query = db.select().from(tollTransactions);
+  
+  const conditions = [];
+  if (filters?.batchId) {
+    conditions.push(eq(tollTransactions.importBatchId, filters.batchId));
+  }
+  if (filters?.startDate) {
+    conditions.push(sql`${tollTransactions.transactionDate} >= ${filters.startDate}`);
+  }
+  if (filters?.endDate) {
+    conditions.push(sql`${tollTransactions.transactionDate} <= ${filters.endDate}`);
+  }
+  if (filters?.transponderNumber) {
+    conditions.push(eq(tollTransactions.transponderNumber, filters.transponderNumber));
+  }
+  if (filters?.licensePlate) {
+    conditions.push(eq(tollTransactions.licensePlate, filters.licensePlate));
+  }
+  
+  if (conditions.length > 0) {
+    return query.where(and(...conditions)).orderBy(desc(tollTransactions.transactionDate));
+  }
+  return query.orderBy(desc(tollTransactions.transactionDate));
+}
+
+export async function checkDuplicateTollTransaction(vendor: string, vendorTxnId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const existing = await db.select({ id: tollTransactions.id })
+    .from(tollTransactions)
+    .where(and(
+      eq(tollTransactions.vendor, vendor as any),
+      eq(tollTransactions.vendorTxnId, vendorTxnId)
+    ))
+    .limit(1);
+  
+  return existing.length > 0;
+}
+
+// ============ PAYROLL ALLOCATION FUNCTIONS ============
+
+export async function createPayrollAllocation(data: InsertPayrollAllocation) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(payrollAllocations).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function bulkCreatePayrollAllocations(allocations: InsertPayrollAllocation[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  if (allocations.length === 0) return { count: 0 };
+  
+  await db.insert(payrollAllocations).values(allocations);
+  return { count: allocations.length };
+}
+
+export async function getPayrollAllocations(filters?: {
+  payPeriodId?: number;
+  driverId?: number;
+  sourceType?: "fuel" | "toll";
+  status?: "matched" | "unmatched" | "disputed" | "excluded";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  let query = db.select().from(payrollAllocations);
+  
+  const conditions = [];
+  if (filters?.payPeriodId) {
+    conditions.push(eq(payrollAllocations.payPeriodId, filters.payPeriodId));
+  }
+  if (filters?.driverId) {
+    conditions.push(eq(payrollAllocations.driverId, filters.driverId));
+  }
+  if (filters?.sourceType) {
+    conditions.push(eq(payrollAllocations.sourceType, filters.sourceType));
+  }
+  if (filters?.status) {
+    conditions.push(eq(payrollAllocations.status, filters.status));
+  }
+  
+  if (conditions.length > 0) {
+    return query.where(and(...conditions)).orderBy(desc(payrollAllocations.createdAt));
+  }
+  return query.orderBy(desc(payrollAllocations.createdAt));
+}
+
+export async function getUnmatchedAllocations(payPeriodId?: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const conditions = [eq(payrollAllocations.status, "unmatched")];
+  if (payPeriodId) {
+    conditions.push(eq(payrollAllocations.payPeriodId, payPeriodId));
+  }
+  
+  return db.select().from(payrollAllocations)
+    .where(and(...conditions))
+    .orderBy(desc(payrollAllocations.createdAt));
+}
+
+export async function updatePayrollAllocation(id: number, data: Partial<InsertPayrollAllocation> & { 
+  assignedBy?: number; 
+  assignedAt?: Date;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(payrollAllocations)
+    .set(data)
+    .where(eq(payrollAllocations.id, id));
+}
+
+export async function assignAllocationToDriver(
+  allocationId: number, 
+  driverId: number, 
+  userId: number,
+  confidence: "direct" | "vehicle_time" | "manual" = "manual"
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(payrollAllocations)
+    .set({
+      driverId,
+      status: "matched",
+      confidence,
+      assignedBy: userId,
+      assignedAt: new Date(),
+    })
+    .where(eq(payrollAllocations.id, allocationId));
+}
+
+export async function getDriverAllocationTotals(driverId: number, payPeriodId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const results = await db.select({
+    sourceType: payrollAllocations.sourceType,
+    totalAmount: sql<number>`SUM(${payrollAllocations.amount})`,
+    count: sql<number>`COUNT(*)`,
+  })
+    .from(payrollAllocations)
+    .where(and(
+      eq(payrollAllocations.driverId, driverId),
+      eq(payrollAllocations.payPeriodId, payPeriodId),
+      eq(payrollAllocations.status, "matched")
+    ))
+    .groupBy(payrollAllocations.sourceType);
+  
+  return {
+    fuel: results.find(r => r.sourceType === "fuel") || { totalAmount: 0, count: 0 },
+    toll: results.find(r => r.sourceType === "toll") || { totalAmount: 0, count: 0 },
+  };
+}
+
+// ============ DRIVER FUEL CARD FUNCTIONS ============
+
+export async function getDriverFuelCards(driverId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.select().from(driverFuelCards)
+    .where(eq(driverFuelCards.driverId, driverId))
+    .orderBy(desc(driverFuelCards.createdAt));
+}
+
+export async function findDriverByFuelCard(cardId: string, vendor?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const conditions = [
+    eq(driverFuelCards.cardId, cardId),
+    eq(driverFuelCards.isActive, true)
+  ];
+  if (vendor) {
+    conditions.push(eq(driverFuelCards.vendor, vendor as any));
+  }
+  
+  const result = await db.select({
+    driverId: driverFuelCards.driverId,
+    driverFirstName: drivers.firstName,
+    driverLastName: drivers.lastName,
+  })
+    .from(driverFuelCards)
+    .leftJoin(drivers, eq(driverFuelCards.driverId, drivers.id))
+    .where(and(...conditions))
+    .limit(1);
+  
+  return result[0] || null;
+}
+
+// ============ VEHICLE TRANSPONDER FUNCTIONS ============
+
+export async function getVehicleTransponders(vehicleId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.select().from(vehicleTransponders)
+    .where(eq(vehicleTransponders.vehicleId, vehicleId))
+    .orderBy(desc(vehicleTransponders.createdAt));
+}
+
+export async function findVehicleByTransponder(transponderNumber: string, vendor?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const conditions = [
+    eq(vehicleTransponders.transponderNumber, transponderNumber),
+    eq(vehicleTransponders.isActive, true)
+  ];
+  if (vendor) {
+    conditions.push(eq(vehicleTransponders.vendor, vendor as any));
+  }
+  
+  const result = await db.select({
+    vehicleId: vehicleTransponders.vehicleId,
+    vehicleNumber: vehicles.vehicleNumber,
+    tagNumber: vehicles.tagNumber,
+  })
+    .from(vehicleTransponders)
+    .leftJoin(vehicles, eq(vehicleTransponders.vehicleId, vehicles.id))
+    .where(and(...conditions))
+    .limit(1);
+  
+  return result[0] || null;
+}
+
+// ============ ALLOCATION MATCHING LOGIC ============
+
+export async function autoMatchFuelTransaction(
+  txn: FuelTransaction, 
+  payPeriodId: number
+): Promise<{ matched: boolean; driverId?: number; confidence?: string; reason?: string }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Strategy 1: Direct match via fuel card
+  if (txn.cardId) {
+    const driverMatch = await findDriverByFuelCard(txn.cardId, txn.vendor);
+    if (driverMatch) {
+      return {
+        matched: true,
+        driverId: driverMatch.driverId,
+        confidence: "direct",
+        reason: `Matched via fuel card ${txn.cardId} assigned to ${driverMatch.driverFirstName} ${driverMatch.driverLastName}`
+      };
+    }
+  }
+  
+  // Strategy 2: Match via vehicle unit number + driver assignment
+  if (txn.unitNumber) {
+    const vehicleMatch = await db.select({
+      vehicleId: vehicles.id,
+      driverId: drivers.id,
+      driverFirstName: drivers.firstName,
+      driverLastName: drivers.lastName,
+    })
+      .from(vehicles)
+      .leftJoin(drivers, eq(vehicles.id, drivers.assignedVehicleId))
+      .where(eq(vehicles.vehicleNumber, txn.unitNumber))
+      .limit(1);
+    
+    if (vehicleMatch[0]?.driverId) {
+      return {
+        matched: true,
+        driverId: vehicleMatch[0].driverId,
+        confidence: "vehicle_time",
+        reason: `Matched via vehicle ${txn.unitNumber} assigned to ${vehicleMatch[0].driverFirstName} ${vehicleMatch[0].driverLastName}`
+      };
+    }
+  }
+  
+  // Strategy 3: Match via license plate
+  if (txn.licensePlate) {
+    const plateMatch = await db.select({
+      vehicleId: vehicles.id,
+      driverId: drivers.id,
+      driverFirstName: drivers.firstName,
+      driverLastName: drivers.lastName,
+    })
+      .from(vehicles)
+      .leftJoin(drivers, eq(vehicles.id, drivers.assignedVehicleId))
+      .where(eq(vehicles.tagNumber, txn.licensePlate))
+      .limit(1);
+    
+    if (plateMatch[0]?.driverId) {
+      return {
+        matched: true,
+        driverId: plateMatch[0].driverId,
+        confidence: "vehicle_time",
+        reason: `Matched via license plate ${txn.licensePlate} assigned to ${plateMatch[0].driverFirstName} ${plateMatch[0].driverLastName}`
+      };
+    }
+  }
+  
+  return { matched: false, reason: "No matching driver found" };
+}
+
+export async function autoMatchTollTransaction(
+  txn: TollTransaction, 
+  payPeriodId: number
+): Promise<{ matched: boolean; driverId?: number; vehicleId?: number; confidence?: string; reason?: string }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Strategy 1: Direct match via transponder
+  if (txn.transponderNumber) {
+    const vehicleMatch = await findVehicleByTransponder(txn.transponderNumber, txn.vendor);
+    if (vehicleMatch) {
+      // Find driver assigned to this vehicle
+      const driverMatch = await db.select({
+        driverId: drivers.id,
+        driverFirstName: drivers.firstName,
+        driverLastName: drivers.lastName,
+      })
+        .from(drivers)
+        .where(eq(drivers.assignedVehicleId, vehicleMatch.vehicleId))
+        .limit(1);
+      
+      if (driverMatch[0]) {
+        return {
+          matched: true,
+          driverId: driverMatch[0].driverId,
+          vehicleId: vehicleMatch.vehicleId,
+          confidence: "direct",
+          reason: `Matched via transponder ${txn.transponderNumber} on vehicle ${vehicleMatch.vehicleNumber} assigned to ${driverMatch[0].driverFirstName} ${driverMatch[0].driverLastName}`
+        };
+      }
+      
+      return {
+        matched: false,
+        vehicleId: vehicleMatch.vehicleId,
+        reason: `Vehicle ${vehicleMatch.vehicleNumber} found but no driver currently assigned`
+      };
+    }
+  }
+  
+  // Strategy 2: Match via license plate
+  if (txn.licensePlate) {
+    const plateMatch = await db.select({
+      vehicleId: vehicles.id,
+      vehicleNumber: vehicles.vehicleNumber,
+      driverId: drivers.id,
+      driverFirstName: drivers.firstName,
+      driverLastName: drivers.lastName,
+    })
+      .from(vehicles)
+      .leftJoin(drivers, eq(vehicles.id, drivers.assignedVehicleId))
+      .where(eq(vehicles.tagNumber, txn.licensePlate))
+      .limit(1);
+    
+    if (plateMatch[0]?.driverId) {
+      return {
+        matched: true,
+        driverId: plateMatch[0].driverId,
+        vehicleId: plateMatch[0].vehicleId,
+        confidence: "vehicle_time",
+        reason: `Matched via license plate ${txn.licensePlate} assigned to ${plateMatch[0].driverFirstName} ${plateMatch[0].driverLastName}`
+      };
+    }
+    
+    if (plateMatch[0]?.vehicleId) {
+      return {
+        matched: false,
+        vehicleId: plateMatch[0].vehicleId,
+        reason: `Vehicle ${plateMatch[0].vehicleNumber} found but no driver currently assigned`
+      };
+    }
+  }
+  
+  return { matched: false, reason: "No matching vehicle or driver found" };
+}

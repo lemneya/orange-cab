@@ -48,8 +48,12 @@ import RevenueReports from "./pages/billing/RevenueReports";
 
 // Payroll
 import DriverPayments from "./pages/payroll/DriverPayments";
+import DriverPayrollDetail from "./pages/payroll/DriverPayrollDetail";
 import EmployeePayroll from "./pages/payroll/EmployeePayroll";
 import BillPayments from "./pages/payroll/BillPayments";
+import FuelImport from "./pages/payroll/FuelImport";
+import TollImport from "./pages/payroll/TollImport";
+import ReconciliationQueue from "./pages/payroll/ReconciliationQueue";
 
 // Director of Operations
 import OperationsOverview from "./pages/director/OperationsOverview";
@@ -109,8 +113,12 @@ function Router() {
         
         {/* Payroll */}
         <Route path="/payroll/drivers" component={DriverPayments} />
+        <Route path="/payroll/drivers/:id" component={DriverPayrollDetail} />
         <Route path="/payroll/employees" component={EmployeePayroll} />
         <Route path="/payroll/bills" component={BillPayments} />
+        <Route path="/payroll/fuel-import" component={FuelImport} />
+        <Route path="/payroll/toll-import" component={TollImport} />
+        <Route path="/payroll/reconciliation" component={ReconciliationQueue} />
         
         {/* Director of Operations */}
         <Route path="/director/overview" component={OperationsOverview} />

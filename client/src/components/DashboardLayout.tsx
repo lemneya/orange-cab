@@ -50,7 +50,9 @@ import {
   BarChart3,
   Clock,
   Activity,
-  Cloud
+  Cloud,
+  Fuel,
+  Upload
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -119,6 +121,9 @@ const navigationGroups = [
     label: "Payroll",
     items: [
       { icon: DollarSign, label: "Driver Payments", path: "/payroll/drivers" },
+      { icon: Fuel, label: "Fuel Import", path: "/payroll/fuel-import" },
+      { icon: Receipt, label: "Toll Import", path: "/payroll/toll-import" },
+      { icon: AlertTriangle, label: "Reconciliation", path: "/payroll/reconciliation" },
       { icon: Users, label: "Employee Payroll", path: "/payroll/employees" },
       { icon: CreditCard, label: "Bill Payments", path: "/payroll/bills" },
     ],

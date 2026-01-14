@@ -10,12 +10,15 @@ export type TrpcContext = {
 
 // Demo user for development when OAuth is not configured
 const DEMO_USER: User = {
-  id: "demo-user-001",
+  id: 1,
+  openId: "demo-user-001",
   name: "Demo Admin",
   email: "admin@orangecab.com",
-  avatarUrl: null,
+  loginMethod: "demo",
+  role: "admin",
   createdAt: new Date(),
   updatedAt: new Date(),
+  lastSignedIn: new Date(),
 };
 
 export async function createContext(
