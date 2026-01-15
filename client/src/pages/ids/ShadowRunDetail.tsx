@@ -2,7 +2,7 @@
 // Drop-in UI scaffold for /ids/shadow-runs/:id
 // Tailwind-only, payroll-native: KPI cards + summary panel + table + drawer.
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "../../lib/trpc";
 
@@ -372,7 +372,19 @@ export default function IDSShadowRunDetail() {
   const data = useMemo(() => transformApiData(apiData), [apiData]);
 
   const [activeTab, setActiveTab] = useState<TabId>("routes");
-  const [exceptionsOnly, setExceptionsOnly] = useState(true);
+  // Default: Exceptions Only ON for workbench tabs (unassigned, locks, pay), OFF for routes
+  const [exceptionsOnly, setExceptionsOnly] = useState(false);
+
+  // Set default exceptionsOnly based on tab - workbench tabs default to ON
+  useEffect(() => {
+    const workbenchTabs: TabId[] = ["unassigned", "locks", "pay"];
+    if (workbenchTabs.includes(activeTab)) {
+      setExceptionsOnly(true);
+    } else if (activeTab === "routes") {
+      // Routes can be either way, default to OFF
+      setExceptionsOnly(false);
+    }
+  }, [activeTab]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<RouteRow | null>(null);
   const [selectedPay, setSelectedPay] = useState<PredictedPayRow | null>(null);
