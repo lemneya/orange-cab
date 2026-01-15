@@ -48,9 +48,9 @@ export default function VehicleList() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const isExpiringSoon = (dateStr: string | null) => {
-    if (!dateStr) return false;
-    const date = new Date(dateStr);
+  const isExpiringSoon = (dateInput: Date | string | null) => {
+    if (!dateInput) return false;
+    const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
     return date <= thirtyDaysFromNow;
