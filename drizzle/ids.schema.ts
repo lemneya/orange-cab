@@ -230,6 +230,93 @@ export const idsShadowRuns = mysqlTable("ids_shadow_runs", {
 });
 
 // ============================================================================
+// Actual Trips Table - Stores imported completed trips from MediRoute
+// PHI-stripped: no patient names, phones, DOB, or full addresses
+// ============================================================================
+
+export const idsActualTrips = mysqlTable("ids_actual_trips", {
+    id: int("id").autoincrement().primaryKey(),
+
+    // Import reference
+    importId: int("importId").references(() => idsImportAudit.id).notNull(),
+
+    // Trip identification (from Trip Id column)
+    tripId: varchar("tripId", { length: 100 }).notNull(),
+    serviceDate: date("serviceDate").notNull(),
+
+    // Assignment (no PHI)
+    driverName: varchar("driverName", { length: 200 }).notNull(),
+    vehicleUnit: varchar("vehicleUnit", { length: 50 }),
+
+    // Trip type
+    mobilityType: varchar("mobilityType", { length: 20 }).notNull(), // AMB, WC, STR
+    tripType: varchar("tripType", { length: 20 }), // A (appointment), W (will-call)
+
+    // Scheduled times
+    schedPickupTime: time("schedPickupTime"),
+    appointmentTime: time("appointmentTime"),
+
+    // Actual times
+    actualPickupArrive: time("actualPickupArrive"),
+    actualPickupPerform: time("actualPickupPerform"),
+    actualDropoffArrive: time("actualDropoffArrive"),
+    actualDropoffPerform: time("actualDropoffPerform"),
+
+    // Miles (SSOT: Routed Distance preferred, else Distance)
+    milesActual: decimal("milesActual", { precision: 8, scale: 2 }),
+
+    // GPS coordinates (for template mining, no address text)
+    pickupLat: decimal("pickupLat", { precision: 10, scale: 7 }),
+    pickupLon: decimal("pickupLon", { precision: 10, scale: 7 }),
+    dropoffLat: decimal("dropoffLat", { precision: 10, scale: 7 }),
+    dropoffLon: decimal("dropoffLon", { precision: 10, scale: 7 }),
+
+    // Status flags
+    status: varchar("status", { length: 20 }).notNull().default("completed"), // completed, cancelled, no_show
+    isCancelled: boolean("isCancelled").default(false),
+    isNoShow: boolean("isNoShow").default(false),
+    isStanding: boolean("isStanding").default(false),
+    isWillCall: boolean("isWillCall").default(false),
+
+    // Computed on-time flag
+    wasOnTime: boolean("wasOnTime"),
+
+    // Audit
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+// ============================================================================
+// Import Audit Table - Tracks CSV imports with file hash for idempotency
+// ============================================================================
+
+export const idsImportAudit = mysqlTable("ids_import_audit", {
+    id: int("id").autoincrement().primaryKey(),
+
+    // File identification
+    fileHash: varchar("fileHash", { length: 64 }).notNull().unique(), // SHA-256
+    fileName: varchar("fileName", { length: 255 }),
+    fileSize: int("fileSize"),
+
+    // Import stats
+    totalRows: int("totalRows").notNull(),
+    importedRows: int("importedRows").notNull(),
+    skippedRows: int("skippedRows").notNull().default(0),
+    errorRows: int("errorRows").notNull().default(0),
+
+    // Date range covered
+    serviceDateFrom: date("serviceDateFrom"),
+    serviceDateTo: date("serviceDateTo"),
+
+    // "Nothing dropped" proof
+    accountedRows: int("accountedRows").notNull(), // imported + skipped + error = total
+    isComplete: boolean("isComplete").notNull().default(false),
+
+    // Audit
+    importedBy: int("importedBy").references(() => users.id),
+    importedAt: timestamp("importedAt").defaultNow().notNull(),
+});
+
+// ============================================================================
 // Type Exports
 // ============================================================================
 
@@ -247,3 +334,9 @@ export type InsertIDSPayRule = typeof idsPayRules.$inferInsert;
 
 export type IDSShadowRun = typeof idsShadowRuns.$inferSelect;
 export type InsertIDSShadowRun = typeof idsShadowRuns.$inferInsert;
+
+export type IDSActualTrip = typeof idsActualTrips.$inferSelect;
+export type InsertIDSActualTrip = typeof idsActualTrips.$inferInsert;
+
+export type IDSImportAudit = typeof idsImportAudit.$inferSelect;
+export type InsertIDSImportAudit = typeof idsImportAudit.$inferInsert;
