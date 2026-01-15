@@ -34,6 +34,22 @@ function Pill({
   );
 }
 
+// OpCo and Broker Account options
+const OPCO_OPTIONS = [
+  { value: "SAHRAWI", label: "Sahrawi" },
+  { value: "METRIX", label: "Metrix" },
+] as const;
+
+const BROKER_ACCOUNT_OPTIONS = [
+  { value: "MODIVCARE_SAHRAWI", label: "Modivcare – Sahrawi", opcoId: "SAHRAWI", brokerId: "MODIVCARE" },
+  { value: "MODIVCARE_METRIX", label: "Modivcare – Metrix", opcoId: "METRIX", brokerId: "MODIVCARE" },
+  { value: "MTM_MAIN", label: "MTM", opcoId: "SAHRAWI", brokerId: "MTM" },
+  { value: "A2C_MAIN", label: "Access2Care", opcoId: "SAHRAWI", brokerId: "ACCESS2CARE" },
+] as const;
+
+type OpcoId = "SAHRAWI" | "METRIX";
+type BrokerAccountId = "MODIVCARE_SAHRAWI" | "MODIVCARE_METRIX" | "MTM_MAIN" | "A2C_MAIN";
+
 export default function ActualImport() {
   const [, setLocation] = useLocation();
   const [step, setStep] = useState<ImportStep>("upload");
@@ -42,6 +58,24 @@ export default function ActualImport() {
   const [preview, setPreview] = useState<any>(null);
   const [importResult, setImportResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Partition selection (required before import)
+  const [selectedOpco, setSelectedOpco] = useState<OpcoId | null>(null);
+  const [selectedBrokerAccount, setSelectedBrokerAccount] = useState<BrokerAccountId | null>(null);
+
+  // Get valid broker accounts for selected OpCo
+  const validBrokerAccounts = BROKER_ACCOUNT_OPTIONS.filter(
+    (opt) => !selectedOpco || opt.opcoId === selectedOpco
+  );
+
+  // Auto-select OpCo when broker account is selected
+  const handleBrokerAccountChange = (value: BrokerAccountId) => {
+    setSelectedBrokerAccount(value);
+    const account = BROKER_ACCOUNT_OPTIONS.find((opt) => opt.value === value);
+    if (account) {
+      setSelectedOpco(account.opcoId as OpcoId);
+    }
+  };
 
   const previewMutation = trpc.ids.previewActualCSV.useMutation();
   const importMutation = trpc.ids.importActualCSV.useMutation();
@@ -76,12 +110,27 @@ export default function ActualImport() {
   };
 
   const handleImport = async () => {
-    if (!csvContent) return;
+    if (!csvContent || !selectedOpco || !selectedBrokerAccount) {
+      setError("Please select Company and Funding Account before importing");
+      return;
+    }
+
+    const account = BROKER_ACCOUNT_OPTIONS.find((opt) => opt.value === selectedBrokerAccount);
+    if (!account) {
+      setError("Invalid broker account selected");
+      return;
+    }
 
     setError(null);
     setStep("importing");
     try {
-      const result = await importMutation.mutateAsync({ csvContent, fileName });
+      const result = await importMutation.mutateAsync({
+        csvContent,
+        fileName,
+        opcoId: selectedOpco,
+        brokerId: account.brokerId,
+        brokerAccountId: selectedBrokerAccount,
+      });
       setImportResult(result);
       setStep("complete");
     } catch (err: any) {
@@ -97,6 +146,8 @@ export default function ActualImport() {
     setPreview(null);
     setImportResult(null);
     setError(null);
+    setSelectedOpco(null);
+    setSelectedBrokerAccount(null);
   };
 
   return (
@@ -162,6 +213,67 @@ export default function ActualImport() {
         <div className="rounded-xl border bg-white p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Upload Completed Trips CSV</h2>
           
+          {/* OpCo and Funding Account Selection (REQUIRED) */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="font-medium text-blue-800 mb-3">Select Company & Funding Account</h3>
+            <p className="text-sm text-blue-700 mb-4">
+              You must select the operating company and funding account before importing.
+              This ensures trips are correctly partitioned and won't collide with other manifests.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              {/* OpCo Selection */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Company (OpCo) *</label>
+                <select
+                  value={selectedOpco || ""}
+                  onChange={(e) => {
+                    const value = e.target.value as OpcoId;
+                    setSelectedOpco(value || null);
+                    // Reset broker account if it doesn't match new OpCo
+                    if (selectedBrokerAccount) {
+                      const account = BROKER_ACCOUNT_OPTIONS.find((opt) => opt.value === selectedBrokerAccount);
+                      if (account && account.opcoId !== value) {
+                        setSelectedBrokerAccount(null);
+                      }
+                    }
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg text-slate-700 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="">Select company...</option>
+                  {OPCO_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Funding Account Selection */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Funding Account *</label>
+                <select
+                  value={selectedBrokerAccount || ""}
+                  onChange={(e) => handleBrokerAccountChange(e.target.value as BrokerAccountId)}
+                  className="w-full px-3 py-2 border rounded-lg text-slate-700 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="">Select funding account...</option>
+                  {validBrokerAccounts.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Selection Summary */}
+            {selectedOpco && selectedBrokerAccount && (
+              <div className="mt-3 flex items-center gap-2">
+                <Pill tone="green">{selectedOpco}</Pill>
+                <span className="text-slate-400">→</span>
+                <Pill tone="blue">
+                  {BROKER_ACCOUNT_OPTIONS.find((opt) => opt.value === selectedBrokerAccount)?.label}
+                </Pill>
+              </div>
+            )}
+          </div>
+
           <div className="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center">
             <input
               type="file"
@@ -227,6 +339,25 @@ export default function ActualImport() {
       {/* Step 2: Preview */}
       {step === "preview" && preview && (
         <div className="space-y-4">
+          {/* Partition Info Banner */}
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-blue-800">Import Target</h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  This data will be imported under the following partition:
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Pill tone="green">{selectedOpco}</Pill>
+                <span className="text-slate-400">→</span>
+                <Pill tone="blue">
+                  {BROKER_ACCOUNT_OPTIONS.find((opt) => opt.value === selectedBrokerAccount)?.label}
+                </Pill>
+              </div>
+            </div>
+          </div>
+
           {/* Preview Summary */}
           <div className="rounded-xl border bg-white p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Import Preview</h2>
@@ -348,6 +479,25 @@ export default function ActualImport() {
       {/* Step 4: Complete */}
       {step === "complete" && importResult && (
         <div className="space-y-4">
+          {/* Partition Info Banner */}
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-blue-800">Import Partition</h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  Data was imported under:
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Pill tone="green">{importResult.opcoId || selectedOpco}</Pill>
+                <span className="text-slate-400">→</span>
+                <Pill tone="blue">
+                  {BROKER_ACCOUNT_OPTIONS.find((opt) => opt.value === (importResult.brokerAccountId || selectedBrokerAccount))?.label}
+                </Pill>
+              </div>
+            </div>
+          </div>
+
           <div className="rounded-xl border bg-white p-6">
             <div className="flex items-center gap-3 mb-6">
               {importResult.success ? (

@@ -268,18 +268,33 @@ export const idsRouter = router({
     }),
 
   importActualCSV: protectedProcedure
-    .input(z.object({ csvContent: z.string(), fileName: z.string().optional() }))
+    .input(z.object({
+      csvContent: z.string(),
+      fileName: z.string().optional(),
+      // Partition fields (required)
+      opcoId: z.enum(["SAHRAWI", "METRIX"]),
+      brokerId: z.enum(["MODIVCARE", "MTM", "ACCESS2CARE"]),
+      brokerAccountId: z.enum(["MODIVCARE_SAHRAWI", "MODIVCARE_METRIX", "MTM_MAIN", "A2C_MAIN"]),
+    }))
     .mutation(async ({ input }) => {
       requireIDS();
       const importService = getActualImportService();
-      return importService.importCSV(input.csvContent, input.fileName);
+      return importService.importCSV(input.csvContent, input.fileName, {
+        opcoId: input.opcoId,
+        brokerId: input.brokerId,
+        brokerAccountId: input.brokerAccountId,
+      });
     }),
 
   getActualImports: protectedProcedure
-    .query(async () => {
+    .input(z.object({
+      opcoId: z.enum(["SAHRAWI", "METRIX"]).optional(),
+      brokerAccountId: z.enum(["MODIVCARE_SAHRAWI", "MODIVCARE_METRIX", "MTM_MAIN", "A2C_MAIN"]).optional(),
+    }).optional())
+    .query(async ({ input }) => {
       requireIDS();
       const importService = getActualImportService();
-      return importService.getImports();
+      return importService.getImports(input);
     }),
 
   getActualImport: protectedProcedure
@@ -291,19 +306,33 @@ export const idsRouter = router({
     }),
 
   getActualTrips: protectedProcedure
-    .input(z.object({ serviceDate: z.string() }))
+    .input(z.object({
+      serviceDate: z.string(),
+      opcoId: z.enum(["SAHRAWI", "METRIX"]).optional(),
+      brokerAccountId: z.enum(["MODIVCARE_SAHRAWI", "MODIVCARE_METRIX", "MTM_MAIN", "A2C_MAIN"]).optional(),
+    }))
     .query(async ({ input }) => {
       requireIDS();
       const importService = getActualImportService();
-      return importService.getActualTripsByDate(input.serviceDate);
+      return importService.getActualTripsByDate(input.serviceDate, {
+        opcoId: input.opcoId,
+        brokerAccountId: input.brokerAccountId,
+      });
     }),
 
   getActualDriverSummary: protectedProcedure
-    .input(z.object({ serviceDate: z.string() }))
+    .input(z.object({
+      serviceDate: z.string(),
+      opcoId: z.enum(["SAHRAWI", "METRIX"]).optional(),
+      brokerAccountId: z.enum(["MODIVCARE_SAHRAWI", "MODIVCARE_METRIX", "MTM_MAIN", "A2C_MAIN"]).optional(),
+    }))
     .query(async ({ input }) => {
       requireIDS();
       const importService = getActualImportService();
-      return importService.getDriverSummaryByDate(input.serviceDate);
+      return importService.getDriverSummaryByDate(input.serviceDate, {
+        opcoId: input.opcoId,
+        brokerAccountId: input.brokerAccountId,
+      });
     }),
 
   compareWithActual: protectedProcedure
@@ -318,7 +347,14 @@ export const idsRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Shadow run not found' });
       }
       
-      const actualSummary = await importService.getDriverSummaryByDate(shadowRun.runDate);
+      // Use partition fields from shadow run to filter actual data
+      // This ensures apples-to-apples comparison (Sahrawi vs Sahrawi, not Sahrawi vs Metrix)
+      const partitionFilter = {
+        opcoId: shadowRun.opcoId,
+        brokerAccountId: shadowRun.brokerAccountId,
+      };
+      
+      const actualSummary = await importService.getDriverSummaryByDate(shadowRun.runDate, partitionFilter);
       
       if (actualSummary.length === 0) {
         return {
