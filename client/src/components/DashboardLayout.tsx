@@ -144,6 +144,7 @@ const navigationGroups = [
     items: [
       { icon: Brain, label: "IDS Overview", path: "/ids" },
       { icon: Activity, label: "Shadow Runs", path: "/ids/shadow-runs" },
+      { icon: FileText, label: "Data Contracts", path: "/ids/contracts" },
     ],
   },
 ];
