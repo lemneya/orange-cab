@@ -247,3 +247,150 @@ export type InsertIDSPayRule = typeof idsPayRules.$inferInsert;
 
 export type IDSShadowRun = typeof idsShadowRuns.$inferSelect;
 export type InsertIDSShadowRun = typeof idsShadowRuns.$inferInsert;
+
+
+// ============================================================================
+// Actual Runs Table - Stores actual dispatch data for comparison with shadow
+// ============================================================================
+
+export const idsActualRuns = mysqlTable("ids_actual_runs", {
+    id: int("id").autoincrement().primaryKey(),
+
+    // Run metadata
+    serviceDate: date("serviceDate").notNull(),
+    importTimestamp: timestamp("importTimestamp").defaultNow().notNull(),
+    
+    // Source info
+    sourceFileName: varchar("sourceFileName", { length: 255 }),
+    sourceFileHash: varchar("sourceFileHash", { length: 64 }), // SHA-256
+    
+    // Input counts
+    totalTrips: int("totalTrips").notNull(),
+    totalDrivers: int("totalDrivers").notNull(),
+    
+    // Summary metrics
+    completedTrips: int("completedTrips").notNull(),
+    cancelledTrips: int("cancelledTrips").notNull(),
+    noShowTrips: int("noShowTrips").notNull(),
+    onTimeTrips: int("onTimeTrips").notNull(),
+    lateTrips: int("lateTrips").notNull(),
+    avgOnTimePercent: int("avgOnTimePercent").notNull(),
+    
+    // Pay summary
+    totalActualPayCents: int("totalActualPayCents").notNull(),
+    totalMiles: int("totalMiles").notNull(),
+    totalDeadheadMiles: int("totalDeadheadMiles").notNull(),
+    
+    // Raw data (no PHI - IDs only)
+    rawDataJson: json("rawDataJson").notNull(),
+    
+    // Import audit
+    importBatchId: varchar("importBatchId", { length: 36 }),
+    rowsImported: int("rowsImported").notNull(),
+    rowsSkipped: int("rowsSkipped").default(0),
+    rowsErrored: int("rowsErrored").default(0),
+    
+    // Audit
+    createdBy: int("createdBy").references(() => users.id),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+// ============================================================================
+// Actual Driver Summary Table - Per-driver actual performance for comparison
+// ============================================================================
+
+export const idsActualDriverSummary = mysqlTable("ids_actual_driver_summary", {
+    id: int("id").autoincrement().primaryKey(),
+    
+    // Foreign keys
+    actualRunId: int("actualRunId").references(() => idsActualRuns.id).notNull(),
+    driverId: int("driverId").references(() => drivers.id),
+    
+    // Driver identification (for matching when driverId not in system)
+    externalDriverId: varchar("externalDriverId", { length: 100 }),
+    driverName: varchar("driverName", { length: 200 }),
+    
+    // Trip counts
+    totalTrips: int("totalTrips").notNull(),
+    completedTrips: int("completedTrips").notNull(),
+    cancelledTrips: int("cancelledTrips").default(0),
+    noShowTrips: int("noShowTrips").default(0),
+    
+    // Time performance
+    onTimeTrips: int("onTimeTrips").notNull(),
+    lateTrips: int("lateTrips").default(0),
+    onTimePercent: int("onTimePercent").notNull(),
+    
+    // Distance
+    totalMiles: int("totalMiles").notNull(),
+    deadheadMiles: int("deadheadMiles").default(0),
+    
+    // Pay
+    actualPayCents: int("actualPayCents").notNull(),
+    
+    // Shift info
+    shiftStart: time("shiftStart"),
+    shiftEnd: time("shiftEnd"),
+    
+    // Vehicle
+    vehicleId: int("vehicleId").references(() => vehicles.id),
+    externalVehicleId: varchar("externalVehicleId", { length: 100 }),
+    
+    // Raw trip IDs (JSON array, no PHI)
+    tripIds: json("tripIds"),
+    
+    // Audit
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+// ============================================================================
+// Comparison Results Table - Stores delta analysis between shadow and actual
+// ============================================================================
+
+export const idsComparisonResults = mysqlTable("ids_comparison_results", {
+    id: int("id").autoincrement().primaryKey(),
+    
+    // Foreign keys
+    shadowRunId: int("shadowRunId").references(() => idsShadowRuns.id).notNull(),
+    actualRunId: int("actualRunId").references(() => idsActualRuns.id).notNull(),
+    
+    // Service date (denormalized for quick queries)
+    serviceDate: date("serviceDate").notNull(),
+    
+    // Comparison timestamp
+    comparedAt: timestamp("comparedAt").defaultNow().notNull(),
+    
+    // KPI Deltas
+    onTimePercentDelta: int("onTimePercentDelta").notNull(), // predicted - actual
+    deadheadMilesDelta: int("deadheadMilesDelta").notNull(),
+    totalPayDeltaCents: int("totalPayDeltaCents").notNull(),
+    
+    // Assignment comparison
+    tripsMatched: int("tripsMatched").notNull(), // Same driver assigned
+    tripsDifferent: int("tripsDifferent").notNull(), // Different driver
+    tripsOnlyInShadow: int("tripsOnlyInShadow").notNull(),
+    tripsOnlyInActual: int("tripsOnlyInActual").notNull(),
+    
+    // Per-driver deltas (JSON array)
+    driverDeltasJson: json("driverDeltasJson").notNull(),
+    
+    // Top causes for differences (JSON array)
+    topCausesJson: json("topCausesJson").notNull(),
+    
+    // Audit
+    createdBy: int("createdBy").references(() => users.id),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+// ============================================================================
+// Type Exports for new tables
+// ============================================================================
+
+export type IDSActualRun = typeof idsActualRuns.$inferSelect;
+export type InsertIDSActualRun = typeof idsActualRuns.$inferInsert;
+
+export type IDSActualDriverSummary = typeof idsActualDriverSummary.$inferSelect;
+export type InsertIDSActualDriverSummary = typeof idsActualDriverSummary.$inferInsert;
+
+export type IDSComparisonResult = typeof idsComparisonResults.$inferSelect;
+export type InsertIDSComparisonResult = typeof idsComparisonResults.$inferInsert;

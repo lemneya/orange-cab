@@ -7,7 +7,13 @@
 
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
-import { getIDSService } from "./ids.service";
+import { 
+  getIDSService,
+  importActualDispatch,
+  getActualRun,
+  getActualRunByDate,
+  compareShadowWithActual,
+} from "./ids.service";
 import { 
   isIDSEnabled, 
   isIDSShadowMode, 
@@ -196,17 +202,78 @@ export const idsRouter = router({
     }),
 
   /**
+   * POST /api/ids/importActual
+   * Import actual dispatch CSV for comparison
+   */
+  importActual: protectedProcedure
+    .input(z.object({
+      serviceDate: z.string(),
+      csvContent: z.string(),
+      sourceFileName: z.string(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      requireIDS();
+      
+      console.log(`[IDS] Importing actual dispatch from user ${ctx.user?.id}:`, {
+        serviceDate: input.serviceDate,
+        fileName: input.sourceFileName,
+        contentLength: input.csvContent.length,
+      });
+
+      const result = importActualDispatch(
+        input.serviceDate,
+        input.csvContent,
+        input.sourceFileName
+      );
+
+      console.log(`[IDS] Actual import completed:`, {
+        actualRunId: result.actualRunId,
+        totalTrips: result.summary.totalTrips,
+        totalDrivers: result.summary.totalDrivers,
+        completedTrips: result.summary.completedTrips,
+      });
+
+      return result;
+    }),
+
+  /**
+   * GET /api/ids/actualRun/:id
+   * Get a specific actual run by ID
+   */
+  getActualRun: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+    }))
+    .query(async ({ input }) => {
+      requireIDS();
+      return getActualRun(input.id);
+    }),
+
+  /**
+   * GET /api/ids/actualRunByDate
+   * Get actual run by service date
+   */
+  getActualRunByDate: protectedProcedure
+    .input(z.object({
+      serviceDate: z.string(),
+    }))
+    .query(async ({ input }) => {
+      requireIDS();
+      return getActualRunByDate(input.serviceDate);
+    }),
+
+  /**
    * GET /api/ids/shadowRun/:id/compare
    * Compare shadow run results with actual dispatches
    */
   compareShadowRun: protectedProcedure
     .input(z.object({
-      runId: z.number(),
+      shadowRunId: z.number(),
+      actualRunId: z.number(),
     }))
     .query(async ({ input }) => {
       requireIDS();
-      const ids = getIDSService();
-      return ids.compareShadowWithActual(input.runId);
+      return compareShadowWithActual(input.shadowRunId, input.actualRunId);
     }),
 
   /**
