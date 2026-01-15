@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { idsRouter } from "./ids/ids.router";
+import { adminRouter } from "./admin/admin.router";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 
@@ -502,6 +503,9 @@ export const appRouter = router({
 
   // IDS (Integral Dispatch System)
   ids: idsRouter,
+
+  // Admin Hub (OpCos, Brokers, Rate Cards, Driver Pay)
+  admin: adminRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -51,7 +51,9 @@ import {
   Clock,
   Activity,
   Cloud,
-  Brain
+  Brain,
+  Settings,
+  History
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -145,6 +147,18 @@ const navigationGroups = [
       { icon: Brain, label: "IDS Overview", path: "/ids" },
       { icon: Activity, label: "Shadow Runs", path: "/ids/shadow-runs" },
       { icon: FileText, label: "Data Contracts", path: "/ids/contracts" },
+    ],
+  },
+  {
+    label: "Admin Hub",
+    items: [
+      { icon: Settings, label: "Admin Overview", path: "/admin" },
+      { icon: Building2, label: "Operating Companies", path: "/admin/opcos" },
+      { icon: Users, label: "Brokers", path: "/admin/brokers" },
+      { icon: CreditCard, label: "Broker Accounts", path: "/admin/broker-accounts" },
+      { icon: DollarSign, label: "Rate Cards", path: "/admin/rate-cards" },
+      { icon: Receipt, label: "Pay Defaults", path: "/admin/pay-defaults" },
+      { icon: History, label: "Audit Log", path: "/admin/audit-log" },
     ],
   },
 ];
