@@ -372,7 +372,13 @@ export default function IDSShadowRunDetail() {
   const data = useMemo(() => transformApiData(apiData), [apiData]);
 
   const [activeTab, setActiveTab] = useState<TabId>("routes");
-  const [exceptionsOnly, setExceptionsOnly] = useState(true);
+  // Per-tab exception toggles with correct defaults:
+  // Routes: OFF (show all routes by default)
+  // Unassigned, Locks, Pay: ON (workbench tabs open "hot")
+  const [routesExceptionsOnly, setRoutesExceptionsOnly] = useState(false);
+  const [unassignedExceptionsOnly, setUnassignedExceptionsOnly] = useState(true);
+  const [locksExceptionsOnly, setLocksExceptionsOnly] = useState(true);
+  const [payExceptionsOnly, setPayExceptionsOnly] = useState(true);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<RouteRow | null>(null);
   const [selectedPay, setSelectedPay] = useState<PredictedPayRow | null>(null);
@@ -389,24 +395,25 @@ export default function IDSShadowRunDetail() {
         );
       })
       .filter((r) => {
-        if (!exceptionsOnly) return true;
+        if (!routesExceptionsOnly) return true;
         return (
           r.flags.length > 0 ||
           r.summary.onTimePct < 95 ||
           r.summary.estimatedDeadheadMiles > 10
         );
       });
-  }, [data.routes, query, exceptionsOnly]);
+  }, [data.routes, query, routesExceptionsOnly]);
 
   const filteredUnassigned = useMemo(() => {
-    if (!exceptionsOnly) return data.unassigned;
+    if (!unassignedExceptionsOnly) return data.unassigned;
     return data.unassigned.filter(u => u.severity === "warn" || u.severity === "danger");
-  }, [data.unassigned, exceptionsOnly]);
+  }, [data.unassigned, unassignedExceptionsOnly]);
 
   const filteredLocks = useMemo(() => {
-    if (!exceptionsOnly) return data.locks;
-    return [...data.locks].sort((a, b) => (a.status === "violated" ? -1 : 1) - (b.status === "violated" ? -1 : 1));
-  }, [data.locks, exceptionsOnly]);
+    if (!locksExceptionsOnly) return data.locks;
+    // When exceptions only, show only violated locks
+    return data.locks.filter(l => l.status === "violated");
+  }, [data.locks, locksExceptionsOnly]);
 
   const filteredPay = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -416,10 +423,10 @@ export default function IDSShadowRunDetail() {
         return p.driver.name.toLowerCase().includes(q) || p.driver.id.toLowerCase().includes(q);
       })
       .filter((p) => {
-        if (!exceptionsOnly) return true;
+        if (!payExceptionsOnly) return true;
         return p.flags.length > 0;
       });
-  }, [data.predictedPay, query, exceptionsOnly]);
+  }, [data.predictedPay, query, payExceptionsOnly]);
 
   const onTimeTone = kpiToneForPct(data.shadowRun.kpis.onTimePct);
   const unassignedTone: PillTone = data.shadowRun.counts.tripsUnassigned > 0 ? "red" : "green";
@@ -537,10 +544,21 @@ export default function IDSShadowRunDetail() {
           <div className="flex flex-wrap items-center gap-2">
             <Pill tone="blue">Shadow</Pill>
             <button
-              onClick={() => setExceptionsOnly((v) => !v)}
+              onClick={() => {
+                // Toggle the current tab's exceptions filter
+                switch (activeTab) {
+                  case "routes": setRoutesExceptionsOnly(v => !v); break;
+                  case "unassigned": setUnassignedExceptionsOnly(v => !v); break;
+                  case "locks": setLocksExceptionsOnly(v => !v); break;
+                  case "pay": setPayExceptionsOnly(v => !v); break;
+                }
+              }}
               className={clsx(
                 "px-3 py-2 rounded-lg border text-sm font-medium",
-                exceptionsOnly ? "border-orange-300 bg-orange-50 text-orange-700" : "text-slate-700 hover:bg-slate-50"
+                (activeTab === "routes" ? routesExceptionsOnly :
+                 activeTab === "unassigned" ? unassignedExceptionsOnly :
+                 activeTab === "locks" ? locksExceptionsOnly :
+                 payExceptionsOnly) ? "border-orange-300 bg-orange-50 text-orange-700" : "text-slate-700 hover:bg-slate-50"
               )}
             >
               Exceptions Only
@@ -693,7 +711,7 @@ export default function IDSShadowRunDetail() {
                 {filteredRoutes.length === 0 && (
                   <tr>
                     <td colSpan={10} className="px-4 py-8 text-center text-sm text-slate-500">
-                      {exceptionsOnly ? "No routes with exceptions. Toggle \"Exceptions Only\" off to see all routes." : "No routes match your filters."}
+                      {routesExceptionsOnly ? "No routes with exceptions. Toggle \"Exceptions Only\" off to see all routes." : "No routes match your filters."}
                     </td>
                   </tr>
                 )}
@@ -894,7 +912,7 @@ export default function IDSShadowRunDetail() {
                 {filteredPay.length === 0 && (
                   <tr>
                     <td colSpan={10} className="px-4 py-8 text-center text-sm text-slate-500">
-                      {exceptionsOnly ? "No drivers with pay exceptions. Toggle \"Exceptions Only\" off to see all." : "No predicted pay data."}
+                      {payExceptionsOnly ? "No drivers with pay exceptions. Toggle \"Exceptions Only\" off to see all." : "No predicted pay data."}
                     </td>
                   </tr>
                 )}
