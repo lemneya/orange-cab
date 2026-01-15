@@ -186,6 +186,10 @@ export default function ShadowRunDetail() {
             <Brain className="h-4 w-4" />
             Summary
           </TabsTrigger>
+          <TabsTrigger value="pay" className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Predicted Pay
+          </TabsTrigger>
         </TabsList>
 
         {/* Routes Tab */}
@@ -404,6 +408,83 @@ export default function ShadowRunDetail() {
                     ))}
                   </div>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        {/* Predicted Pay Tab */}
+        <TabsContent value="pay">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-green-600" />
+                Predicted Pay by Driver
+              </CardTitle>
+              <CardDescription>
+                Earnings breakdown for each driver based on this shadow run
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {routes.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No routes to calculate pay
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Driver</TableHead>
+                      <TableHead>Vehicle</TableHead>
+                      <TableHead className="text-right">Trips</TableHead>
+                      <TableHead className="text-right">Miles</TableHead>
+                      <TableHead className="text-right">Hours</TableHead>
+                      <TableHead className="text-right">Base Pay</TableHead>
+                      <TableHead className="text-right">Bonuses</TableHead>
+                      <TableHead className="text-right">Deductions</TableHead>
+                      <TableHead className="text-right">Net Pay</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {routes.map((route) => (
+                      <TableRow key={route.driverId}>
+                        <TableCell className="font-medium">
+                          Driver #{route.driverId}
+                        </TableCell>
+                        <TableCell>Vehicle #{route.vehicleId}</TableCell>
+                        <TableCell className="text-right">{route.totalTrips}</TableCell>
+                        <TableCell className="text-right">{route.totalMiles}</TableCell>
+                        <TableCell className="text-right">{route.totalHours.toFixed(1)}</TableCell>
+                        <TableCell className="text-right">
+                          ${(route.earningsBreakdown?.baseEarnings || route.predictedEarnings * 0.85).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right text-green-600">
+                          +${(route.earningsBreakdown?.bonuses || route.predictedEarnings * 0.15).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right text-red-600">
+                          -${(route.earningsBreakdown?.deductions || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-green-600">
+                          ${route.predictedEarnings.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50">
+                      <TableCell colSpan={5} className="font-bold">TOTAL</TableCell>
+                      <TableCell className="text-right font-bold">
+                        ${routes.reduce((sum, r) => sum + (r.earningsBreakdown?.baseEarnings || r.predictedEarnings * 0.85), 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-green-600">
+                        +${routes.reduce((sum, r) => sum + (r.earningsBreakdown?.bonuses || r.predictedEarnings * 0.15), 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-red-600">
+                        -${routes.reduce((sum, r) => sum + (r.earningsBreakdown?.deductions || 0), 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-green-600">
+                        ${(summary?.totalPredictedEarnings || 0).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>
