@@ -66,6 +66,7 @@ import ShadowRunsList from "./pages/ids/ShadowRunsList";
 import ShadowRunDetail from "./pages/ids/ShadowRunDetail";
 import NewShadowRun from "./pages/ids/NewShadowRun";
 import IDSContracts from "./pages/ids/Contracts";
+import ActualImport from "./pages/ids/ActualImport";
 
 function Router() {
   return (
@@ -134,6 +135,7 @@ function Router() {
         <Route path="/ids/shadow-runs/new" component={NewShadowRun} />
         <Route path="/ids/shadow-runs/:id" component={ShadowRunDetail} />
         <Route path="/ids/contracts" component={IDSContracts} />
+        <Route path="/ids/actual-import" component={ActualImport} />
         
         {/* Fallback */}
         <Route path="/404" component={NotFound} />

@@ -1,0 +1,4 @@
+Trip Id,Date,Driver,Patient Name,Phone,DOB,Address,SSN,Email,Vehicle,Type,Req Pickup,Pickup Lat,Pickup Lon
+T001,01/15/2026,John Smith,Jane Doe,555-123-4567,01/01/1980,123 Main St Apt 4 Springfield IL 62701,123-45-6789,jane@email.com,V101,AMB,09:00 AM,39.7817,89.6501
+T002,01/15/2026,John Smith,Bob Wilson,555-987-6543,05/15/1975,456 Oak Ave Chicago IL 60601,987-65-4321,bob@email.com,V101,WC,10:30 AM,41.8781,87.6298
+T003,01/15/2026,Jane Doe,Alice Johnson,555-111-2222,12/25/1990,789 Elm St Suite 100 Naperville IL 60540,111-22-3333,alice@email.com,V102,STR,11:00 AM,41.7508,88.1535

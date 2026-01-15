@@ -20,6 +20,7 @@ import {
   tripSchema,
 } from "./ids.types";
 import { TRPCError } from "@trpc/server";
+import { getActualImportService } from "./ids.actual-import.service";
 
 // ============================================================================
 // Guard Middleware
@@ -251,6 +252,178 @@ export const idsRouter = router({
         errors,
         totalTrips: input.trips.length,
         invalidTrips: errors.length,
+      };
+    }),
+
+  // ============================================================================
+  // Actual Import Endpoints
+  // ============================================================================
+
+  previewActualCSV: protectedProcedure
+    .input(z.object({ csvContent: z.string() }))
+    .mutation(async ({ input }) => {
+      requireIDS();
+      const importService = getActualImportService();
+      return importService.previewCSV(input.csvContent);
+    }),
+
+  importActualCSV: protectedProcedure
+    .input(z.object({ csvContent: z.string(), fileName: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      requireIDS();
+      const importService = getActualImportService();
+      return importService.importCSV(input.csvContent, input.fileName);
+    }),
+
+  getActualImports: protectedProcedure
+    .query(async () => {
+      requireIDS();
+      const importService = getActualImportService();
+      return importService.getImports();
+    }),
+
+  getActualImport: protectedProcedure
+    .input(z.object({ importId: z.number() }))
+    .query(async ({ input }) => {
+      requireIDS();
+      const importService = getActualImportService();
+      return importService.getImportById(input.importId);
+    }),
+
+  getActualTrips: protectedProcedure
+    .input(z.object({ serviceDate: z.string() }))
+    .query(async ({ input }) => {
+      requireIDS();
+      const importService = getActualImportService();
+      return importService.getActualTripsByDate(input.serviceDate);
+    }),
+
+  getActualDriverSummary: protectedProcedure
+    .input(z.object({ serviceDate: z.string() }))
+    .query(async ({ input }) => {
+      requireIDS();
+      const importService = getActualImportService();
+      return importService.getDriverSummaryByDate(input.serviceDate);
+    }),
+
+  compareWithActual: protectedProcedure
+    .input(z.object({ shadowRunId: z.number() }))
+    .query(async ({ input }) => {
+      requireIDS();
+      const ids = getIDSService();
+      const importService = getActualImportService();
+      
+      const shadowRun = await ids.getShadowRunById(input.shadowRunId);
+      if (!shadowRun) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Shadow run not found' });
+      }
+      
+      const actualSummary = await importService.getDriverSummaryByDate(shadowRun.runDate);
+      
+      if (actualSummary.length === 0) {
+        return {
+          hasActualData: false,
+          shadowRunId: input.shadowRunId,
+          serviceDate: shadowRun.runDate,
+          comparison: null,
+        };
+      }
+      
+      const shadowRoutes = shadowRun.result.routes;
+      const comparison = {
+        predicted: {
+          onTimePercent: shadowRun.result.summary.averageOnTimePercentage,
+          totalTrips: shadowRun.result.summary.assignedTrips,
+          totalMiles: shadowRoutes.reduce((sum: number, r: any) => sum + r.totalMiles, 0),
+          totalPay: shadowRun.result.summary.totalPredictedEarnings,
+        },
+        actual: {
+          onTimePercent: actualSummary.reduce((sum, d) => sum + d.onTimePercent, 0) / actualSummary.length,
+          totalTrips: actualSummary.reduce((sum, d) => sum + d.completedTrips, 0),
+          totalMiles: actualSummary.reduce((sum, d) => sum + d.totalMiles, 0),
+          totalPay: null as number | null,
+        },
+        delta: {
+          onTimePercent: 0,
+          totalTrips: 0,
+          totalMiles: 0,
+          totalPay: null as number | null,
+        },
+        driverDeltas: [] as any[],
+        topCauses: [] as { cause: string; count: number; impact: string }[],
+      };
+      
+      comparison.delta.onTimePercent = comparison.predicted.onTimePercent - comparison.actual.onTimePercent;
+      comparison.delta.totalTrips = comparison.predicted.totalTrips - comparison.actual.totalTrips;
+      comparison.delta.totalMiles = comparison.predicted.totalMiles - comparison.actual.totalMiles;
+      
+      const driverMap = new Map<string, any>();
+      
+      for (const route of shadowRoutes) {
+        const driverName = `Driver ${route.driverId}`;
+        driverMap.set(driverName, {
+          driverName,
+          predTrips: route.totalTrips,
+          actualTrips: 0,
+          predMiles: route.totalMiles,
+          actualMiles: 0,
+          predOnTime: route.onTimePercentage,
+          actualOnTime: 0,
+          predPay: route.predictedEarnings,
+          actualPay: null,
+          delta: null,
+          flags: [],
+        });
+      }
+      
+      for (const actual of actualSummary) {
+        let data = driverMap.get(actual.driverName);
+        if (!data) {
+          data = {
+            driverName: actual.driverName,
+            predTrips: 0, actualTrips: 0,
+            predMiles: 0, actualMiles: 0,
+            predOnTime: 0, actualOnTime: 0,
+            predPay: 0, actualPay: null,
+            delta: null, flags: [],
+          };
+          driverMap.set(actual.driverName, data);
+        }
+        data.actualTrips = actual.completedTrips;
+        data.actualMiles = actual.totalMiles;
+        data.actualOnTime = actual.onTimePercent;
+        
+        if (data.actualTrips < data.predTrips) data.flags.push('FEWER_TRIPS');
+        else if (data.actualTrips > data.predTrips) data.flags.push('MORE_TRIPS');
+        if (data.actualMiles > data.predMiles * 1.1) data.flags.push('MORE_MILES');
+        else if (data.actualMiles < data.predMiles * 0.9) data.flags.push('FEWER_MILES');
+        if (data.actualOnTime < data.predOnTime - 5) data.flags.push('LATE_PICKUPS');
+      }
+      
+      comparison.driverDeltas = Array.from(driverMap.values());
+      
+      const causes = new Map<string, number>();
+      for (const driver of comparison.driverDeltas) {
+        for (const flag of driver.flags) {
+          causes.set(flag, (causes.get(flag) || 0) + 1);
+        }
+      }
+      
+      comparison.topCauses = Array.from(causes.entries())
+        .map(([cause, count]) => ({
+          cause,
+          count,
+          impact: cause === 'MORE_MILES' ? `+${Math.round(comparison.delta.totalMiles)} mi` :
+                  cause === 'LATE_PICKUPS' ? `${Math.round(comparison.delta.onTimePercent)}% on-time` :
+                  `${count} drivers affected`,
+        }))
+        .sort((a, b) => b.count - a.count);
+      
+      return {
+        hasActualData: true,
+        shadowRunId: input.shadowRunId,
+        serviceDate: shadowRun.runDate,
+        comparison,
       };
     }),
 });

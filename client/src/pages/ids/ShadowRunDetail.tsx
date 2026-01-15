@@ -223,7 +223,7 @@ function transformApiData(apiData: any): ShadowRunPayload {
   // Transform routes from API result
   if (result.routes) {
     result.routes.forEach((route: any, idx: number) => {
-      const driverId = route.driverId || `DRV-${idx + 1}`;
+      const driverId = String(route.driverId || `DRV-${idx + 1}`);
       const trips = route.trips || [];
       const tripCount = trips.length;
       const estimatedMiles = trips.reduce((sum: number, t: any) => sum + (t.miles || 10), 0);
@@ -355,7 +355,332 @@ function transformApiData(apiData: any): ShadowRunPayload {
   };
 }
 
-type TabId = "routes" | "unassigned" | "locks" | "pay";
+type TabId = "routes" | "unassigned" | "locks" | "pay" | "compare";
+
+// ============================================================================
+// Compare Tab Component
+// ============================================================================
+
+function CompareTab({
+  shadowRunId,
+  serviceDate,
+  comparisonData,
+}: {
+  shadowRunId: number;
+  serviceDate: string;
+  comparisonData: any;
+}) {
+  const [, setLocation] = useLocation();
+  const [selectedDriver, setSelectedDriver] = useState<any>(null);
+
+  // No actual data yet
+  if (!comparisonData?.hasActualData) {
+    return (
+      <div className="rounded-xl border bg-white p-12 text-center">
+        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-slate-900 mb-2">No Actual Data Yet</h3>
+        <p className="text-sm text-slate-500 mb-6">
+          Import actual dispatch data from MediRoute to compare with this shadow run.
+        </p>
+        <button
+          onClick={() => setLocation("/ids/actual-import")}
+          className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
+        >
+          Import Actual Dispatch CSV
+        </button>
+      </div>
+    );
+  }
+
+  const { comparison } = comparisonData;
+
+  return (
+    <div className="space-y-4">
+      {/* KPI Comparison Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-xl border bg-white p-4">
+          <div className="text-xs text-slate-500 mb-2">On-Time %</div>
+          <div className="flex items-baseline gap-3">
+            <div>
+              <div className="text-xs text-slate-400">Predicted</div>
+              <div className="text-2xl font-bold text-slate-900">
+                {comparison.predicted.onTimePercent.toFixed(0)}%
+              </div>
+            </div>
+            <div className="text-slate-300">vs</div>
+            <div>
+              <div className="text-xs text-slate-400">Actual</div>
+              <div className="text-2xl font-bold text-slate-900">
+                {comparison.actual.onTimePercent.toFixed(0)}%
+              </div>
+            </div>
+          </div>
+          <div className={clsx(
+            "mt-2 text-sm font-medium",
+            comparison.delta.onTimePercent > 0 ? "text-green-600" : "text-red-600"
+          )}>
+            {comparison.delta.onTimePercent > 0 ? "+" : ""}
+            {comparison.delta.onTimePercent.toFixed(0)}% {comparison.delta.onTimePercent > 0 ? "better" : "worse"}
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-white p-4">
+          <div className="text-xs text-slate-500 mb-2">Total Miles</div>
+          <div className="flex items-baseline gap-3">
+            <div>
+              <div className="text-xs text-slate-400">Predicted</div>
+              <div className="text-2xl font-bold text-slate-900">
+                {comparison.predicted.totalMiles.toFixed(0)} mi
+              </div>
+            </div>
+            <div className="text-slate-300">vs</div>
+            <div>
+              <div className="text-xs text-slate-400">Actual</div>
+              <div className="text-2xl font-bold text-slate-900">
+                {comparison.actual.totalMiles.toFixed(0)} mi
+              </div>
+            </div>
+          </div>
+          <div className={clsx(
+            "mt-2 text-sm font-medium",
+            comparison.delta.totalMiles < 0 ? "text-green-600" : "text-amber-600"
+          )}>
+            {comparison.delta.totalMiles < 0 ? "" : "+"}
+            {comparison.delta.totalMiles.toFixed(0)} mi {comparison.delta.totalMiles < 0 ? "saved" : "extra"}
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-white p-4">
+          <div className="text-xs text-slate-500 mb-2">Total Pay</div>
+          <div className="flex items-baseline gap-3">
+            <div>
+              <div className="text-xs text-slate-400">Predicted</div>
+              <div className="text-2xl font-bold text-slate-900">
+                ${comparison.predicted.totalPay.toFixed(0)}
+              </div>
+            </div>
+            <div className="text-slate-300">vs</div>
+            <div>
+              <div className="text-xs text-slate-400">Actual</div>
+              <div className="text-2xl font-bold text-slate-900">
+                {comparison.actual.totalPay !== null ? `$${comparison.actual.totalPay.toFixed(0)}` : "N/A"}
+              </div>
+            </div>
+          </div>
+          {comparison.delta.totalPay !== null && (
+            <div className={clsx(
+              "mt-2 text-sm font-medium",
+              comparison.delta.totalPay > 0 ? "text-green-600" : "text-red-600"
+            )}>
+              {comparison.delta.totalPay > 0 ? "+" : ""}${comparison.delta.totalPay.toFixed(0)} predicted
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Top Causes */}
+      {comparison.topCauses.length > 0 && (
+        <div className="rounded-xl border bg-white p-4">
+          <h3 className="font-semibold text-slate-900 mb-3">Top Causes for Differences</h3>
+          <div className="space-y-2">
+            {comparison.topCauses.map((cause: any, i: number) => (
+              <div key={cause.cause} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-medium">
+                    {i + 1}
+                  </span>
+                  <span className="text-sm text-slate-700">
+                    {cause.cause.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c: string) => c.toUpperCase())}
+                  </span>
+                  <Pill tone="slate">{cause.count}x</Pill>
+                </div>
+                <span className="text-sm text-slate-500">{cause.impact}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Driver Alias Warning */}
+      {comparison.unmatchedDrivers && comparison.unmatchedDrivers.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-amber-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h4 className="font-medium text-amber-800">Driver Name Mismatch Warning</h4>
+              <p className="text-sm text-amber-700 mt-1">
+                The following drivers from actual data could not be matched to shadow run drivers.
+                This may cause under-counting in the comparison. Consider adding driver aliases.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {comparison.unmatchedDrivers.map((driver: string) => (
+                  <Pill key={driver} tone="amber">{driver}</Pill>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Per-Driver Delta Table */}
+      <div className="rounded-xl border bg-white overflow-hidden">
+        <div className="px-4 py-3 border-b">
+          <h3 className="font-semibold text-slate-900">Per-Driver Delta</h3>
+          <p className="text-xs text-slate-500">Predicted vs Actual performance by driver (uses normalized name matching)</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className="border-b bg-slate-50">
+              <tr className="h-10 text-xs text-slate-500">
+                <th className="px-4 text-left">Driver</th>
+                <th className="px-4 text-left">Pred Trips</th>
+                <th className="px-4 text-left">Actual Trips</th>
+                <th className="px-4 text-left">Pred Miles</th>
+                <th className="px-4 text-left">Actual Miles</th>
+                <th className="px-4 text-left">Pred On-Time</th>
+                <th className="px-4 text-left">Actual On-Time</th>
+                <th className="px-4 text-left">Flags</th>
+                <th className="px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.driverDeltas.map((driver: any) => (
+                <tr key={driver.driverName} className="h-12 border-b last:border-b-0 hover:bg-slate-50">
+                  <td className="px-4 py-2">
+                    <div className="font-medium">{driver.driverName}</div>
+                  </td>
+                  <td className="px-4 py-2">{driver.predTrips}</td>
+                  <td className="px-4 py-2">{driver.actualTrips}</td>
+                  <td className="px-4 py-2">{driver.predMiles.toFixed(0)}</td>
+                  <td className="px-4 py-2">{driver.actualMiles.toFixed(0)}</td>
+                  <td className="px-4 py-2">{driver.predOnTime.toFixed(0)}%</td>
+                  <td className="px-4 py-2">{driver.actualOnTime.toFixed(0)}%</td>
+                  <td className="px-4 py-2">
+                    <div className="flex flex-wrap gap-1">
+                      {driver.flags.map((flag: string) => (
+                        <Pill key={flag} tone={
+                          flag === "LATE_PICKUPS" ? "red" :
+                          flag === "MORE_MILES" ? "amber" :
+                          flag === "FEWER_TRIPS" ? "amber" :
+                          "slate"
+                        }>
+                          {flag.replace(/_/g, " ")}
+                        </Pill>
+                      ))}
+                      {driver.flags.length === 0 && <Pill tone="green">Match</Pill>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <button
+                      onClick={() => setSelectedDriver(driver)}
+                      className="text-sm text-orange-600 hover:text-orange-700"
+                    >
+                      Explain
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Explain Delta Drawer */}
+      <Drawer
+        open={!!selectedDriver}
+        title={selectedDriver ? `Delta Explanation — ${selectedDriver.driverName}` : ""}
+        onClose={() => setSelectedDriver(null)}
+      >
+        {selectedDriver && (
+          <div className="space-y-4">
+            <div className="rounded-xl border p-4">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <div className="text-xs text-slate-500">Driver</div>
+                  <div className="font-semibold">{selectedDriver.driverName}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-slate-500">Pay Delta</div>
+                  <div className={clsx(
+                    "text-xl font-bold",
+                    selectedDriver.delta && selectedDriver.delta > 0 ? "text-green-600" : "text-red-600"
+                  )}>
+                    {selectedDriver.delta !== null ? (
+                      `${selectedDriver.delta > 0 ? "+" : ""}$${selectedDriver.delta.toFixed(2)}`
+                    ) : "N/A"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border p-4">
+              <h4 className="font-medium text-slate-900 mb-3">Comparison Breakdown</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Predicted Trips</span>
+                  <span className="font-medium">{selectedDriver.predTrips}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Actual Trips</span>
+                  <span className="font-medium">{selectedDriver.actualTrips}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Predicted Miles</span>
+                  <span className="font-medium">{selectedDriver.predMiles.toFixed(0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Actual Miles</span>
+                  <span className="font-medium">{selectedDriver.actualMiles.toFixed(0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Predicted On-Time</span>
+                  <span className="font-medium">{selectedDriver.predOnTime.toFixed(0)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Actual On-Time</span>
+                  <span className="font-medium">{selectedDriver.actualOnTime.toFixed(0)}%</span>
+                </div>
+              </div>
+            </div>
+
+            {selectedDriver.flags.length > 0 && (
+              <div className="rounded-xl border p-4">
+                <h4 className="font-medium text-slate-900 mb-3">Likely Causes</h4>
+                <div className="space-y-2">
+                  {selectedDriver.flags.map((flag: string) => (
+                    <div key={flag} className="flex items-center gap-2">
+                      <Pill tone={
+                        flag === "LATE_PICKUPS" ? "red" :
+                        flag === "MORE_MILES" ? "amber" :
+                        "slate"
+                      }>
+                        {flag}
+                      </Pill>
+                      <span className="text-sm text-slate-600">
+                        {flag === "LATE_PICKUPS" ? "Late pickup windows" :
+                         flag === "MORE_MILES" ? "More miles than predicted" :
+                         flag === "FEWER_TRIPS" ? "Fewer trips assigned" :
+                         flag === "MORE_TRIPS" ? "More trips assigned" :
+                         flag === "FEWER_MILES" ? "Fewer miles than predicted" :
+                         flag}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Drawer>
+    </div>
+  );
+}
 
 export default function IDSShadowRunDetail() {
   const params = useParams<{ id: string }>();
@@ -366,6 +691,12 @@ export default function IDSShadowRunDetail() {
   const { data: apiData, isLoading, error } = trpc.ids.getShadowRun.useQuery(
     { id: runId },
     { enabled: runId > 0 }
+  );
+
+  // Fetch comparison data - must be before early returns
+  const { data: comparisonData } = trpc.ids.compareWithActual.useQuery(
+    { shadowRunId: runId },
+    { enabled: runId > 0 && !!apiData }
   );
 
   // Transform API data to component format
@@ -460,6 +791,7 @@ export default function IDSShadowRunDetail() {
     { id: "unassigned", label: "Unassigned", count: data.unassigned.length },
     { id: "locks", label: "Template Locks", count: data.locks.length },
     { id: "pay", label: "Predicted Pay", count: data.predictedPay.length },
+    { id: "compare", label: "Compare" },
   ];
 
   return (
@@ -914,6 +1246,15 @@ export default function IDSShadowRunDetail() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Compare Tab */}
+      {activeTab === "compare" && (
+        <CompareTab 
+          shadowRunId={runId} 
+          serviceDate={data.shadowRun.serviceDate}
+          comparisonData={comparisonData}
+        />
       )}
 
       {/* Route Drawer */}
