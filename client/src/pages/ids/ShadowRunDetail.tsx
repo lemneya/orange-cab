@@ -223,8 +223,8 @@ function transformApiData(apiData: any): ShadowRunPayload {
   // Transform routes from API result
   if (result.routes) {
     result.routes.forEach((route: any, idx: number) => {
-      const driverId = route.driverId || `DRV-${idx + 1}`;
-      const trips = route.trips || [];
+      const driverId = String(route.driverId || `DRV-${idx + 1}`);
+      const trips = route.assignments || route.trips || [];
       const tripCount = trips.length;
       const estimatedMiles = trips.reduce((sum: number, t: any) => sum + (t.miles || 10), 0);
       const deadheadMiles = Math.round(estimatedMiles * 0.15 * 10) / 10;
@@ -239,7 +239,7 @@ function transformApiData(apiData: any): ShadowRunPayload {
       routes.push({
         driver: {
           id: driverId,
-          name: `Driver ${driverId.replace('DRV-', '')}`,
+          name: `Driver ${String(driverId).replace('DRV-', '')}`,
           type: "1099",
           shift: { start: "04:00", end: "16:00" },
         },
@@ -284,7 +284,7 @@ function transformApiData(apiData: any): ShadowRunPayload {
       predictedPay.push({
         driver: {
           id: driverId,
-          name: `Driver ${driverId.replace('DRV-', '')}`,
+          name: `Driver ${String(driverId).replace('DRV-', '')}`,
           type: "1099",
         },
         contract: "Per Mile",
@@ -355,7 +355,376 @@ function transformApiData(apiData: any): ShadowRunPayload {
   };
 }
 
-type TabId = "routes" | "unassigned" | "locks" | "pay";
+type TabId = "routes" | "unassigned" | "locks" | "pay" | "compare";
+
+// ============================================================================
+// Compare Tab Component
+// ============================================================================
+
+type CompareDriverDelta = {
+  driverId: string;
+  driverName: string;
+  predTrips: number;
+  actualTrips: number;
+  predMiles: number;
+  actualMiles: number;
+  predPay: number;
+  actualPay: number;
+  delta: number;
+  flags: Array<{ code: string; label: string; severity: FlagSeverity }>;
+};
+
+type CompareData = {
+  hasActual: boolean;
+  actualRunId?: number;
+  kpis: {
+    predOnTime: number;
+    actualOnTime: number;
+    predDeadhead: number;
+    actualDeadhead: number;
+    predPay: number;
+    actualPay: number;
+  };
+  driverDeltas: CompareDriverDelta[];
+  topCauses: Array<{ cause: string; count: number; impact: string }>;
+};
+
+function CompareTab({ shadowRunId, serviceDate }: { shadowRunId: string; serviceDate: string }) {
+  const [showUpload, setShowUpload] = useState(false);
+  const [csvContent, setCsvContent] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<CompareDriverDelta | null>(null);
+  
+  // Mock comparison data - in real implementation, this would come from API
+  const [compareData, setCompareData] = useState<CompareData | null>(null);
+  
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCsvContent(event.target?.result as string);
+      };
+      reader.readAsText(file);
+    }
+  };
+  
+  const handleImport = async () => {
+    // Allow import even without file (use mock data for demo)
+    setImporting(true);
+    
+    // Simulate import - in real implementation, call API
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Mock comparison data after import
+    setCompareData({
+      hasActual: true,
+      actualRunId: 1,
+      kpis: {
+        predOnTime: 100,
+        actualOnTime: 92,
+        predDeadhead: 38,
+        actualDeadhead: 52,
+        predPay: 500,
+        actualPay: 485,
+      },
+      driverDeltas: [
+        { driverId: "DRV-001", driverName: "John Smith", predTrips: 3, actualTrips: 2, predMiles: 28, actualMiles: 22, predPay: 56, actualPay: 44, delta: 12, flags: [{ code: "FEWER_TRIPS", label: "Fewer Trips", severity: "warn" }] },
+        { driverId: "DRV-002", driverName: "Maria Garcia", predTrips: 3, actualTrips: 3, predMiles: 25, actualMiles: 30, predPay: 50, actualPay: 60, delta: -10, flags: [{ code: "MORE_MILES", label: "More Miles", severity: "info" }] },
+        { driverId: "DRV-003", driverName: "Mike Johnson", predTrips: 2, actualTrips: 2, predMiles: 22, actualMiles: 22, predPay: 44, actualPay: 44, delta: 0, flags: [] },
+        { driverId: "DRV-004", driverName: "Sarah Williams", predTrips: 3, actualTrips: 4, predMiles: 30, actualMiles: 38, predPay: 60, actualPay: 76, delta: -16, flags: [{ code: "MORE_TRIPS", label: "More Trips", severity: "info" }] },
+        { driverId: "DRV-005", driverName: "David Brown", predTrips: 2, actualTrips: 1, predMiles: 20, actualMiles: 12, predPay: 40, actualPay: 24, delta: 16, flags: [{ code: "FEWER_TRIPS", label: "Fewer Trips", severity: "warn" }] },
+      ],
+      topCauses: [
+        { cause: "Late appointment windows", count: 3, impact: "+8 deadhead mi" },
+        { cause: "Lock constraint overrides", count: 2, impact: "+$15 pay variance" },
+        { cause: "Vehicle type mismatch", count: 1, impact: "1 trip reassigned" },
+      ],
+    });
+    
+    setImporting(false);
+    setShowUpload(false);
+    setCsvContent("");
+  };
+  
+  if (!compareData?.hasActual) {
+    return (
+      <div className="rounded-xl border bg-white p-8 text-center">
+        <div className="mx-auto w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+          <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-slate-900 mb-2">No Actual Data Yet</h3>
+        <p className="text-sm text-slate-500 mb-6">Upload actual dispatch data from MediRoute to compare with this shadow run.</p>
+        
+        {!showUpload ? (
+          <button
+            onClick={() => setShowUpload(true)}
+            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
+          >
+            Upload Actual Dispatch CSV
+          </button>
+        ) : (
+          <div className="max-w-md mx-auto space-y-4">
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
+              />
+              {csvContent && (
+                <div className="mt-3 text-sm text-green-600">File loaded: {csvContent.split('\n').length} rows</div>
+              )}
+            </div>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={() => { setShowUpload(false); setCsvContent(""); }}
+                className="px-4 py-2 border rounded-lg hover:bg-slate-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={importing}
+                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50"
+              >
+                {importing ? "Importing..." : "Import & Compare"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  const { kpis, driverDeltas, topCauses } = compareData;
+  const onTimeDelta = kpis.predOnTime - kpis.actualOnTime;
+  const deadheadDelta = kpis.predDeadhead - kpis.actualDeadhead;
+  const payDelta = kpis.predPay - kpis.actualPay;
+  
+  return (
+    <div className="space-y-5">
+      {/* Comparison KPI Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-xl border bg-white p-4">
+          <div className="text-xs text-slate-500 mb-2">On-Time %</div>
+          <div className="flex items-baseline gap-3">
+            <div>
+              <div className="text-xs text-slate-400">Predicted</div>
+              <div className="text-xl font-semibold text-slate-900">{kpis.predOnTime}%</div>
+            </div>
+            <div className="text-slate-300">vs</div>
+            <div>
+              <div className="text-xs text-slate-400">Actual</div>
+              <div className="text-xl font-semibold text-slate-900">{kpis.actualOnTime}%</div>
+            </div>
+          </div>
+          <div className={clsx("mt-2 text-sm font-medium", onTimeDelta > 0 ? "text-green-600" : onTimeDelta < 0 ? "text-red-600" : "text-slate-500")}>
+            {onTimeDelta > 0 ? "+" : ""}{onTimeDelta}% {onTimeDelta > 0 ? "better" : onTimeDelta < 0 ? "worse" : "same"}
+          </div>
+        </div>
+        
+        <div className="rounded-xl border bg-white p-4">
+          <div className="text-xs text-slate-500 mb-2">Deadhead Miles</div>
+          <div className="flex items-baseline gap-3">
+            <div>
+              <div className="text-xs text-slate-400">Predicted</div>
+              <div className="text-xl font-semibold text-slate-900">{kpis.predDeadhead} mi</div>
+            </div>
+            <div className="text-slate-300">vs</div>
+            <div>
+              <div className="text-xs text-slate-400">Actual</div>
+              <div className="text-xl font-semibold text-slate-900">{kpis.actualDeadhead} mi</div>
+            </div>
+          </div>
+          <div className={clsx("mt-2 text-sm font-medium", deadheadDelta < 0 ? "text-green-600" : deadheadDelta > 0 ? "text-red-600" : "text-slate-500")}>
+            {deadheadDelta < 0 ? "" : "+"}{deadheadDelta} mi {deadheadDelta < 0 ? "saved" : deadheadDelta > 0 ? "extra" : "same"}
+          </div>
+        </div>
+        
+        <div className="rounded-xl border bg-white p-4">
+          <div className="text-xs text-slate-500 mb-2">Total Pay</div>
+          <div className="flex items-baseline gap-3">
+            <div>
+              <div className="text-xs text-slate-400">Predicted</div>
+              <div className="text-xl font-semibold text-slate-900">${kpis.predPay}</div>
+            </div>
+            <div className="text-slate-300">vs</div>
+            <div>
+              <div className="text-xs text-slate-400">Actual</div>
+              <div className="text-xl font-semibold text-slate-900">${kpis.actualPay}</div>
+            </div>
+          </div>
+          <div className={clsx("mt-2 text-sm font-medium", payDelta > 0 ? "text-amber-600" : payDelta < 0 ? "text-green-600" : "text-slate-500")}>
+            {payDelta > 0 ? "+" : ""}${payDelta} {payDelta > 0 ? "higher pred" : payDelta < 0 ? "lower pred" : "same"}
+          </div>
+        </div>
+      </div>
+      
+      {/* Top Causes */}
+      <div className="rounded-xl border bg-amber-50 p-4">
+        <div className="font-semibold text-slate-900 mb-3">Top Causes for Differences</div>
+        <div className="space-y-2">
+          {topCauses.map((cause, idx) => (
+            <div key={idx} className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-200 text-amber-800 text-xs flex items-center justify-center font-medium">{idx + 1}</span>
+                <span className="text-slate-700">{cause.cause}</span>
+                <Pill tone="slate">{cause.count}x</Pill>
+              </div>
+              <span className="text-slate-500">{cause.impact}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {/* Per-Driver Delta Table */}
+      <div className="rounded-xl border bg-white overflow-hidden">
+        <div className="px-4 py-3 border-b">
+          <div className="font-semibold text-slate-900">Per-Driver Delta</div>
+          <div className="text-xs text-slate-500">Predicted vs Actual performance by driver</div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead className="border-b bg-slate-50">
+              <tr className="h-10 text-xs text-slate-500">
+                <th className="px-4 text-left w-[200px]">Driver</th>
+                <th className="px-3 text-right w-[80px]">Pred Trips</th>
+                <th className="px-3 text-right w-[80px]">Actual Trips</th>
+                <th className="px-3 text-right w-[80px]">Pred Miles</th>
+                <th className="px-3 text-right w-[80px]">Actual Miles</th>
+                <th className="px-3 text-right w-[100px]">Pred Pay</th>
+                <th className="px-3 text-right w-[100px]">Actual Pay</th>
+                <th className="px-3 text-right w-[100px]">Delta (Δ)</th>
+                <th className="px-3 text-left w-[150px]">Flags</th>
+                <th className="px-3 text-center w-[80px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {driverDeltas.map((row) => (
+                <tr key={row.driverId} className="h-12 border-b last:border-b-0 hover:bg-slate-50">
+                  <td className="px-4 py-2">
+                    <div className="font-medium text-slate-900">{row.driverName}</div>
+                    <div className="text-xs text-slate-500">{row.driverId}</div>
+                  </td>
+                  <td className="px-3 py-2 text-right">{row.predTrips}</td>
+                  <td className="px-3 py-2 text-right">{row.actualTrips}</td>
+                  <td className="px-3 py-2 text-right">{row.predMiles}</td>
+                  <td className="px-3 py-2 text-right">{row.actualMiles}</td>
+                  <td className="px-3 py-2 text-right">${row.predPay.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">${row.actualPay.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right">
+                    <span className={clsx("font-semibold", row.delta > 0 ? "text-green-600" : row.delta < 0 ? "text-red-600" : "text-slate-500")}>
+                      {row.delta > 0 ? "+" : ""}${row.delta.toFixed(2)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex flex-wrap gap-1">
+                      {row.flags.map((f, i) => (
+                        <Pill key={i} tone={f.severity === "danger" ? "red" : f.severity === "warn" ? "amber" : "blue"}>
+                          {f.label}
+                        </Pill>
+                      ))}
+                      {row.flags.length === 0 && <Pill tone="green">Match</Pill>}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <button
+                      onClick={() => setSelectedDriver(row)}
+                      className="px-2 py-1 text-xs border rounded hover:bg-slate-100"
+                    >
+                      Explain
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      {/* Explain Delta Drawer */}
+      <Drawer
+        open={!!selectedDriver}
+        title={selectedDriver ? `Delta Explanation — ${selectedDriver.driverName}` : ""}
+        onClose={() => setSelectedDriver(null)}
+      >
+        {selectedDriver && (
+          <div className="space-y-4">
+            <div className="rounded-xl border p-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-xs text-slate-500">Driver</div>
+                  <div className="font-medium">{selectedDriver.driverName}</div>
+                  <div className="text-xs text-slate-500">{selectedDriver.driverId}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500">Pay Delta</div>
+                  <div className={clsx("text-xl font-bold", selectedDriver.delta > 0 ? "text-green-600" : selectedDriver.delta < 0 ? "text-red-600" : "text-slate-500")}>
+                    {selectedDriver.delta > 0 ? "+" : ""}${selectedDriver.delta.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="rounded-xl border overflow-hidden">
+              <div className="px-3 py-2 border-b font-semibold text-slate-900">Comparison Breakdown</div>
+              <div className="p-3 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Predicted Trips</span>
+                  <span className="font-medium">{selectedDriver.predTrips}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Actual Trips</span>
+                  <span className="font-medium">{selectedDriver.actualTrips}</span>
+                </div>
+                <div className="border-t pt-2 flex justify-between">
+                  <span className="text-slate-500">Predicted Miles</span>
+                  <span className="font-medium">{selectedDriver.predMiles}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Actual Miles</span>
+                  <span className="font-medium">{selectedDriver.actualMiles}</span>
+                </div>
+                <div className="border-t pt-2 flex justify-between">
+                  <span className="text-slate-500">Predicted Pay</span>
+                  <span className="font-medium">${selectedDriver.predPay.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Actual Pay</span>
+                  <span className="font-medium">${selectedDriver.actualPay.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="rounded-xl border p-4 bg-slate-50">
+              <div className="font-semibold text-slate-900 mb-2">Likely Causes</div>
+              <ul className="space-y-2 text-sm text-slate-700">
+                {selectedDriver.flags.length > 0 ? (
+                  selectedDriver.flags.map((f, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <Pill tone={f.severity === "danger" ? "red" : f.severity === "warn" ? "amber" : "blue"}>
+                        {f.code}
+                      </Pill>
+                      <span>{f.label}</span>
+                    </li>
+                  ))
+                ) : (
+                  <li className="flex items-center gap-2">
+                    <Pill tone="green">MATCH</Pill>
+                    <span>Predicted and actual assignments matched</span>
+                  </li>
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
+      </Drawer>
+    </div>
+  );
+}
 
 export default function IDSShadowRunDetail() {
   const params = useParams<{ id: string }>();
@@ -448,6 +817,7 @@ export default function IDSShadowRunDetail() {
     { id: "unassigned", label: "Unassigned", count: data.unassigned.length },
     { id: "locks", label: "Template Locks", count: data.locks.length },
     { id: "pay", label: "Predicted Pay", count: data.predictedPay.length },
+    { id: "compare", label: "Compare" },
   ];
 
   return (
@@ -902,6 +1272,11 @@ export default function IDSShadowRunDetail() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Compare Tab */}
+      {activeTab === "compare" && (
+        <CompareTab shadowRunId={params.id} serviceDate={data.shadowRun.serviceDate} />
       )}
 
       {/* Route Drawer */}
