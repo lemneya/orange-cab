@@ -223,8 +223,8 @@ function transformApiData(apiData: any): ShadowRunPayload {
   // Transform routes from API result
   if (result.routes) {
     result.routes.forEach((route: any, idx: number) => {
-      const driverId = route.driverId || `DRV-${idx + 1}`;
-      const trips = route.trips || [];
+      const driverId = String(route.driverId || `DRV-${idx + 1}`);
+      const trips = route.assignments || route.trips || [];
       const tripCount = trips.length;
       const estimatedMiles = trips.reduce((sum: number, t: any) => sum + (t.miles || 10), 0);
       const deadheadMiles = Math.round(estimatedMiles * 0.15 * 10) / 10;
@@ -239,7 +239,7 @@ function transformApiData(apiData: any): ShadowRunPayload {
       routes.push({
         driver: {
           id: driverId,
-          name: `Driver ${driverId.replace('DRV-', '')}`,
+          name: `Driver ${String(driverId).replace('DRV-', '')}`,
           type: "1099",
           shift: { start: "04:00", end: "16:00" },
         },
@@ -284,7 +284,7 @@ function transformApiData(apiData: any): ShadowRunPayload {
       predictedPay.push({
         driver: {
           id: driverId,
-          name: `Driver ${driverId.replace('DRV-', '')}`,
+          name: `Driver ${String(driverId).replace('DRV-', '')}`,
           type: "1099",
         },
         contract: "Per Mile",
@@ -410,7 +410,7 @@ function CompareTab({ shadowRunId, serviceDate }: { shadowRunId: string; service
   };
   
   const handleImport = async () => {
-    if (!csvContent) return;
+    // Allow import even without file (use mock data for demo)
     setImporting(true);
     
     // Simulate import - in real implementation, call API
@@ -487,7 +487,7 @@ function CompareTab({ shadowRunId, serviceDate }: { shadowRunId: string; service
               </button>
               <button
                 onClick={handleImport}
-                disabled={!csvContent || importing}
+                disabled={importing}
                 className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50"
               >
                 {importing ? "Importing..." : "Import & Compare"}
