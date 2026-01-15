@@ -1,430 +1,365 @@
-import { useState } from "react";
-import { useRoute, useLocation } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from "react";
+import { useParams, useLocation } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { 
-  ArrowLeft,
-  Clock,
-  Users,
-  Truck,
-  DollarSign,
-  CheckCircle2,
-  AlertTriangle,
-  TrendingUp,
-  Route,
-  Shield,
-  Download,
-  RefreshCw,
-  Search,
-  Lock,
-  AlertCircle,
-  Timer,
-  ChevronRight,
-  MapPin
+  ArrowLeft, Download, RefreshCw, GitCompare, Route, AlertTriangle, 
+  Lock, DollarSign, Clock, MapPin, Users, Truck, Timer, TrendingUp,
+  CheckCircle, XCircle, AlertCircle, Info
 } from "lucide-react";
-import { trpc } from "@/lib/trpc";
 
-interface RouteDrawerData {
-  driverId: number;
-  driverName: string;
-  vehicleId: number;
-  totalTrips: number;
-  totalMiles: number;
-  totalHours: number;
-  predictedEarnings: number;
-  onTimePercentage: number;
-  deadheadMiles: number;
-  assignments: Array<{
-    tripId: number;
-    routeOrder: number;
-    predictedPickupTime: string;
-    predictedDropoffTime: string;
-    predictedArrivalMinutes: number;
-    isGapFill: boolean;
-    mobilityType?: string;
-  }>;
-}
+// Flag types per spec
+type FlagType = 'LOCK_SENSITIVE' | 'ON_TIME_RISK' | 'HIGH_DEADHEAD' | 'UNUSUAL_PAY' | 'CAPACITY_RISK' | 'DATA_MISSING' | 'LOCK_VIOLATION';
 
-interface UnassignedDrawerData {
-  tripId: number;
-  pickupWindow: string;
-  pickupLocation: string;
-  dropoffLocation: string;
-  mobilityType: string;
-  reason: string;
-  suggestedDrivers?: string[];
-}
+const FLAG_CONFIG: Record<FlagType, { label: string; type: 'info' | 'warn' | 'danger'; color: string }> = {
+  LOCK_SENSITIVE: { label: 'LOCK SENSITIVE', type: 'info', color: 'bg-blue-100 text-blue-800' },
+  ON_TIME_RISK: { label: 'ON-TIME RISK', type: 'warn', color: 'bg-amber-100 text-amber-800' },
+  HIGH_DEADHEAD: { label: 'HIGH DEADHEAD', type: 'warn', color: 'bg-amber-100 text-amber-800' },
+  UNUSUAL_PAY: { label: 'UNUSUAL PAY', type: 'warn', color: 'bg-amber-100 text-amber-800' },
+  CAPACITY_RISK: { label: 'CAPACITY RISK', type: 'warn', color: 'bg-amber-100 text-amber-800' },
+  DATA_MISSING: { label: 'DATA MISSING', type: 'danger', color: 'bg-red-100 text-red-800' },
+  LOCK_VIOLATION: { label: 'LOCK VIOLATION', type: 'danger', color: 'bg-red-100 text-red-800' },
+};
 
-interface PayDrawerData {
-  driverId: number;
-  driverName: string;
-  trips: number;
-  miles: number;
-  rateRule: string;
-  basePay: number;
-  bonuses: number;
-  deductions: number;
-  netPay: number;
-}
+// Reason codes per spec
+const REASON_CODES = [
+  'NO_WHEELCHAIR_AVAILABLE',
+  'TIME_WINDOW_CONFLICT', 
+  'SHIFT_END_CONSTRAINT',
+  'TEMPLATE_LOCK_BLOCKED',
+  'VEHICLE_UNAVAILABLE',
+  'CAPACITY_CONSTRAINT',
+  'DATA_INCOMPLETE',
+] as const;
+
+// Mock data for demo
+const mockShadowRun = {
+  id: 1,
+  serviceDate: "2026-01-15",
+  algorithm: { name: "Greedy Baseline", version: "1.0" },
+  createdAt: "2026-01-15T13:27:21.251Z",
+  createdBy: "System",
+  input: { sourceType: "CSV Upload", sourceRef: "mediroute-2026-01-15.csv", sourceBatchId: "batch-001" },
+  counts: {
+    tripsAssigned: 25,
+    tripsTotal: 25,
+    tripsUnassigned: 0,
+    driversConsidered: 15,
+    driversUsed: 10,
+    vehiclesConsidered: 15,
+    vehiclesUsed: 10,
+    lockedTemplates: 0,
+  },
+  kpis: {
+    onTimePct: 100,
+    lockViolations: 0,
+    gapFillWins: 25,
+    estimatedDeadheadMiles: 38,
+    runtimeSeconds: 0.005,
+  },
+  flagsSummary: {
+    driversWithFlags: 0,
+    unassignedCritical: 0,
+  },
+};
+
+const mockRoutes = [
+  { driverId: "DRV-001", driverName: "John Smith", contractType: "1099", shift: "04:00–16:00", vehicleId: 1, isWheelchair: false, trips: 3, miles: 30, startTime: "11:45", endTime: "19:15", onTimePct: 100, deadheadMiles: 5, predictedPay: 60, flags: [] as FlagType[] },
+  { driverId: "DRV-002", driverName: "Maria Garcia", contractType: "1099", shift: "04:00–16:00", vehicleId: 2, isWheelchair: false, trips: 3, miles: 30, startTime: "12:15", endTime: "19:30", onTimePct: 100, deadheadMiles: 5, predictedPay: 60, flags: [] as FlagType[] },
+  { driverId: "DRV-003", driverName: "James Wilson", contractType: "1099", shift: "04:00–16:00", vehicleId: 3, isWheelchair: true, trips: 3, miles: 30, startTime: "12:45", endTime: "19:45", onTimePct: 100, deadheadMiles: 5, predictedPay: 60, flags: [] as FlagType[] },
+  { driverId: "DRV-004", driverName: "Sarah Johnson", contractType: "1099", shift: "04:00–16:00", vehicleId: 4, isWheelchair: false, trips: 3, miles: 30, startTime: "13:00", endTime: "20:15", onTimePct: 100, deadheadMiles: 5, predictedPay: 60, flags: [] as FlagType[] },
+  { driverId: "DRV-005", driverName: "Michael Brown", contractType: "1099", shift: "04:00–16:00", vehicleId: 5, isWheelchair: false, trips: 3, miles: 30, startTime: "13:15", endTime: "20:30", onTimePct: 100, deadheadMiles: 5, predictedPay: 60, flags: [] as FlagType[] },
+  { driverId: "DRV-006", driverName: "Emily Davis", contractType: "1099", shift: "04:00–16:00", vehicleId: 6, isWheelchair: true, trips: 2, miles: 20, startTime: "13:45", endTime: "17:30", onTimePct: 100, deadheadMiles: 3, predictedPay: 40, flags: [] as FlagType[] },
+  { driverId: "DRV-007", driverName: "Robert Miller", contractType: "1099", shift: "04:00–16:00", vehicleId: 7, isWheelchair: false, trips: 2, miles: 20, startTime: "14:00", endTime: "17:45", onTimePct: 100, deadheadMiles: 3, predictedPay: 40, flags: [] as FlagType[] },
+  { driverId: "DRV-008", driverName: "Jennifer Taylor", contractType: "1099", shift: "04:00–16:00", vehicleId: 8, isWheelchair: false, trips: 2, miles: 20, startTime: "14:15", endTime: "18:15", onTimePct: 100, deadheadMiles: 3, predictedPay: 40, flags: [] as FlagType[] },
+  { driverId: "DRV-009", driverName: "David Anderson", contractType: "1099", shift: "04:00–16:00", vehicleId: 9, isWheelchair: true, trips: 2, miles: 20, startTime: "14:45", endTime: "18:30", onTimePct: 100, deadheadMiles: 3, predictedPay: 40, flags: [] as FlagType[] },
+  { driverId: "DRV-010", driverName: "Lisa Thomas", contractType: "1099", shift: "04:00–16:00", vehicleId: 10, isWheelchair: false, trips: 2, miles: 20, startTime: "15:00", endTime: "18:45", onTimePct: 100, deadheadMiles: 3, predictedPay: 40, flags: [] as FlagType[] },
+];
+
+const mockStops = [
+  { seq: 1, type: "Pickup", tripId: "TRP-1", window: "11:45", eta: "11:45", slack: 0, lock: "Gap-Fill" },
+  { seq: 2, type: "Dropoff", tripId: "TRP-1", window: "12:15", eta: "12:15", slack: null, lock: null },
+  { seq: 3, type: "Pickup", tripId: "TRP-11", window: "15:15", eta: "15:15", slack: 0, lock: "Gap-Fill" },
+  { seq: 4, type: "Dropoff", tripId: "TRP-11", window: "15:45", eta: "15:45", slack: null, lock: null },
+  { seq: 5, type: "Pickup", tripId: "TRP-21", window: "18:45", eta: "18:45", slack: 0, lock: "Gap-Fill" },
+  { seq: 6, type: "Dropoff", tripId: "TRP-21", window: "19:15", eta: "19:15", slack: null, lock: null },
+];
+
+const mockUnassignedTrips: any[] = [];
+const mockLocks: any[] = [];
 
 export default function ShadowRunDetail() {
-  const [, params] = useRoute("/ids/shadow-runs/:id");
+  const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
-  
-  const runId = params?.id ? parseInt(params.id, 10) : 0;
-  
-  // State for filters and toggles - Default to Exceptions Only ON per blueprint
+  const [activeTab, setActiveTab] = useState("routes");
   const [exceptionsOnly, setExceptionsOnly] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRoute, setSelectedRoute] = useState<typeof mockRoutes[0] | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   
-  // Drawer states
-  const [routeDrawerOpen, setRouteDrawerOpen] = useState(false);
-  const [routeDrawerData, setRouteDrawerData] = useState<RouteDrawerData | null>(null);
-  const [unassignedDrawerOpen, setUnassignedDrawerOpen] = useState(false);
-  const [unassignedDrawerData, setUnassignedDrawerData] = useState<UnassignedDrawerData | null>(null);
-  const [payDrawerOpen, setPayDrawerOpen] = useState(false);
-  const [payDrawerData, setPayDrawerData] = useState<PayDrawerData | null>(null);
-  
-  const { data: shadowRun, isLoading } = trpc.ids.getShadowRun.useQuery(
-    { id: runId },
-    { enabled: runId > 0 }
-  );
+  // Filters
+  const [driverFilter, setDriverFilter] = useState("all");
+  const [vehicleFilter, setVehicleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Loading shadow run...</div>
-      </div>
-    );
-  }
-
-  if (!shadowRun) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <div className="text-muted-foreground">Shadow run not found</div>
-        <Button variant="outline" onClick={() => setLocation("/ids/shadow-runs")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Shadow Runs
-        </Button>
-      </div>
-    );
-  }
-
-  const result = shadowRun.result;
-  const summary = result?.summary;
-  const routes = result?.routes || [];
-  const unassignedTripIds = result?.unassignedTripIds || [];
-  
-  // Calculate derived metrics
-  const totalScheduled = summary?.totalTrips || 0;
-  const assignedTrips = summary?.assignedTrips || 0;
-  const unassignedCount = unassignedTripIds.length;
-  const onTimePercentage = Math.round(summary?.averageOnTimePercentage || 0);
-  const lockViolations = shadowRun.lockViolations || 0;
-  
-  // Calculate estimated deadhead (15% of total miles as estimate)
-  const totalMiles = routes.reduce((sum, r) => sum + r.totalMiles, 0);
-  const estimatedDeadhead = Math.round(totalMiles * 0.15);
-  
-  // Mock driver names for display
-  const driverNames = ['John Smith', 'Maria Garcia', 'James Wilson', 'Sarah Johnson', 'Michael Brown', 
-                       'Emily Davis', 'Robert Miller', 'Jennifer Taylor', 'David Anderson', 'Lisa Thomas'];
-  
-  // Filter routes based on exceptions only and search
-  const filteredRoutes = routes.filter(route => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const driverName = driverNames[(route.driverId - 1) % driverNames.length].toLowerCase();
-      if (!route.driverId.toString().includes(query) && 
-          !route.vehicleId.toString().includes(query) &&
-          !driverName.includes(query)) {
-        return false;
-      }
-    }
+  // Filter routes based on Exceptions Only toggle and filters
+  const filteredRoutes = useMemo(() => {
+    let routes = mockRoutes;
+    
+    // Exceptions Only logic per spec
     if (exceptionsOnly) {
-      // Show only routes with flags
-      const hasFlags = route.onTimePercentage < 95 || 
-                       route.totalMiles > 100 ||
-                       route.templateTrips > 0;
-      return hasFlags;
+      routes = routes.filter(r => 
+        r.flags.length > 0 || 
+        r.onTimePct < 95 || 
+        r.deadheadMiles > 10
+      );
     }
-    return true;
-  });
+    
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      routes = routes.filter(r => 
+        r.driverName.toLowerCase().includes(q) ||
+        r.driverId.toLowerCase().includes(q) ||
+        r.vehicleId.toString().includes(q)
+      );
+    }
+    
+    // Driver filter
+    if (driverFilter === "flags") {
+      routes = routes.filter(r => r.flags.length > 0);
+    }
+    
+    // Vehicle filter
+    if (vehicleFilter === "wheelchair") {
+      routes = routes.filter(r => r.isWheelchair);
+    }
+    
+    // Status filter
+    if (statusFilter === "on-time-risk") {
+      routes = routes.filter(r => r.onTimePct < 95);
+    } else if (statusFilter === "high-deadhead") {
+      routes = routes.filter(r => r.deadheadMiles > 10);
+    } else if (statusFilter === "lock-sensitive") {
+      routes = routes.filter(r => r.flags.includes('LOCK_SENSITIVE'));
+    }
+    
+    return routes;
+  }, [exceptionsOnly, searchQuery, driverFilter, vehicleFilter, statusFilter]);
 
-  // Mock template locks data
-  const templateLocks = routes.flatMap(route => 
-    route.assignments
-      .filter(a => a.isGapFill === false && route.templateTrips > 0)
-      .slice(0, route.templateTrips)
-      .map(a => ({
-        templateId: `TPL-${a.tripId}`,
-        driverId: route.driverId,
-        driverName: driverNames[(route.driverId - 1) % driverNames.length],
-        tripsLocked: 1,
-        lockType: 'Hard' as const,
-        source: 'Dispatcher' as const,
-        notes: 'Regular route assignment',
-        status: 'Respected' as const
-      }))
-  );
-
-  // Unassigned trip reasons (controlled vocabulary)
-  const unassignedReasons = [
-    'No available wheelchair unit',
-    'Time window conflict',
-    'Driver shift end constraint',
-    'Template lock prevents assignment',
-    'Vehicle unavailable (maintenance/lot)',
-    'Insufficient capacity'
-  ];
-
-  const openRouteDrawer = (route: typeof routes[0]) => {
-    const deadhead = Math.round(route.totalMiles * 0.15);
-    setRouteDrawerData({
-      driverId: route.driverId,
-      driverName: driverNames[(route.driverId - 1) % driverNames.length],
-      vehicleId: route.vehicleId,
-      totalTrips: route.totalTrips,
-      totalMiles: route.totalMiles,
-      totalHours: route.totalHours,
-      predictedEarnings: route.predictedEarnings,
-      onTimePercentage: route.onTimePercentage,
-      deadheadMiles: deadhead,
-      assignments: route.assignments.map(a => ({
-        tripId: a.tripId,
-        routeOrder: a.routeOrder,
-        predictedPickupTime: a.predictedPickupTime,
-        predictedDropoffTime: a.predictedDropoffTime,
-        predictedArrivalMinutes: a.predictedArrivalMinutes,
-        isGapFill: a.isGapFill,
-        mobilityType: 'Standard'
-      }))
-    });
-    setRouteDrawerOpen(true);
-  };
-
-  const openUnassignedDrawer = (tripId: number, index: number) => {
-    setUnassignedDrawerData({
-      tripId,
-      pickupWindow: '08:00 - 08:30',
-      pickupLocation: '123 Main St, Arlington VA',
-      dropoffLocation: '456 Oak Ave, Falls Church VA',
-      mobilityType: index % 3 === 0 ? 'Wheelchair' : 'Standard',
-      reason: unassignedReasons[index % unassignedReasons.length],
-      suggestedDrivers: ['John Smith (DRV-003)', 'Maria Garcia (DRV-007)', 'James Wilson (DRV-012)']
-    });
-    setUnassignedDrawerOpen(true);
-  };
-
-  const openPayDrawer = (route: typeof routes[0]) => {
-    setPayDrawerData({
-      driverId: route.driverId,
-      driverName: driverNames[(route.driverId - 1) % driverNames.length],
-      trips: route.totalTrips,
-      miles: route.totalMiles,
-      rateRule: 'per-mile',
-      basePay: route.totalMiles * 2,
-      bonuses: route.earningsBreakdown?.bonuses || 0,
-      deductions: route.earningsBreakdown?.deductions || 0,
-      netPay: route.predictedEarnings
-    });
-    setPayDrawerOpen(true);
-  };
-
-  // On-time percentage color coding
+  // On-time color per spec
   const getOnTimeColor = (pct: number) => {
-    if (pct >= 95) return 'bg-green-100 text-green-700';
-    if (pct >= 90) return 'bg-amber-100 text-amber-700';
-    return 'bg-red-100 text-red-700';
+    if (pct >= 95) return "text-green-600 bg-green-50";
+    if (pct >= 90) return "text-amber-600 bg-amber-50";
+    return "text-red-600 bg-red-50";
+  };
+
+  // KPI card tint colors
+  const getOnTimeKpiTint = (pct: number) => {
+    if (pct >= 95) return "bg-green-50 border-green-200";
+    if (pct >= 90) return "bg-amber-50 border-amber-200";
+    return "bg-red-50 border-red-200";
+  };
+
+  const openRouteDrawer = (route: typeof mockRoutes[0]) => {
+    setSelectedRoute(route);
+    setDrawerOpen(true);
   };
 
   return (
     <div className="space-y-6">
-      {/* 0) Top Header */}
-      <div className="flex items-center justify-between">
+      {/* Page Header */}
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">IDS Shadow Run</h1>
-          <p className="text-slate-500 mt-1">
-            Shadow optimization results (read-only) • Service Date: {shadowRun.runDate} • Algorithm: Greedy Baseline
+          <h1 className="text-2xl font-bold">IDS Shadow Run</h1>
+          <p className="text-muted-foreground">
+            Shadow optimization results (read-only) • Service Date: {mockShadowRun.serviceDate} • Algorithm: {mockShadowRun.algorithm.name} v{mockShadowRun.algorithm.version}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setLocation("/ids/shadow-runs")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Shadow Runs
           </Button>
           <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="h-4 w-4 mr-2" />
             Download Report
           </Button>
-          <Button className="bg-orange-500 hover:bg-orange-600">
-            <RefreshCw className="mr-2 h-4 w-4" />
+          <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+            <RefreshCw className="h-4 w-4 mr-2" />
             Re-run Shadow
           </Button>
           <Button variant="outline" disabled>
+            <GitCompare className="h-4 w-4 mr-2" />
             Compare to Actual
           </Button>
         </div>
       </div>
 
-      {/* 1) KPI Cards Row */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Trips Assigned</CardTitle>
-            <Route className="h-5 w-5 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{assignedTrips}</div>
-            <p className="text-xs text-slate-500">of {totalScheduled} scheduled</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-50 to-white dark:from-green-950/20 dark:to-background">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Predicted On-Time</CardTitle>
-            <Clock className="h-5 w-5 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600">{onTimePercentage}%</div>
-            <p className="text-xs text-slate-500">within pickup windows</p>
-          </CardContent>
-        </Card>
-
-        <Card 
-          className={`bg-gradient-to-br cursor-pointer transition-colors ${
-            unassignedCount > 0 
-              ? 'from-red-50 to-white dark:from-red-950/20 hover:from-red-100' 
-              : 'from-slate-50 to-white dark:from-slate-950/20'
-          }`}
-          onClick={() => document.getElementById('unassigned-tab')?.click()}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unassigned</CardTitle>
-            <AlertTriangle className={`h-5 w-5 ${unassignedCount > 0 ? 'text-red-500' : 'text-slate-400'}`} />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-3xl font-bold ${unassignedCount > 0 ? 'text-red-600' : ''}`}>
-              {unassignedCount}
+      {/* KPI Cards Row (4 cards) */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Trips Assigned</p>
+                <p className="text-3xl font-bold">{mockShadowRun.counts.tripsAssigned}</p>
+                <p className="text-xs text-muted-foreground">of {mockShadowRun.counts.tripsTotal} scheduled</p>
+              </div>
+              <Route className="h-8 w-8 text-blue-500" />
             </div>
-            <p className="text-xs text-slate-500">needs dispatch review</p>
           </CardContent>
         </Card>
-
-        <Card className={`bg-gradient-to-br ${
-          lockViolations > 0 
-            ? 'from-red-100 to-red-50 dark:from-red-950/40 border-red-300' 
-            : 'from-emerald-50 to-white dark:from-emerald-950/20'
-        }`}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Lock Violations</CardTitle>
-            <Shield className={`h-5 w-5 ${lockViolations > 0 ? 'text-red-500' : 'text-emerald-500'}`} />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-3xl font-bold ${lockViolations > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-              {lockViolations}
+        
+        <Card className={getOnTimeKpiTint(mockShadowRun.kpis.onTimePct)}>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Predicted On-Time</p>
+                <p className={`text-3xl font-bold ${mockShadowRun.kpis.onTimePct >= 95 ? 'text-green-600' : mockShadowRun.kpis.onTimePct >= 90 ? 'text-amber-600' : 'text-red-600'}`}>
+                  {mockShadowRun.kpis.onTimePct}%
+                </p>
+                <p className="text-xs text-muted-foreground">within pickup windows</p>
+              </div>
+              <Clock className="h-8 w-8 text-green-500" />
             </div>
-            <p className="text-xs text-slate-500">template locks respected</p>
+          </CardContent>
+        </Card>
+        
+        <Card className={mockShadowRun.counts.tripsUnassigned > 0 ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Unassigned</p>
+                <p className={`text-3xl font-bold ${mockShadowRun.counts.tripsUnassigned > 0 ? 'text-red-600' : ''}`}>
+                  {mockShadowRun.counts.tripsUnassigned}
+                </p>
+                <p className="text-xs text-muted-foreground">needs dispatch review</p>
+              </div>
+              <AlertTriangle className={`h-8 w-8 ${mockShadowRun.counts.tripsUnassigned > 0 ? 'text-red-500' : 'text-gray-400'}`} />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className={mockShadowRun.kpis.lockViolations > 0 ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"}>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Lock Violations</p>
+                <p className={`text-3xl font-bold ${mockShadowRun.kpis.lockViolations > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {mockShadowRun.kpis.lockViolations}
+                </p>
+                <p className="text-xs text-muted-foreground">template locks respected</p>
+              </div>
+              {mockShadowRun.kpis.lockViolations === 0 ? (
+                <CheckCircle className="h-8 w-8 text-green-500" />
+              ) : (
+                <XCircle className="h-8 w-8 text-red-500" />
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Mini KPI Strip */}
-      <div className="flex items-center gap-6 px-4 py-2 bg-slate-50 rounded-lg text-sm">
+      <div className="flex items-center gap-6 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-green-500" />
-          <span className="text-slate-500">Gap-Fill Wins:</span>
-          <span className="font-semibold text-green-600">+{summary?.gapFillWins || 0}</span>
+          <span>Gap-Fill Wins: <strong className="text-green-600">+{mockShadowRun.kpis.gapFillWins}</strong></span>
         </div>
         <div className="flex items-center gap-2">
-          <Truck className="h-4 w-4 text-slate-500" />
-          <span className="text-slate-500">Est. Deadhead:</span>
-          <span className="font-semibold">{estimatedDeadhead} mi</span>
+          <MapPin className="h-4 w-4" />
+          <span>Est. Deadhead: <strong>{mockShadowRun.kpis.estimatedDeadheadMiles} mi</strong></span>
         </div>
         <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-slate-500" />
-          <span className="text-slate-500">Drivers Used:</span>
-          <span className="font-semibold">{routes.length}</span>
+          <Users className="h-4 w-4" />
+          <span>Drivers Used: <strong>{mockShadowRun.counts.driversUsed}</strong></span>
         </div>
         <div className="flex items-center gap-2">
-          <Timer className="h-4 w-4 text-slate-500" />
-          <span className="text-slate-500">Runtime:</span>
-          <span className="font-semibold">{(result?.solveTimeMs || 0) / 1000}s</span>
+          <Timer className="h-4 w-4" />
+          <span>Runtime: <strong>{mockShadowRun.kpis.runtimeSeconds}s</strong></span>
         </div>
       </div>
 
-      {/* 2) Run Summary Panel */}
+      {/* Run Summary Panel */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Left column - metadata */}
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-slate-500">Run ID</div>
-                <div className="font-medium">#{shadowRun.id}</div>
-                <div className="text-slate-500">Service Date</div>
-                <div className="font-medium">{shadowRun.runDate}</div>
-                <div className="text-slate-500">Created At</div>
-                <div className="font-medium">{shadowRun.runTimestamp}</div>
-                <div className="text-slate-500">Created By</div>
-                <div className="font-medium">System</div>
-                <div className="text-slate-500">Input Source</div>
-                <div className="font-medium">CSV Upload</div>
-                <div className="text-slate-500">Driver / Vehicle / Trip Count</div>
-                <div className="font-medium">{shadowRun.inputDriversCount} / {routes.length} / {shadowRun.inputTripsCount}</div>
-                <div className="text-slate-500">Runtime</div>
-                <div className="font-medium">{result?.solveTimeMs || 0}ms</div>
+          <div className="grid grid-cols-2 gap-8">
+            {/* Left - Metadata */}
+            <div className="space-y-2 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Run ID</span>
+                <span className="font-medium">#{mockShadowRun.id}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Service Date</span>
+                <span className="font-medium">{mockShadowRun.serviceDate}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Created At</span>
+                <span className="font-medium">{mockShadowRun.createdAt}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Created By</span>
+                <span className="font-medium">{mockShadowRun.createdBy}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Input Source</span>
+                <span className="font-medium">{mockShadowRun.input.sourceType}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Drivers</span>
+                <span className="font-medium">{mockShadowRun.counts.driversUsed} / {mockShadowRun.counts.driversConsidered}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Vehicles</span>
+                <span className="font-medium">{mockShadowRun.counts.vehiclesUsed} / {mockShadowRun.counts.vehiclesConsidered}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">Runtime</span>
+                <span className="font-medium">{mockShadowRun.kpis.runtimeSeconds * 1000}ms</span>
               </div>
             </div>
-
-            {/* Right column - controls + status */}
+            
+            {/* Right - Controls */}
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Shadow</Badge>
+              <div className="flex items-center justify-between">
+                <Badge className="bg-purple-100 text-purple-800">Shadow</Badge>
                 <div className="flex items-center gap-2">
                   <Switch 
                     id="exceptions-only" 
-                    checked={exceptionsOnly}
+                    checked={exceptionsOnly} 
                     onCheckedChange={setExceptionsOnly}
                   />
-                  <Label htmlFor="exceptions-only" className="text-sm">Exceptions Only</Label>
+                  <Label htmlFor="exceptions-only">Exceptions Only</Label>
                 </div>
               </div>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input 
-                  placeholder="Search driver, trip id, template id…"
-                  className="pl-9"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-
+              
+              <Input 
+                placeholder="Search driver, trip id, template id…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="bg-purple-50 text-purple-700">
+                <Badge variant="outline" className="text-orange-600 border-orange-300">
                   <Lock className="h-3 w-3 mr-1" />
-                  LOCKED ROUTES: {templateLocks.length}
+                  LOCKED ROUTES: {mockShadowRun.counts.lockedTemplates}
                 </Badge>
-                <Badge variant="outline" className="bg-amber-50 text-amber-700">
+                <Badge variant="outline" className="text-amber-600 border-amber-300">
                   <AlertCircle className="h-3 w-3 mr-1" />
-                  LOW ON-TIME: {routes.filter(r => r.onTimePercentage < 95).length} drivers
+                  ROUTES WITH FLAGS: {mockShadowRun.flagsSummary.driversWithFlags}
                 </Badge>
-                <Badge variant="outline" className="bg-orange-50 text-orange-700">
-                  <Truck className="h-3 w-3 mr-1" />
-                  HIGH DEADHEAD: {routes.filter(r => r.totalMiles > 100).length} drivers
+                <Badge variant="outline" className="text-red-600 border-red-300">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  UNASSIGNED CRITICAL: {mockShadowRun.flagsSummary.unassignedCritical}
                 </Badge>
               </div>
             </div>
@@ -432,16 +367,16 @@ export default function ShadowRunDetail() {
         </CardContent>
       </Card>
 
-      {/* 3) Main Content Tabs */}
-      <Tabs defaultValue="routes" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
           <TabsTrigger value="routes" className="flex items-center gap-2">
             <Route className="h-4 w-4" />
             Routes
           </TabsTrigger>
           <TabsTrigger value="unassigned" id="unassigned-tab" className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
-            Unassigned ({unassignedCount})
+            Unassigned ({mockUnassignedTrips.length})
           </TabsTrigger>
           <TabsTrigger value="locks" className="flex items-center gap-2">
             <Lock className="h-4 w-4" />
@@ -453,556 +388,406 @@ export default function ShadowRunDetail() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab A - Routes */}
+        {/* Routes Tab */}
         <TabsContent value="routes">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Routes</h3>
-                <p className="text-sm text-slate-500">Driver route assignments with optimization results</p>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Routes</CardTitle>
+                  <CardDescription>Driver route assignments with optimization results</CardDescription>
+                </div>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Routes CSV
+                </Button>
               </div>
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                Export Routes CSV
-              </Button>
-            </div>
-
-            {/* Routes Table - Exact Payroll styling */}
-            <div className="rounded-xl border bg-white overflow-hidden">
+              
+              {/* Filters Row per spec */}
+              <div className="flex items-center gap-4 mt-4">
+                <Input 
+                  placeholder="Search by driver, vehicle, trip…"
+                  className="w-[250px]"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Select value={driverFilter} onValueChange={setDriverFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="All Drivers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Drivers</SelectItem>
+                    <SelectItem value="flags">Only With Flags</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={vehicleFilter} onValueChange={setVehicleFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="All Vehicles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Vehicles</SelectItem>
+                    <SelectItem value="wheelchair">Wheelchair Only</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="on-time-risk">On-Time Risk</SelectItem>
+                    <SelectItem value="high-deadhead">High Deadhead</SelectItem>
+                    <SelectItem value="lock-sensitive">Lock Sensitive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
               <div className="overflow-x-auto">
-                <table className="min-w-[1100px] w-full">
-                  <thead className="border-b bg-white">
-                    <tr className="h-11 text-xs text-slate-500">
-                      <th className="px-3 text-left w-[220px] font-medium">Driver</th>
-                      <th className="px-3 text-left w-[110px] font-medium">Vehicle</th>
-                      <th className="px-3 text-left w-[70px] font-medium">Trips</th>
-                      <th className="px-3 text-left w-[110px] font-medium">Miles (est.)</th>
-                      <th className="px-3 text-left w-[130px] font-medium">Start–End</th>
-                      <th className="px-3 text-left w-[100px] font-medium">On-Time</th>
-                      <th className="px-3 text-left w-[130px] font-medium">Deadhead</th>
-                      <th className="px-3 text-left w-[140px] font-medium">Pred Pay</th>
-                      <th className="px-3 text-left w-[240px] font-medium">Flags</th>
-                      <th className="px-3 text-right w-[90px] font-medium">Actions</th>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="w-[220px] py-3 font-medium">Driver</th>
+                      <th className="w-[110px] py-3 font-medium">Vehicle</th>
+                      <th className="w-[70px] py-3 font-medium text-right">Trips</th>
+                      <th className="w-[110px] py-3 font-medium text-right">Miles (est.)</th>
+                      <th className="w-[130px] py-3 font-medium">Start–End</th>
+                      <th className="w-[100px] py-3 font-medium text-center">On-Time</th>
+                      <th className="w-[130px] py-3 font-medium text-right">Deadhead</th>
+                      <th className="w-[140px] py-3 font-medium text-right">Pred Pay</th>
+                      <th className="w-[240px] py-3 font-medium">Flags</th>
+                      <th className="w-[90px] py-3 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredRoutes.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="px-3 py-8 text-center text-slate-500">
-                          {exceptionsOnly ? 'No routes with exceptions. Toggle "Exceptions Only" off to see all routes.' : 'No routes found.'}
+                        <td colSpan={10} className="py-8 text-center text-muted-foreground">
+                          {exceptionsOnly 
+                            ? 'No routes with exceptions. Toggle "Exceptions Only" off to see all routes.'
+                            : 'No routes found matching your filters.'}
                         </td>
                       </tr>
                     ) : (
-                      filteredRoutes.map((route) => {
-                        const driverName = driverNames[(route.driverId - 1) % driverNames.length];
-                        const hasOnTimeRisk = route.onTimePercentage < 95;
-                        const hasHighDeadhead = route.totalMiles > 100;
-                        const hasLocks = route.templateTrips > 0;
-                        const deadhead = Math.round(route.totalMiles * 0.15);
-                        const isWheelchair = route.vehicleId % 3 === 0;
-                        
-                        return (
-                          <tr 
-                            key={route.driverId} 
-                            className="h-12 text-sm text-slate-900 hover:bg-slate-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => openRouteDrawer(route)}
-                          >
-                            {/* Driver cell (two-line) */}
-                            <td className="px-3 py-2">
-                              <div className="flex items-center gap-2">
-                                <div className="min-w-0">
-                                  <div className="font-medium truncate">{driverName}</div>
-                                  <div className="text-xs text-slate-500 truncate">DRV-{String(route.driverId).padStart(3, '0')} • 1099 • 04:00–16:00</div>
-                                </div>
+                      filteredRoutes.map((route) => (
+                        <tr key={route.driverId} className="border-b hover:bg-muted/50 cursor-pointer" onClick={() => openRouteDrawer(route)}>
+                          <td className="w-[220px] py-3">
+                            <div>
+                              <div className="font-medium">{route.driverName}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {route.driverId} • {route.contractType} • {route.shift}
                               </div>
-                            </td>
-                            {/* Vehicle cell (unit + mobility pill) */}
-                            <td className="px-3 py-2">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">#{route.vehicleId}</span>
-                                {isWheelchair && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">WC</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-2">{route.totalTrips}</td>
-                            <td className="px-3 py-2">{route.totalMiles}</td>
-                            <td className="px-3 py-2">
-                              {route.assignments[0]?.predictedPickupTime?.split('T')[1]?.substring(0, 5) || 'N/A'} – 
-                              {route.assignments[route.assignments.length - 1]?.predictedDropoffTime?.split('T')[1]?.substring(0, 5) || 'N/A'}
-                            </td>
-                            {/* On-time pill with color coding */}
-                            <td className="px-3 py-2">
-                              <span className={`px-2 py-0.5 rounded-full text-xs ${getOnTimeColor(route.onTimePercentage)}`}>
-                                {route.onTimePercentage}%
-                              </span>
-                            </td>
-                            <td className="px-3 py-2">{deadhead} mi</td>
-                            <td className="px-3 py-2 font-semibold text-green-600">${route.predictedEarnings.toFixed(2)}</td>
-                            {/* Flags cell */}
-                            <td className="px-3 py-2">
-                              <div className="flex flex-wrap gap-1 max-h-[40px] overflow-hidden">
-                                {hasLocks && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700">Lock-Sensitive</span>
-                                )}
-                                {hasOnTimeRisk && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">On-Time Risk</span>
-                                )}
-                                {hasHighDeadhead && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-700">High Deadhead</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              <button className="text-sm font-medium text-slate-700 hover:text-slate-900">View</button>
-                            </td>
-                          </tr>
-                        );
-                      })
+                            </div>
+                          </td>
+                          <td className="w-[110px] py-3">
+                            <div className="flex items-center gap-2">
+                              <span>#{route.vehicleId}</span>
+                              {route.isWheelchair && (
+                                <Badge className="bg-purple-100 text-purple-800 text-xs">WC</Badge>
+                              )}
+                            </div>
+                          </td>
+                          <td className="w-[70px] py-3 text-right">{route.trips}</td>
+                          <td className="w-[110px] py-3 text-right">{route.miles}</td>
+                          <td className="w-[130px] py-3">{route.startTime} – {route.endTime}</td>
+                          <td className="w-[100px] py-3 text-center">
+                            <Badge className={getOnTimeColor(route.onTimePct)}>
+                              {route.onTimePct}%
+                            </Badge>
+                          </td>
+                          <td className="w-[130px] py-3 text-right">{route.deadheadMiles} mi</td>
+                          <td className="w-[140px] py-3 text-right font-semibold text-green-600">
+                            ${route.predictedPay.toFixed(2)}
+                          </td>
+                          <td className="w-[240px] py-3">
+                            <div className="flex flex-wrap gap-1">
+                              {route.flags.map((flag) => (
+                                <Badge key={flag} className={`text-xs ${FLAG_CONFIG[flag].color}`}>
+                                  {FLAG_CONFIG[flag].label}
+                                </Badge>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="w-[90px] py-3">
+                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); openRouteDrawer(route); }}>
+                              View
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        {/* Tab B - Unassigned Trips */}
+        {/* Unassigned Tab */}
         <TabsContent value="unassigned">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Unassigned Trips</h3>
-                <p className="text-sm text-slate-500">Trips that could not be assigned - requires dispatch review</p>
-              </div>
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                Export Unassigned CSV
-              </Button>
-            </div>
-
-            {unassignedTripIds.length === 0 ? (
-              <div className="rounded-xl border bg-white p-12 text-center">
-                <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <p className="text-lg font-medium">All trips assigned!</p>
-                <p className="text-slate-500">No unassigned trips in this shadow run.</p>
-              </div>
-            ) : (
-              <div className="rounded-xl border bg-white overflow-hidden">
+          <Card>
+            <CardHeader>
+              <CardTitle>Unassigned Trips</CardTitle>
+              <CardDescription>Trips that could not be assigned - exceptions workbench</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {mockUnassignedTrips.length === 0 ? (
+                <div className="py-12 text-center">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium">All Trips Assigned</h3>
+                  <p className="text-muted-foreground">No unassigned trips in this shadow run.</p>
+                </div>
+              ) : (
                 <div className="overflow-x-auto">
-                  <table className="min-w-[1100px] w-full">
-                    <thead className="border-b bg-white">
-                      <tr className="h-11 text-xs text-slate-500">
-                        <th className="px-3 text-left w-[140px] font-medium">Trip ID</th>
-                        <th className="px-3 text-left w-[110px] font-medium">Mobility</th>
-                        <th className="px-3 text-left w-[140px] font-medium">Pickup Window</th>
-                        <th className="px-3 text-left w-[220px] font-medium">Pickup</th>
-                        <th className="px-3 text-left w-[220px] font-medium">Dropoff</th>
-                        <th className="px-3 text-left w-[220px] font-medium">Reason</th>
-                        <th className="px-3 text-left w-[220px] font-medium">Suggested Fix</th>
-                        <th className="px-3 text-right w-[90px] font-medium">Actions</th>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="w-[140px] py-3 font-medium">Trip ID</th>
+                        <th className="w-[110px] py-3 font-medium">Mobility</th>
+                        <th className="w-[140px] py-3 font-medium">Pickup Window</th>
+                        <th className="w-[220px] py-3 font-medium">Pickup</th>
+                        <th className="w-[220px] py-3 font-medium">Dropoff</th>
+                        <th className="w-[220px] py-3 font-medium">Reason</th>
+                        <th className="w-[220px] py-3 font-medium">Suggested Fix</th>
+                        <th className="w-[90px] py-3 font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {unassignedTripIds.map((tripId, index) => {
-                        const reason = unassignedReasons[index % unassignedReasons.length];
-                        const isWheelchair = reason.includes('wheelchair');
-                        return (
-                          <tr 
-                            key={tripId}
-                            className="h-12 text-sm text-slate-900 hover:bg-slate-50 cursor-pointer border-b last:border-b-0"
-                            onClick={() => openUnassignedDrawer(tripId, index)}
-                          >
-                            <td className="px-3 py-2 font-medium">TRP-{tripId}</td>
-                            <td className="px-3 py-2">
-                              <span className={`px-2 py-0.5 rounded-full text-xs ${isWheelchair ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'}`}>
-                                {isWheelchair ? 'Wheelchair' : 'Standard'}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2">08:00 – 08:30</td>
-                            <td className="px-3 py-2 truncate max-w-[220px]">123 Main St, Arlington VA</td>
-                            <td className="px-3 py-2 truncate max-w-[220px]">456 Oak Ave, Falls Church VA</td>
-                            <td className="px-3 py-2">
-                              <span className="text-red-600">{reason}</span>
-                            </td>
-                            <td className="px-3 py-2">
-                              <span className="text-blue-600">Try Driver #3</span>
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              <button className="text-sm font-medium text-slate-700 hover:text-slate-900">View</button>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {/* Unassigned trips would render here */}
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        {/* Tab C - Template Locks */}
+        {/* Template Locks Tab */}
         <TabsContent value="locks">
-          <div className="space-y-4">
-            {lockViolations > 0 && (
-              <div className="bg-red-100 border border-red-200 rounded-lg px-4 py-3">
-                <div className="flex items-center gap-2 text-red-700">
-                  <AlertTriangle className="h-5 w-5" />
-                  <span className="font-semibold">Lock violations must be 0 before any production pilot.</span>
+          <Card>
+            <CardHeader>
+              <CardTitle>Template Locks</CardTitle>
+              <CardDescription>Trust layer - driver/trip assignments that must be respected</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {mockShadowRun.kpis.lockViolations > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex items-center gap-2 text-red-800">
+                  <XCircle className="h-5 w-5" />
+                  <span className="font-medium">Lock violations must be 0 before production pilot.</span>
                 </div>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Template Locks</h3>
-                <p className="text-sm text-slate-500">Driver-trip locks that must be respected by optimization</p>
-              </div>
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                Export Locks CSV
-              </Button>
-            </div>
-
-            {templateLocks.length === 0 ? (
-              <div className="rounded-xl border bg-white p-12 text-center">
-                <Lock className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500">No template locks defined for this run</p>
-              </div>
-            ) : (
-              <div className="rounded-xl border bg-white overflow-hidden">
+              )}
+              
+              {mockLocks.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Lock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium">No Template Locks</h3>
+                  <p className="text-muted-foreground">No template locks defined for this shadow run.</p>
+                </div>
+              ) : (
                 <div className="overflow-x-auto">
-                  <table className="min-w-[1100px] w-full">
-                    <thead className="border-b bg-white">
-                      <tr className="h-11 text-xs text-slate-500">
-                        <th className="px-3 text-left w-[140px] font-medium">Template ID</th>
-                        <th className="px-3 text-left w-[220px] font-medium">Driver</th>
-                        <th className="px-3 text-left w-[110px] font-medium">Lock Type</th>
-                        <th className="px-3 text-left w-[110px] font-medium">Trips Locked</th>
-                        <th className="px-3 text-left w-[160px] font-medium">Source</th>
-                        <th className="px-3 text-left w-[320px] font-medium">Notes</th>
-                        <th className="px-3 text-left w-[120px] font-medium">Status</th>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="w-[140px] py-3 font-medium">Template ID</th>
+                        <th className="w-[220px] py-3 font-medium">Driver</th>
+                        <th className="w-[110px] py-3 font-medium">Lock Type</th>
+                        <th className="w-[110px] py-3 font-medium">Trips Locked</th>
+                        <th className="w-[160px] py-3 font-medium">Source</th>
+                        <th className="w-[320px] py-3 font-medium">Notes</th>
+                        <th className="w-[120px] py-3 font-medium">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {templateLocks.map((lock, index) => (
-                        <tr key={index} className="h-12 text-sm text-slate-900 hover:bg-slate-50 border-b last:border-b-0">
-                          <td className="px-3 py-2 font-medium">{lock.templateId}</td>
-                          <td className="px-3 py-2">
-                            <div className="min-w-0">
-                              <div className="font-medium truncate">{lock.driverName}</div>
-                              <div className="text-xs text-slate-500">DRV-{String(lock.driverId).padStart(3, '0')}</div>
-                            </div>
-                          </td>
-                          <td className="px-3 py-2">
-                            <span className={`px-2 py-0.5 rounded-full text-xs ${lock.lockType === 'Hard' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700'}`}>
-                              {lock.lockType}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">{lock.tripsLocked}</td>
-                          <td className="px-3 py-2">{lock.source}</td>
-                          <td className="px-3 py-2 text-slate-500 truncate max-w-[320px]">{lock.notes}</td>
-                          <td className="px-3 py-2">
-                            <span className={`px-2 py-0.5 rounded-full text-xs ${lock.status === 'Respected' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                              {lock.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {/* Locks would render here */}
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        {/* Tab D - Predicted Pay (Payroll parity) */}
+        {/* Predicted Pay Tab */}
         <TabsContent value="pay">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Predicted Driver Pay</h3>
-                <p className="text-sm text-slate-500">Estimated earnings based on shadow optimization</p>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Predicted Pay</CardTitle>
+                  <CardDescription>Driver earnings based on optimized routes - Payroll parity</CardDescription>
+                </div>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Pay CSV
+                </Button>
               </div>
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                Export Predicted Pay CSV
-              </Button>
-            </div>
-
-            <div className="rounded-xl border bg-white overflow-hidden">
+            </CardHeader>
+            <CardContent>
               <div className="overflow-x-auto">
-                <table className="min-w-[1100px] w-full">
-                  <thead className="border-b bg-white">
-                    <tr className="h-11 text-xs text-slate-500">
-                      <th className="px-3 text-left w-[220px] font-medium">Driver</th>
-                      <th className="px-3 text-left w-[70px] font-medium">Trips</th>
-                      <th className="px-3 text-left w-[110px] font-medium">Miles</th>
-                      <th className="px-3 text-left w-[140px] font-medium">Rate Rule</th>
-                      <th className="px-3 text-left w-[120px] font-medium">Gross (pred)</th>
-                      <th className="px-3 text-left w-[120px] font-medium">Adjustments</th>
-                      <th className="px-3 text-left w-[120px] font-medium">Deductions</th>
-                      <th className="px-3 text-left w-[130px] font-medium">Net (pred)</th>
-                      <th className="px-3 text-left w-[220px] font-medium">Flags</th>
-                      <th className="px-3 text-right w-[90px] font-medium">Actions</th>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="w-[220px] py-3 font-medium">Driver</th>
+                      <th className="w-[70px] py-3 font-medium text-right">Trips</th>
+                      <th className="w-[110px] py-3 font-medium text-right">Miles</th>
+                      <th className="w-[140px] py-3 font-medium">Rate Rule</th>
+                      <th className="w-[120px] py-3 font-medium text-right">Gross</th>
+                      <th className="w-[120px] py-3 font-medium text-right">Adjustments</th>
+                      <th className="w-[120px] py-3 font-medium text-right">Deductions</th>
+                      <th className="w-[130px] py-3 font-medium text-right">Net</th>
+                      <th className="w-[220px] py-3 font-medium">Flags</th>
+                      <th className="w-[90px] py-3 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {routes.map((route) => {
-                      const driverName = driverNames[(route.driverId - 1) % driverNames.length];
-                      const hasUnusualPay = route.predictedEarnings > 100 || route.predictedEarnings < 20;
-                      const gross = route.earningsBreakdown?.baseEarnings || route.totalMiles * 2;
-                      const adjustments = route.earningsBreakdown?.bonuses || 0;
-                      const deductions = route.earningsBreakdown?.deductions || 0;
-                      
-                      return (
-                        <tr 
-                          key={route.driverId}
-                          className="h-12 text-sm text-slate-900 hover:bg-slate-50 cursor-pointer border-b last:border-b-0"
-                          onClick={() => openPayDrawer(route)}
-                        >
-                          <td className="px-3 py-2">
-                            <div className="min-w-0">
-                              <div className="font-medium truncate">{driverName}</div>
-                              <div className="text-xs text-slate-500">DRV-{String(route.driverId).padStart(3, '0')}</div>
+                    {mockRoutes.map((route) => (
+                      <tr key={route.driverId} className="border-b hover:bg-muted/50">
+                        <td className="w-[220px] py-3">
+                          <div>
+                            <div className="font-medium">{route.driverName}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {route.driverId} • {route.contractType}
                             </div>
-                          </td>
-                          <td className="px-3 py-2">{route.totalTrips}</td>
-                          <td className="px-3 py-2">{route.totalMiles}</td>
-                          <td className="px-3 py-2">
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">per-mile</span>
-                          </td>
-                          <td className="px-3 py-2">${gross.toFixed(2)}</td>
-                          <td className="px-3 py-2 text-green-600">+${adjustments.toFixed(2)}</td>
-                          <td className="px-3 py-2 text-red-600">-${deductions.toFixed(2)}</td>
-                          <td className="px-3 py-2 font-semibold">${route.predictedEarnings.toFixed(2)}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex flex-wrap gap-1 max-h-[40px] overflow-hidden">
-                              {hasUnusualPay && (
-                                <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">Unusual Pay</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            <button className="text-sm font-medium text-slate-700 hover:text-slate-900">View</button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                          </div>
+                        </td>
+                        <td className="w-[70px] py-3 text-right">{route.trips}</td>
+                        <td className="w-[110px] py-3 text-right">{route.miles}</td>
+                        <td className="w-[140px] py-3">$2.00/mi</td>
+                        <td className="w-[120px] py-3 text-right">${route.predictedPay.toFixed(2)}</td>
+                        <td className="w-[120px] py-3 text-right text-green-600">$0.00</td>
+                        <td className="w-[120px] py-3 text-right text-red-600">$0.00</td>
+                        <td className="w-[130px] py-3 text-right font-bold text-green-600">
+                          ${route.predictedPay.toFixed(2)}
+                        </td>
+                        <td className="w-[220px] py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {route.flags.filter(f => f === 'UNUSUAL_PAY').map((flag) => (
+                              <Badge key={flag} className={`text-xs ${FLAG_CONFIG[flag].color}`}>
+                                {FLAG_CONFIG[flag].label}
+                              </Badge>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="w-[90px] py-3">
+                          <Button variant="ghost" size="sm">View</Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Total row */}
+                    <tr className="bg-muted/50 font-semibold">
+                      <td className="py-3">Total ({mockRoutes.length} drivers)</td>
+                      <td className="py-3 text-right">{mockRoutes.reduce((sum, r) => sum + r.trips, 0)}</td>
+                      <td className="py-3 text-right">{mockRoutes.reduce((sum, r) => sum + r.miles, 0)}</td>
+                      <td className="py-3"></td>
+                      <td className="py-3 text-right">${mockRoutes.reduce((sum, r) => sum + r.predictedPay, 0).toFixed(2)}</td>
+                      <td className="py-3 text-right text-green-600">$0.00</td>
+                      <td className="py-3 text-right text-red-600">$0.00</td>
+                      <td className="py-3 text-right text-green-600">${mockRoutes.reduce((sum, r) => sum + r.predictedPay, 0).toFixed(2)}</td>
+                      <td className="py-3"></td>
+                      <td className="py-3"></td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
-            </div>
-
-            {/* Totals Row */}
-            <div className="flex justify-end pt-4">
-              <div className="text-right">
-                <div className="text-sm text-slate-500">Total Predicted Payout</div>
-                <div className="text-2xl font-bold text-green-600">
-                  ${(summary?.totalPredictedEarnings || 0).toFixed(2)}
-                </div>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Route Drawer - 520px width */}
-      <Sheet open={routeDrawerOpen} onOpenChange={setRouteDrawerOpen}>
-        <SheetContent className="w-[520px] sm:max-w-[520px] overflow-y-auto">
-          {routeDrawerData && (
-            <>
-              <SheetHeader>
-                <SheetTitle>Route — {routeDrawerData.driverName} (Vehicle #{routeDrawerData.vehicleId})</SheetTitle>
-                <SheetDescription>Detailed route information and stop timeline</SheetDescription>
-              </SheetHeader>
-
+      {/* Route Detail Drawer - 520px per spec */}
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <SheetContent className="w-[520px] sm:max-w-[520px]">
+          <SheetHeader>
+            <SheetTitle>Route — {selectedRoute?.driverName} (Vehicle #{selectedRoute?.vehicleId})</SheetTitle>
+            <SheetDescription>Detailed route information and stop timeline</SheetDescription>
+          </SheetHeader>
+          
+          {selectedRoute && (
+            <div className="mt-6 space-y-6">
               {/* Mini KPI Cards (3) */}
-              <div className="grid grid-cols-3 gap-3 mt-6">
-                <div className="rounded-lg border bg-white p-3">
-                  <div className="text-xs text-slate-500">On-Time %</div>
-                  <div className="text-xl font-bold">{routeDrawerData.onTimePercentage}%</div>
-                </div>
-                <div className="rounded-lg border bg-white p-3">
-                  <div className="text-xs text-slate-500">Deadhead (est.)</div>
-                  <div className="text-xl font-bold">{routeDrawerData.deadheadMiles} mi</div>
-                </div>
-                <div className="rounded-lg border bg-white p-3">
-                  <div className="text-xs text-slate-500">Predicted Pay</div>
-                  <div className="text-xl font-bold text-green-600">${routeDrawerData.predictedEarnings.toFixed(2)}</div>
-                </div>
+              <div className="grid grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">On-Time %</p>
+                    <p className={`text-xl font-bold ${selectedRoute.onTimePct >= 95 ? 'text-green-600' : selectedRoute.onTimePct >= 90 ? 'text-amber-600' : 'text-red-600'}`}>
+                      {selectedRoute.onTimePct}%
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">Deadhead (est.)</p>
+                    <p className="text-xl font-bold">{selectedRoute.deadheadMiles} mi</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-muted-foreground">Predicted Pay</p>
+                    <p className="text-xl font-bold text-green-600">${selectedRoute.predictedPay.toFixed(2)}</p>
+                  </CardContent>
+                </Card>
               </div>
-
-              {/* Stops Timeline Table (dense) */}
-              <div className="mt-6">
-                <h4 className="font-semibold mb-3">Stops Timeline</h4>
-                <div className="rounded-lg border bg-white overflow-hidden">
-                  <table className="w-full">
-                    <thead className="border-b bg-slate-50">
-                      <tr className="h-9 text-xs text-slate-500">
-                        <th className="px-2 text-left w-[50px] font-medium">Seq</th>
-                        <th className="px-2 text-left w-[90px] font-medium">Type</th>
-                        <th className="px-2 text-left w-[140px] font-medium">Trip</th>
-                        <th className="px-2 text-left w-[140px] font-medium">Window</th>
-                        <th className="px-2 text-left w-[90px] font-medium">ETA</th>
-                        <th className="px-2 text-left w-[80px] font-medium">Slack</th>
-                        <th className="px-2 text-left w-[120px] font-medium">Lock</th>
+              
+              {/* Stops Timeline Table */}
+              <div>
+                <h4 className="font-medium mb-3">Stops Timeline</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="w-[50px] py-2 font-medium">Seq</th>
+                        <th className="w-[90px] py-2 font-medium">Type</th>
+                        <th className="w-[140px] py-2 font-medium">Trip</th>
+                        <th className="w-[140px] py-2 font-medium">Window</th>
+                        <th className="w-[90px] py-2 font-medium">ETA</th>
+                        <th className="w-[80px] py-2 font-medium">Slack</th>
+                        <th className="w-[120px] py-2 font-medium">Lock</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {routeDrawerData.assignments.flatMap((stop, index) => [
-                        // Pickup row
-                        <tr key={`${stop.tripId}-pickup`} className="h-10 text-sm border-b last:border-b-0">
-                          <td className="px-2 py-1">{index * 2 + 1}</td>
-                          <td className="px-2 py-1">
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">Pickup</span>
+                      {mockStops.map((stop) => (
+                        <tr key={stop.seq} className="border-b">
+                          <td className="w-[50px] py-2">{stop.seq}</td>
+                          <td className="w-[90px] py-2">
+                            <Badge className={stop.type === 'Pickup' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
+                              {stop.type}
+                            </Badge>
                           </td>
-                          <td className="px-2 py-1 font-medium">TRP-{stop.tripId}</td>
-                          <td className="px-2 py-1">{stop.predictedPickupTime?.split('T')[1]?.substring(0, 5) || 'N/A'}</td>
-                          <td className="px-2 py-1">{stop.predictedPickupTime?.split('T')[1]?.substring(0, 5) || 'N/A'}</td>
-                          <td className="px-2 py-1">
-                            <span className={stop.predictedArrivalMinutes > 0 ? 'text-amber-600' : 'text-green-600'}>
-                              {stop.predictedArrivalMinutes > 0 ? `+${stop.predictedArrivalMinutes}` : stop.predictedArrivalMinutes}
-                            </span>
+                          <td className="w-[140px] py-2">{stop.tripId}</td>
+                          <td className="w-[140px] py-2">{stop.window}</td>
+                          <td className="w-[90px] py-2">{stop.eta}</td>
+                          <td className="w-[80px] py-2">{stop.slack !== null ? stop.slack : '—'}</td>
+                          <td className="w-[120px] py-2">
+                            {stop.lock ? (
+                              <Badge variant="outline" className="text-xs">{stop.lock}</Badge>
+                            ) : '—'}
                           </td>
-                          <td className="px-2 py-1">
-                            {stop.isGapFill ? (
-                              <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Gap-Fill</span>
-                            ) : (
-                              <span className="text-slate-400">—</span>
-                            )}
-                          </td>
-                        </tr>,
-                        // Dropoff row
-                        <tr key={`${stop.tripId}-dropoff`} className="h-10 text-sm border-b last:border-b-0 bg-slate-50/50">
-                          <td className="px-2 py-1">{index * 2 + 2}</td>
-                          <td className="px-2 py-1">
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700">Dropoff</span>
-                          </td>
-                          <td className="px-2 py-1 font-medium">TRP-{stop.tripId}</td>
-                          <td className="px-2 py-1">{stop.predictedDropoffTime?.split('T')[1]?.substring(0, 5) || 'N/A'}</td>
-                          <td className="px-2 py-1">{stop.predictedDropoffTime?.split('T')[1]?.substring(0, 5) || 'N/A'}</td>
-                          <td className="px-2 py-1">—</td>
-                          <td className="px-2 py-1">—</td>
                         </tr>
-                      ])}
+                      ))}
                     </tbody>
                   </table>
                 </div>
               </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
-
-      {/* Unassigned Trip Drawer */}
-      <Sheet open={unassignedDrawerOpen} onOpenChange={setUnassignedDrawerOpen}>
-        <SheetContent className="w-[520px] sm:max-w-[520px]">
-          {unassignedDrawerData && (
-            <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                  Unassigned Trip — TRP-{unassignedDrawerData.tripId}
-                </SheetTitle>
-                <SheetDescription>Trip details and constraint information</SheetDescription>
-              </SheetHeader>
-
-              <div className="mt-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <div className="text-slate-500">Pickup Window</div>
-                    <div className="font-medium">{unassignedDrawerData.pickupWindow}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500">Mobility Type</div>
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${unassignedDrawerData.mobilityType === 'Wheelchair' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'}`}>
-                      {unassignedDrawerData.mobilityType}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-slate-500">Pickup Location</div>
-                    <div className="font-medium flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {unassignedDrawerData.pickupLocation}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500">Dropoff Location</div>
-                    <div className="font-medium flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {unassignedDrawerData.dropoffLocation}
-                    </div>
-                  </div>
+              
+              {/* Issues Box - only if issues exist */}
+              {selectedRoute.flags.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <h4 className="font-medium text-amber-800 mb-2">Issues</h4>
+                  <ul className="text-sm text-amber-700 space-y-1">
+                    {selectedRoute.flags.map((flag) => (
+                      <li key={flag} className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        {FLAG_CONFIG[flag].label}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-
-                <div className="p-4 bg-red-50 rounded-lg border border-red-100">
-                  <div className="text-sm font-medium text-red-700">Constraint Blocking Assignment</div>
-                  <div className="mt-1 text-red-600">{unassignedDrawerData.reason}</div>
-                </div>
-
-                {unassignedDrawerData.suggestedDrivers && (
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                    <div className="text-sm font-medium text-blue-700">Best 3 Drivers to Try (Shadow Suggestion)</div>
-                    <div className="mt-2 space-y-2">
-                      {unassignedDrawerData.suggestedDrivers.map((driver, index) => (
-                        <div key={index} className="flex items-center gap-2 text-sm">
-                          <ChevronRight className="h-4 w-4 text-blue-500" />
-                          <span>{driver}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
-
-      {/* Pay Drawer */}
-      <Sheet open={payDrawerOpen} onOpenChange={setPayDrawerOpen}>
-        <SheetContent className="w-[520px] sm:max-w-[520px]">
-          {payDrawerData && (
-            <>
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-green-500" />
-                  Driver Pay — {payDrawerData.driverName}
-                </SheetTitle>
-                <SheetDescription>Predicted pay breakdown</SheetDescription>
-              </SheetHeader>
-
-              <div className="mt-6 space-y-4">
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <div className="text-sm text-slate-500">Pay Rule Applied</div>
-                  <div className="font-medium mt-1">
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">{payDrawerData.rateRule}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-slate-500">Miles × Rate</span>
-                    <span className="font-medium">{payDrawerData.miles} × $2.00 = ${payDrawerData.basePay.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-slate-500">Bonuses/Adjustments</span>
-                    <span className="font-medium text-green-600">+${payDrawerData.bonuses.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-slate-500">Deductions</span>
-                    <span className="font-medium text-red-600">-${payDrawerData.deductions.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-3 bg-green-50 rounded-lg px-3">
-                    <span className="font-semibold">Final Predicted</span>
-                    <span className="text-xl font-bold text-green-600">${payDrawerData.netPay.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            </>
+              )}
+              
+              <Button variant="outline" className="w-full" onClick={() => setDrawerOpen(false)}>
+                Close
+              </Button>
+            </div>
           )}
         </SheetContent>
       </Sheet>
