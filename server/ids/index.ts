@@ -26,6 +26,9 @@
 // Types
 export * from "./ids.types";
 
+// Config
+export * from "./ids.config";
+
 // Service
 export { IDSService, getIDSService, resetIDSService } from "./ids.service";
 

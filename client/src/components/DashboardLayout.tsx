@@ -50,7 +50,8 @@ import {
   BarChart3,
   Clock,
   Activity,
-  Cloud
+  Cloud,
+  Brain
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -136,6 +137,13 @@ const navigationGroups = [
     items: [
       { icon: FolderOpen, label: "File Manager", path: "/files/manager" },
       { icon: Cloud, label: "GSuite Integration", path: "/files/gsuite" },
+    ],
+  },
+  {
+    label: "IDS Optimization",
+    items: [
+      { icon: Brain, label: "IDS Overview", path: "/ids" },
+      { icon: Activity, label: "Shadow Runs", path: "/ids/shadow-runs" },
     ],
   },
 ];

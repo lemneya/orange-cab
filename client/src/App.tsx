@@ -60,6 +60,12 @@ import PerformanceReports from "./pages/director/PerformanceReports";
 import FileManager from "./pages/files/FileManager";
 import GSuiteIntegration from "./pages/files/GSuiteIntegration";
 
+// IDS (Integral Dispatch System)
+import IDSOverview from "./pages/ids/IDSOverview";
+import ShadowRunsList from "./pages/ids/ShadowRunsList";
+import ShadowRunDetail from "./pages/ids/ShadowRunDetail";
+import NewShadowRun from "./pages/ids/NewShadowRun";
+
 function Router() {
   return (
     <DashboardLayout>
@@ -120,6 +126,12 @@ function Router() {
         {/* Files & GSuite */}
         <Route path="/files/manager" component={FileManager} />
         <Route path="/files/gsuite" component={GSuiteIntegration} />
+        
+        {/* IDS (Integral Dispatch System) */}
+        <Route path="/ids" component={IDSOverview} />
+        <Route path="/ids/shadow-runs" component={ShadowRunsList} />
+        <Route path="/ids/shadow-runs/new" component={NewShadowRun} />
+        <Route path="/ids/shadow-runs/:id" component={ShadowRunDetail} />
         
         {/* Fallback */}
         <Route path="/404" component={NotFound} />
