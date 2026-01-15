@@ -505,11 +505,34 @@ function CompareTab({
         </div>
       )}
 
+      {/* Driver Alias Warning */}
+      {comparison.unmatchedDrivers && comparison.unmatchedDrivers.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-amber-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h4 className="font-medium text-amber-800">Driver Name Mismatch Warning</h4>
+              <p className="text-sm text-amber-700 mt-1">
+                The following drivers from actual data could not be matched to shadow run drivers.
+                This may cause under-counting in the comparison. Consider adding driver aliases.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {comparison.unmatchedDrivers.map((driver: string) => (
+                  <Pill key={driver} tone="amber">{driver}</Pill>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Per-Driver Delta Table */}
       <div className="rounded-xl border bg-white overflow-hidden">
         <div className="px-4 py-3 border-b">
           <h3 className="font-semibold text-slate-900">Per-Driver Delta</h3>
-          <p className="text-xs text-slate-500">Predicted vs Actual performance by driver</p>
+          <p className="text-xs text-slate-500">Predicted vs Actual performance by driver (uses normalized name matching)</p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full">

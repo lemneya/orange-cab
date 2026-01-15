@@ -252,23 +252,27 @@ export default function ActualImport() {
               </div>
             </div>
 
-            {/* PHI Fields Detected */}
-            {preview.phiFieldsDetected.length > 0 && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <h3 className="font-medium text-red-800 mb-2">PHI Fields Detected (will be stripped)</h3>
+            {/* Ignored Columns (not in allowlist) */}
+            {preview.ignoredColumns && preview.ignoredColumns.length > 0 && (
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <h3 className="font-medium text-amber-800 mb-2">Columns Ignored (not in allowlist)</h3>
+                <p className="text-sm text-amber-700 mb-2">
+                  These columns are NOT in the approved allowlist and will be completely ignored.
+                  This protects against new PHI columns added by vendors.
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  {preview.phiFieldsDetected.map((field: string) => (
-                    <Pill key={field} tone="red">{field}</Pill>
+                  {preview.ignoredColumns.map((field: string) => (
+                    <Pill key={field} tone="amber">{field}</Pill>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Safe Fields */}
+            {/* Allowed Columns (will be extracted) */}
             <div className="mb-6">
-              <h3 className="font-medium text-slate-700 mb-2">Fields to Import</h3>
+              <h3 className="font-medium text-slate-700 mb-2">Columns to Extract (from allowlist)</h3>
               <div className="flex flex-wrap gap-2">
-                {preview.safeFieldsDetected.map((field: string) => (
+                {(preview.allowedColumns || preview.safeFieldsDetected || []).map((field: string) => (
                   <Pill key={field} tone="green">{field}</Pill>
                 ))}
               </div>
@@ -401,34 +405,74 @@ export default function ActualImport() {
               </div>
             </div>
 
-            {/* "Nothing Dropped" Proof */}
+            {/* "Nothing Dropped" Proof - CRITICAL AUDIT */}
             <div className={clsx(
               "p-4 rounded-lg mb-6",
-              importResult.isComplete ? "bg-green-50 border border-green-200" : "bg-amber-50 border border-amber-200"
+              importResult.isComplete ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"
             )}>
               <h3 className={clsx(
                 "font-medium mb-2",
-                importResult.isComplete ? "text-green-800" : "text-amber-800"
+                importResult.isComplete ? "text-green-800" : "text-red-800"
               )}>
-                Audit Proof: {importResult.accountedRows} / {importResult.totalRows} rows accounted
+                "Nothing Dropped" Audit Proof
               </h3>
+              <div className="grid grid-cols-3 gap-4 mb-3">
+                <div className="text-center p-2 bg-white rounded">
+                  <div className="text-lg font-bold text-slate-900">{importResult.expectedRows || importResult.totalRows}</div>
+                  <div className="text-xs text-slate-500">expectedRows</div>
+                </div>
+                <div className="text-center p-2 bg-white rounded">
+                  <div className="text-lg font-bold text-slate-900">{importResult.accountedRows}</div>
+                  <div className="text-xs text-slate-500">accountedRows</div>
+                </div>
+                <div className="text-center p-2 bg-white rounded">
+                  <div className={clsx(
+                    "text-lg font-bold",
+                    (importResult.missingRows?.length || 0) === 0 ? "text-green-600" : "text-red-600"
+                  )}>
+                    {importResult.missingRows?.length || 0}
+                  </div>
+                  <div className="text-xs text-slate-500">missingRows</div>
+                </div>
+              </div>
               <p className={clsx(
                 "text-sm",
-                importResult.isComplete ? "text-green-700" : "text-amber-700"
+                importResult.isComplete ? "text-green-700" : "text-red-700"
               )}>
                 {importResult.isComplete 
-                  ? "All rows have been accounted for (imported + skipped + errors = total)."
-                  : `WARNING: ${importResult.totalRows - importResult.accountedRows} rows may have been lost during import.`}
+                  ? "✓ All rows accounted for: imported + skipped + errors = expected"
+                  : `✗ AUDIT FAILURE: ${(importResult.missingRows?.length || 0)} rows not accounted for`}
               </p>
+              {importResult.missingRows && importResult.missingRows.length > 0 && (
+                <div className="mt-2 text-sm text-red-600">
+                  Missing row numbers: {importResult.missingRows.slice(0, 20).join(", ")}
+                  {importResult.missingRows.length > 20 && ` +${importResult.missingRows.length - 20} more`}
+                </div>
+              )}
             </div>
 
-            {/* PHI Fields Stripped */}
-            {importResult.phiFieldsStripped.length > 0 && (
+            {/* Columns Ignored (not in allowlist) */}
+            {importResult.ignoredColumns && importResult.ignoredColumns.length > 0 && (
               <div className="mb-6">
-                <h3 className="font-medium text-slate-700 mb-2">PHI Fields Stripped</h3>
+                <h3 className="font-medium text-amber-700 mb-2">Columns Ignored (not in allowlist)</h3>
+                <p className="text-sm text-amber-600 mb-2">
+                  These columns were NOT extracted because they are not in the approved allowlist.
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  {importResult.phiFieldsStripped.map((field: string) => (
-                    <Pill key={field} tone="red">{field}</Pill>
+                  {importResult.ignoredColumns.map((field: string) => (
+                    <Pill key={field} tone="amber">{field}</Pill>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Columns Extracted */}
+            {importResult.extractedColumns && importResult.extractedColumns.length > 0 && (
+              <div className="mb-6">
+                <h3 className="font-medium text-green-700 mb-2">Columns Extracted (from allowlist)</h3>
+                <div className="flex flex-wrap gap-2">
+                  {importResult.extractedColumns.map((field: string) => (
+                    <Pill key={field} tone="green">{field}</Pill>
                   ))}
                 </div>
               </div>

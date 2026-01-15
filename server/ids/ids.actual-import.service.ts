@@ -2,26 +2,66 @@
  * IDS Actual Import Service
  * Handles import of completed trips from MediRoute CSV exports
  * 
- * CRITICAL: PHI Stripping
- * - NO patient names, phones, DOB, or full addresses stored
- * - Only trip IDs, driver names, vehicle units, GPS coords, and timestamps
+ * CRITICAL: PHI Protection via ALLOWLIST
+ * - ONLY fields in ALLOWED_COLUMNS are extracted
+ * - All other fields are ignored (never read, never stored)
+ * - This protects against new PHI columns added by vendors
  */
 
 import { createHash } from "crypto";
 
 // ============================================================================
-// PHI Fields to Strip (never store these)
+// ALLOWLIST: Only these columns are extracted (PHI-safe by design)
 // ============================================================================
 
-const PHI_FIELDS = [
-  "patient", "member", "membername", "patientname", "name",
-  "phone", "memberphone", "patientphone", "telephone",
-  "dob", "dateofbirth", "birthdate", "birthday",
-  "address", "pickupaddress", "dropoffaddress", "pickup_address", "dropoff_address",
-  "street", "pickupstreet", "dropoffstreet",
-  "ssn", "socialsecurity", "medicaid", "medicare",
-  "email", "memberemail",
-];
+/**
+ * ALLOWED_COLUMNS defines the ONLY fields we extract from CSV.
+ * Any column not in this list is completely ignored.
+ * This is the ALLOWLIST pattern - safer than blocklist because:
+ * - New PHI columns added by vendors are automatically ignored
+ * - We explicitly define what we need, not what we don't want
+ */
+const ALLOWED_COLUMNS = {
+  // Trip identification (required)
+  tripId: ["tripid", "trip_id", "id"],
+  serviceDate: ["date", "servicedate", "tripdate"],
+  driverName: ["driver", "drivername", "driver_name"],
+  
+  // Vehicle and mobility (optional)
+  vehicleUnit: ["vehicle", "vehicleunit", "unit"],
+  mobilityType: ["type", "mobilitytype", "space"],
+  tripType: ["type", "triptype"],
+  
+  // Scheduled times (optional)
+  schedPickupTime: ["reqpickup", "req_pickup", "scheduledpickup", "pickuptime"],
+  appointmentTime: ["appointment", "appointmenttime", "appt"],
+  
+  // Actual times (optional)
+  actualPickupArrive: ["pickuparrive", "pickup_arrive", "actualpickuparrive"],
+  actualPickupPerform: ["pickupperform", "pickup_perform", "actualpickupperform"],
+  actualDropoffArrive: ["dropoffarrive", "dropoff_arrive", "actualdropoffarrive"],
+  actualDropoffPerform: ["dropoffperform", "dropoff_perform", "actualdropoffperform"],
+  
+  // Miles (optional) - SSOT: Routed Distance preferred
+  routedDistance: ["routeddistance", "routed_distance"],
+  distance: ["distance", "miles", "importdistance"],
+  
+  // GPS coordinates (optional) - for template mining
+  pickupLat: ["pickuplat", "pickup_lat", "pickuplatitude"],
+  pickupLon: ["pickuplon", "pickup_lon", "pickuplongitude"],
+  dropoffLat: ["dropofflat", "dropoff_lat", "dropofflatitude"],
+  dropoffLon: ["dropofflon", "dropoff_lon", "dropofflongitude"],
+  
+  // Status flags (optional)
+  status: ["status", "tripstatus"],
+  standing: ["standing"],
+  willCall: ["willcall", "will_call"],
+} as const;
+
+// Flatten all allowed column names for quick lookup
+const ALL_ALLOWED_COLUMNS = new Set(
+  Object.values(ALLOWED_COLUMNS).flat()
+);
 
 // ============================================================================
 // Types
@@ -33,7 +73,7 @@ export interface ActualTripRow {
   driverName: string;
   vehicleUnit: string | null;
   mobilityType: string;
-  tripType: string | null; // A (appointment) or W (will-call)
+  tripType: string | null;
   schedPickupTime: string | null;
   appointmentTime: string | null;
   actualPickupArrive: string | null;
@@ -58,24 +98,27 @@ export interface ImportResult {
   importId: number;
   fileHash: string;
   totalRows: number;
+  expectedRows: number;
   importedRows: number;
   skippedRows: number;
   errorRows: number;
   accountedRows: number;
+  missingRows: number[];
   isComplete: boolean;
   serviceDateFrom: string | null;
   serviceDateTo: string | null;
   errors: { row: number; message: string }[];
   warnings: string[];
-  phiFieldsStripped: string[];
+  ignoredColumns: string[];
+  extractedColumns: string[];
 }
 
 export interface ImportPreview {
   fileHash: string;
   totalRows: number;
   columns: string[];
-  phiFieldsDetected: string[];
-  safeFieldsDetected: string[];
+  allowedColumns: string[];
+  ignoredColumns: string[];
   sampleRows: Record<string, string>[];
   serviceDateRange: { from: string; to: string } | null;
   driverNames: string[];
@@ -93,13 +136,17 @@ interface StoredImport {
   fileName: string | null;
   fileSize: number;
   totalRows: number;
+  expectedRows: number;
   importedRows: number;
   skippedRows: number;
   errorRows: number;
+  accountedRows: number;
+  missingRows: number[];
   serviceDateFrom: string | null;
   serviceDateTo: string | null;
-  accountedRows: number;
   isComplete: boolean;
+  ignoredColumns: string[];
+  extractedColumns: string[];
   importedAt: string;
 }
 
@@ -109,11 +156,18 @@ interface StoredActualTrip extends ActualTripRow {
   createdAt: string;
 }
 
+// Driver alias mapping for Compare join robustness
+interface DriverAlias {
+  canonical: string;
+  aliases: string[];
+}
+
 let importCounter = 0;
 let tripCounter = 0;
 const importStorage: Map<number, StoredImport> = new Map();
-const importHashIndex: Map<string, number> = new Map(); // fileHash -> importId
+const importHashIndex: Map<string, number> = new Map();
 const actualTripStorage: Map<number, StoredActualTrip> = new Map();
+const driverAliasStorage: Map<string, DriverAlias> = new Map();
 
 // ============================================================================
 // CSV Parsing Helpers
@@ -151,10 +205,8 @@ function computeFileHash(content: string): string {
 function parseTime(timeStr: string | undefined | null): string | null {
   if (!timeStr || timeStr.trim() === "") return null;
   
-  // Handle various time formats
   const cleaned = timeStr.trim();
   
-  // Already in HH:MM:SS format
   if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(cleaned)) {
     const parts = cleaned.split(":");
     const hours = parts[0].padStart(2, "0");
@@ -163,7 +215,6 @@ function parseTime(timeStr: string | undefined | null): string | null {
     return `${hours}:${mins}:${secs}`;
   }
   
-  // Handle AM/PM format
   const ampmMatch = cleaned.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
   if (ampmMatch) {
     let hours = parseInt(ampmMatch[1], 10);
@@ -185,7 +236,6 @@ function parseDate(dateStr: string | undefined | null): string | null {
   
   const cleaned = dateStr.trim();
   
-  // Handle MM/DD/YYYY format
   const slashMatch = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (slashMatch) {
     const month = slashMatch[1].padStart(2, "0");
@@ -194,7 +244,6 @@ function parseDate(dateStr: string | undefined | null): string | null {
     return `${year}-${month}-${day}`;
   }
   
-  // Handle YYYY-MM-DD format
   if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) {
     return cleaned;
   }
@@ -221,8 +270,12 @@ function computeOnTime(
   const schedMinutes = schedH * 60 + schedM;
   const actualMinutes = actualH * 60 + actualM;
   
-  // On-time if within window (early is OK, late by > windowMinutes is not)
   return actualMinutes <= schedMinutes + windowMinutes;
+}
+
+// Normalize driver name for matching
+function normalizeDriverName(name: string): string {
+  return name.toLowerCase().trim().replace(/\s+/g, " ");
 }
 
 // ============================================================================
@@ -231,7 +284,8 @@ function computeOnTime(
 
 export class ActualImportService {
   /**
-   * Preview CSV before import - shows what will be imported and PHI that will be stripped
+   * Preview CSV before import - shows what will be imported
+   * Uses ALLOWLIST pattern: only shows allowed columns, marks others as ignored
    */
   async previewCSV(csvContent: string): Promise<ImportPreview> {
     const fileHash = computeFileHash(csvContent);
@@ -244,70 +298,79 @@ export class ActualImportService {
     const headers = parseCSVLine(lines[0]);
     const normalizedHeaders = headers.map(normalizeColumnName);
     
-    // Detect PHI fields
-    const phiFieldsDetected: string[] = [];
-    const safeFieldsDetected: string[] = [];
+    // Categorize columns using ALLOWLIST
+    const allowedColumns: string[] = [];
+    const ignoredColumns: string[] = [];
     
     for (let i = 0; i < headers.length; i++) {
       const normalized = normalizedHeaders[i];
-      if (PHI_FIELDS.some(phi => normalized.includes(phi))) {
-        phiFieldsDetected.push(headers[i]);
+      if (ALL_ALLOWED_COLUMNS.has(normalized)) {
+        allowedColumns.push(headers[i]);
       } else {
-        safeFieldsDetected.push(headers[i]);
+        ignoredColumns.push(headers[i]);
       }
     }
     
-    // Parse sample rows (first 5)
+    // Parse sample rows (first 5) - only show allowed columns
     const sampleRows: Record<string, string>[] = [];
     const dates: string[] = [];
     const drivers = new Set<string>();
     const vehicles = new Set<string>();
     const mobilities = new Set<string>();
     
+    // Build column index for allowed columns only
+    const colIndex: Record<string, number> = {};
+    normalizedHeaders.forEach((h, i) => {
+      if (ALL_ALLOWED_COLUMNS.has(h)) {
+        colIndex[h] = i;
+      }
+    });
+    
+    const getCol = (values: string[], ...names: string[]): string | null => {
+      for (const name of names) {
+        const idx = colIndex[name];
+        if (idx !== undefined && values[idx]) {
+          return values[idx];
+        }
+      }
+      return null;
+    };
+    
     for (let i = 1; i < Math.min(lines.length, 6); i++) {
       const values = parseCSVLine(lines[i]);
       const row: Record<string, string> = {};
       
+      // Only include allowed columns in preview
       for (let j = 0; j < headers.length; j++) {
-        // Mask PHI fields in preview
         const normalized = normalizedHeaders[j];
-        if (PHI_FIELDS.some(phi => normalized.includes(phi))) {
-          row[headers[j]] = "[PHI STRIPPED]";
-        } else {
+        if (ALL_ALLOWED_COLUMNS.has(normalized)) {
           row[headers[j]] = values[j] || "";
+        } else {
+          row[headers[j]] = "[IGNORED - not in allowlist]";
         }
       }
       
       sampleRows.push(row);
     }
     
-    // Scan all rows for metadata
+    // Scan all rows for metadata (only from allowed columns)
     for (let i = 1; i < lines.length; i++) {
       const values = parseCSVLine(lines[i]);
-      const row: Record<string, string> = {};
-      normalizedHeaders.forEach((h, idx) => {
-        row[h] = values[idx] || "";
-      });
       
-      // Extract date
-      const dateVal = row["date"] || row["servicedate"] || row["tripdate"];
+      const dateVal = getCol(values, ...ALLOWED_COLUMNS.serviceDate);
       const parsedDate = parseDate(dateVal);
       if (parsedDate) dates.push(parsedDate);
       
-      // Extract driver
-      const driverVal = row["driver"] || row["drivername"];
+      const driverVal = getCol(values, ...ALLOWED_COLUMNS.driverName);
       if (driverVal) drivers.add(driverVal);
       
-      // Extract vehicle
-      const vehicleVal = row["vehicle"] || row["vehicleunit"] || row["unit"];
+      const vehicleVal = getCol(values, ...ALLOWED_COLUMNS.vehicleUnit);
       if (vehicleVal) vehicles.add(vehicleVal);
       
-      // Extract mobility type
-      const mobVal = row["type"] || row["mobilitytype"] || row["space"];
+      const mobVal = getCol(values, ...ALLOWED_COLUMNS.mobilityType);
       if (mobVal) mobilities.add(mobVal);
     }
     
-    // Compute date range
     let serviceDateRange: { from: string; to: string } | null = null;
     if (dates.length > 0) {
       dates.sort();
@@ -321,8 +384,8 @@ export class ActualImportService {
       fileHash,
       totalRows: lines.length - 1,
       columns: headers,
-      phiFieldsDetected,
-      safeFieldsDetected,
+      allowedColumns,
+      ignoredColumns,
       sampleRows,
       serviceDateRange,
       driverNames: Array.from(drivers).slice(0, 20),
@@ -343,7 +406,9 @@ export class ActualImportService {
   }
   
   /**
-   * Import CSV with PHI stripping
+   * Import CSV using ALLOWLIST pattern
+   * ONLY extracts fields defined in ALLOWED_COLUMNS
+   * All other columns are completely ignored (never read into memory)
    */
   async importCSV(
     csvContent: string,
@@ -351,7 +416,7 @@ export class ActualImportService {
   ): Promise<ImportResult> {
     const fileHash = computeFileHash(csvContent);
     
-    // Check for duplicate
+    // Check for duplicate (idempotency)
     const duplicate = await this.checkDuplicate(fileHash);
     if (duplicate.isDuplicate) {
       const existing = importStorage.get(duplicate.importId!);
@@ -360,16 +425,19 @@ export class ActualImportService {
         importId: duplicate.importId!,
         fileHash,
         totalRows: existing?.totalRows || 0,
+        expectedRows: existing?.expectedRows || 0,
         importedRows: 0,
         skippedRows: existing?.totalRows || 0,
         errorRows: 0,
         accountedRows: existing?.totalRows || 0,
+        missingRows: [],
         isComplete: false,
         serviceDateFrom: existing?.serviceDateFrom || null,
         serviceDateTo: existing?.serviceDateTo || null,
         errors: [{ row: 0, message: "File already imported (duplicate hash)" }],
         warnings: ["This file was previously imported. Skipping to prevent duplicates."],
-        phiFieldsStripped: [],
+        ignoredColumns: existing?.ignoredColumns || [],
+        extractedColumns: existing?.extractedColumns || [],
       };
     }
     
@@ -381,22 +449,21 @@ export class ActualImportService {
     const headers = parseCSVLine(lines[0]);
     const normalizedHeaders = headers.map(normalizeColumnName);
     
-    // Build column index map
+    // Build column index for ALLOWED columns only
     const colIndex: Record<string, number> = {};
+    const ignoredColumns: string[] = [];
+    const extractedColumns: string[] = [];
+    
     normalizedHeaders.forEach((h, i) => {
-      colIndex[h] = i;
+      if (ALL_ALLOWED_COLUMNS.has(h)) {
+        colIndex[h] = i;
+        extractedColumns.push(headers[i]);
+      } else {
+        ignoredColumns.push(headers[i]);
+      }
     });
     
-    // Track PHI fields stripped
-    const phiFieldsStripped = new Set<string>();
-    for (let i = 0; i < headers.length; i++) {
-      const normalized = normalizedHeaders[i];
-      if (PHI_FIELDS.some(phi => normalized.includes(phi))) {
-        phiFieldsStripped.add(headers[i]);
-      }
-    }
-    
-    // Helper to get column value
+    // Helper to get column value (only from allowed columns)
     const getCol = (values: string[], ...names: string[]): string | null => {
       for (const name of names) {
         const idx = colIndex[name];
@@ -412,12 +479,17 @@ export class ActualImportService {
     const warnings: string[] = [];
     const trips: ActualTripRow[] = [];
     const dates: string[] = [];
+    const processedRows = new Set<number>();
     
     let importedRows = 0;
     let skippedRows = 0;
     let errorRows = 0;
+    const expectedRows = lines.length - 1;
     
     for (let i = 1; i < lines.length; i++) {
+      const rowNum = i;
+      processedRows.add(rowNum);
+      
       const values = parseCSVLine(lines[i]);
       
       // Skip empty rows
@@ -427,20 +499,20 @@ export class ActualImportService {
       }
       
       try {
-        // Required fields
-        const tripId = getCol(values, "tripid", "trip_id", "id");
-        const dateStr = getCol(values, "date", "servicedate", "tripdate");
-        const driverName = getCol(values, "driver", "drivername", "driver_name");
+        // Required fields (from ALLOWLIST only)
+        const tripId = getCol(values, ...ALLOWED_COLUMNS.tripId);
+        const dateStr = getCol(values, ...ALLOWED_COLUMNS.serviceDate);
+        const driverName = getCol(values, ...ALLOWED_COLUMNS.driverName);
         
         if (!tripId || !dateStr || !driverName) {
-          errors.push({ row: i + 1, message: "Missing required field: Trip ID, Date, or Driver" });
+          errors.push({ row: rowNum + 1, message: "Missing required field: Trip ID, Date, or Driver" });
           errorRows++;
           continue;
         }
         
         const serviceDate = parseDate(dateStr);
         if (!serviceDate) {
-          errors.push({ row: i + 1, message: `Invalid date format: ${dateStr}` });
+          errors.push({ row: rowNum + 1, message: `Invalid date format: ${dateStr}` });
           errorRows++;
           continue;
         }
@@ -448,7 +520,7 @@ export class ActualImportService {
         dates.push(serviceDate);
         
         // Parse mobility type
-        const typeRaw = getCol(values, "type", "mobilitytype", "space") || "AMB";
+        const typeRaw = getCol(values, ...ALLOWED_COLUMNS.mobilityType) || "AMB";
         let mobilityType = "AMB";
         if (typeRaw.toUpperCase().includes("WC") || typeRaw.toUpperCase().includes("WHEEL")) {
           mobilityType = "WC";
@@ -456,41 +528,41 @@ export class ActualImportService {
           mobilityType = "STR";
         }
         
-        // Parse trip type (A = appointment, W = will-call)
-        const tripTypeRaw = getCol(values, "type", "triptype");
+        // Parse trip type
+        const tripTypeRaw = getCol(values, ...ALLOWED_COLUMNS.tripType);
         let tripType: string | null = null;
         if (tripTypeRaw?.toUpperCase().startsWith("A")) tripType = "A";
         if (tripTypeRaw?.toUpperCase().startsWith("W")) tripType = "W";
         
         // Parse times
-        const schedPickupTime = parseTime(getCol(values, "reqpickup", "req_pickup", "scheduledpickup", "pickuptime"));
-        const appointmentTime = parseTime(getCol(values, "appointment", "appointmenttime", "appt"));
-        const actualPickupArrive = parseTime(getCol(values, "pickuparrive", "pickup_arrive", "actualpickuparrive"));
-        const actualPickupPerform = parseTime(getCol(values, "pickupperform", "pickup_perform", "actualpickupperform"));
-        const actualDropoffArrive = parseTime(getCol(values, "dropoffarrive", "dropoff_arrive", "actualdropoffarrive"));
-        const actualDropoffPerform = parseTime(getCol(values, "dropoffperform", "dropoff_perform", "actualdropoffperform"));
+        const schedPickupTime = parseTime(getCol(values, ...ALLOWED_COLUMNS.schedPickupTime));
+        const appointmentTime = parseTime(getCol(values, ...ALLOWED_COLUMNS.appointmentTime));
+        const actualPickupArrive = parseTime(getCol(values, ...ALLOWED_COLUMNS.actualPickupArrive));
+        const actualPickupPerform = parseTime(getCol(values, ...ALLOWED_COLUMNS.actualPickupPerform));
+        const actualDropoffArrive = parseTime(getCol(values, ...ALLOWED_COLUMNS.actualDropoffArrive));
+        const actualDropoffPerform = parseTime(getCol(values, ...ALLOWED_COLUMNS.actualDropoffPerform));
         
-        // Parse miles (SSOT: Routed Distance preferred, else Distance)
-        const routedDistance = parseNumber(getCol(values, "routeddistance", "routed_distance"));
-        const distance = parseNumber(getCol(values, "distance", "miles", "importdistance"));
+        // Parse miles (SSOT: Routed Distance preferred)
+        const routedDistance = parseNumber(getCol(values, ...ALLOWED_COLUMNS.routedDistance));
+        const distance = parseNumber(getCol(values, ...ALLOWED_COLUMNS.distance));
         const milesActual = routedDistance ?? distance;
         
         // Parse GPS coordinates
-        const pickupLat = parseNumber(getCol(values, "pickuplat", "pickup_lat", "pickuplatitude"));
-        const pickupLon = parseNumber(getCol(values, "pickuplon", "pickup_lon", "pickuplongitude"));
-        const dropoffLat = parseNumber(getCol(values, "dropofflat", "dropoff_lat", "dropofflatitude"));
-        const dropoffLon = parseNumber(getCol(values, "dropofflon", "dropoff_lon", "dropofflongitude"));
+        const pickupLat = parseNumber(getCol(values, ...ALLOWED_COLUMNS.pickupLat));
+        const pickupLon = parseNumber(getCol(values, ...ALLOWED_COLUMNS.pickupLon));
+        const dropoffLat = parseNumber(getCol(values, ...ALLOWED_COLUMNS.dropoffLat));
+        const dropoffLon = parseNumber(getCol(values, ...ALLOWED_COLUMNS.dropoffLon));
         
         // Parse status flags
-        const statusRaw = getCol(values, "status", "tripstatus") || "completed";
+        const statusRaw = getCol(values, ...ALLOWED_COLUMNS.status) || "completed";
         const isCancelled = statusRaw.toLowerCase().includes("cancel");
         const isNoShow = statusRaw.toLowerCase().includes("no") && statusRaw.toLowerCase().includes("show");
-        const isStanding = getCol(values, "standing")?.toLowerCase() === "yes" || 
-                          getCol(values, "standing")?.toLowerCase() === "true" ||
-                          getCol(values, "standing") === "1";
-        const isWillCall = getCol(values, "willcall", "will_call")?.toLowerCase() === "yes" ||
-                          getCol(values, "willcall", "will_call")?.toLowerCase() === "true" ||
-                          getCol(values, "willcall", "will_call") === "1" ||
+        const isStanding = getCol(values, ...ALLOWED_COLUMNS.standing)?.toLowerCase() === "yes" || 
+                          getCol(values, ...ALLOWED_COLUMNS.standing)?.toLowerCase() === "true" ||
+                          getCol(values, ...ALLOWED_COLUMNS.standing) === "1";
+        const isWillCall = getCol(values, ...ALLOWED_COLUMNS.willCall)?.toLowerCase() === "yes" ||
+                          getCol(values, ...ALLOWED_COLUMNS.willCall)?.toLowerCase() === "true" ||
+                          getCol(values, ...ALLOWED_COLUMNS.willCall) === "1" ||
                           tripType === "W";
         
         let status: "completed" | "cancelled" | "no_show" = "completed";
@@ -506,7 +578,7 @@ export class ActualImportService {
           tripId,
           serviceDate,
           driverName,
-          vehicleUnit: getCol(values, "vehicle", "vehicleunit", "unit"),
+          vehicleUnit: getCol(values, ...ALLOWED_COLUMNS.vehicleUnit),
           mobilityType,
           tripType,
           schedPickupTime,
@@ -532,34 +604,45 @@ export class ActualImportService {
         importedRows++;
         
       } catch (err) {
-        errors.push({ row: i + 1, message: `Parse error: ${err}` });
+        errors.push({ row: rowNum + 1, message: `Parse error: ${err}` });
         errorRows++;
       }
     }
     
-    // Store import audit
-    const importId = ++importCounter;
-    const totalRows = lines.length - 1;
+    // "Nothing dropped" proof
     const accountedRows = importedRows + skippedRows + errorRows;
-    const isComplete = accountedRows === totalRows;
+    const missingRows: number[] = [];
+    for (let i = 1; i <= expectedRows; i++) {
+      if (!processedRows.has(i)) {
+        missingRows.push(i);
+      }
+    }
+    const isComplete = accountedRows === expectedRows && missingRows.length === 0;
     
     dates.sort();
     const serviceDateFrom = dates.length > 0 ? dates[0] : null;
     const serviceDateTo = dates.length > 0 ? dates[dates.length - 1] : null;
+    
+    // Store import audit
+    const importId = ++importCounter;
     
     const importRecord: StoredImport = {
       id: importId,
       fileHash,
       fileName: fileName || null,
       fileSize: csvContent.length,
-      totalRows,
+      totalRows: lines.length - 1,
+      expectedRows,
       importedRows,
       skippedRows,
       errorRows,
+      accountedRows,
+      missingRows,
       serviceDateFrom,
       serviceDateTo,
-      accountedRows,
       isComplete,
+      ignoredColumns,
+      extractedColumns,
       importedAt: new Date().toISOString(),
     };
     
@@ -576,61 +659,150 @@ export class ActualImportService {
         createdAt: new Date().toISOString(),
       };
       actualTripStorage.set(id, storedTrip);
+      
+      // Auto-register driver alias
+      this.registerDriverAlias(trip.driverName);
     }
     
-    // "Nothing dropped" check
+    // "Nothing dropped" warning
     if (!isComplete) {
-      warnings.push(`WARNING: accountedRows (${accountedRows}) != totalRows (${totalRows}). Some rows may have been lost.`);
+      warnings.push(`WARNING: accountedRows (${accountedRows}) != expectedRows (${expectedRows}). Missing rows: ${missingRows.join(", ")}`);
+    }
+    
+    // Log ignored columns warning
+    if (ignoredColumns.length > 0) {
+      warnings.push(`SECURITY: ${ignoredColumns.length} columns ignored (not in allowlist): ${ignoredColumns.join(", ")}`);
     }
     
     console.log("[IDS Actual Import] Import completed:", {
       importId,
       fileHash: fileHash.substring(0, 16) + "...",
-      totalRows,
+      expectedRows,
+      accountedRows,
       importedRows,
       skippedRows,
       errorRows,
-      accountedRows,
+      missingRows,
       isComplete,
-      phiFieldsStripped: Array.from(phiFieldsStripped),
+      ignoredColumns,
+      extractedColumns,
     });
     
     return {
       success: true,
       importId,
       fileHash,
-      totalRows,
+      totalRows: lines.length - 1,
+      expectedRows,
       importedRows,
       skippedRows,
       errorRows,
       accountedRows,
+      missingRows,
       isComplete,
       serviceDateFrom,
       serviceDateTo,
       errors,
       warnings,
-      phiFieldsStripped: Array.from(phiFieldsStripped),
+      ignoredColumns,
+      extractedColumns,
     };
   }
   
+  // ============================================================================
+  // Driver Alias Management (for Compare join robustness)
+  // ============================================================================
+  
   /**
-   * Get import audit by ID
+   * Register a driver name as an alias
    */
+  registerDriverAlias(driverName: string): void {
+    const normalized = normalizeDriverName(driverName);
+    
+    if (!driverAliasStorage.has(normalized)) {
+      driverAliasStorage.set(normalized, {
+        canonical: driverName,
+        aliases: [driverName],
+      });
+    } else {
+      const existing = driverAliasStorage.get(normalized)!;
+      if (!existing.aliases.includes(driverName)) {
+        existing.aliases.push(driverName);
+      }
+    }
+  }
+  
+  /**
+   * Add a manual alias mapping
+   */
+  addDriverAlias(canonical: string, alias: string): void {
+    const normalizedCanonical = normalizeDriverName(canonical);
+    const normalizedAlias = normalizeDriverName(alias);
+    
+    // Get or create canonical entry
+    let entry = driverAliasStorage.get(normalizedCanonical);
+    if (!entry) {
+      entry = { canonical, aliases: [canonical] };
+      driverAliasStorage.set(normalizedCanonical, entry);
+    }
+    
+    // Add alias
+    if (!entry.aliases.includes(alias)) {
+      entry.aliases.push(alias);
+    }
+    
+    // Also map the alias to the canonical
+    driverAliasStorage.set(normalizedAlias, entry);
+  }
+  
+  /**
+   * Get canonical driver name from any alias
+   */
+  getCanonicalDriverName(name: string): string {
+    const normalized = normalizeDriverName(name);
+    const entry = driverAliasStorage.get(normalized);
+    return entry?.canonical || name;
+  }
+  
+  /**
+   * Get all aliases for a driver
+   */
+  getDriverAliases(name: string): string[] {
+    const normalized = normalizeDriverName(name);
+    const entry = driverAliasStorage.get(normalized);
+    return entry?.aliases || [name];
+  }
+  
+  /**
+   * Get all driver alias mappings
+   */
+  getAllDriverAliases(): DriverAlias[] {
+    const seen = new Set<string>();
+    const result: DriverAlias[] = [];
+    
+    for (const entry of driverAliasStorage.values()) {
+      if (!seen.has(entry.canonical)) {
+        seen.add(entry.canonical);
+        result.push(entry);
+      }
+    }
+    
+    return result;
+  }
+  
+  // ============================================================================
+  // Query Methods
+  // ============================================================================
+  
   async getImportById(importId: number): Promise<StoredImport | null> {
     return importStorage.get(importId) || null;
   }
   
-  /**
-   * Get all imports
-   */
   async getImports(): Promise<StoredImport[]> {
     return Array.from(importStorage.values())
       .sort((a, b) => b.importedAt.localeCompare(a.importedAt));
   }
   
-  /**
-   * Get actual trips for a service date
-   */
   async getActualTripsByDate(serviceDate: string): Promise<StoredActualTrip[]> {
     return Array.from(actualTripStorage.values())
       .filter(t => t.serviceDate === serviceDate);
@@ -638,102 +810,97 @@ export class ActualImportService {
   
   /**
    * Get actual trips by driver for a service date
+   * Uses driver alias mapping for robust matching
    */
   async getActualTripsByDriverAndDate(
     driverName: string,
     serviceDate: string
   ): Promise<StoredActualTrip[]> {
+    const aliases = this.getDriverAliases(driverName);
+    const normalizedAliases = aliases.map(normalizeDriverName);
+    
     return Array.from(actualTripStorage.values())
       .filter(t => 
         t.serviceDate === serviceDate && 
-        t.driverName.toLowerCase() === driverName.toLowerCase()
+        normalizedAliases.includes(normalizeDriverName(t.driverName))
       );
   }
   
   /**
    * Get driver summary for a service date
+   * Uses driver alias mapping for robust aggregation
    */
   async getDriverSummaryByDate(serviceDate: string): Promise<{
     driverName: string;
-    totalTrips: number;
     completedTrips: number;
     cancelledTrips: number;
     noShowTrips: number;
     totalMiles: number;
     onTimeCount: number;
+    lateCount: number;
     onTimePercent: number;
   }[]> {
     const trips = await this.getActualTripsByDate(serviceDate);
     
+    // Group by canonical driver name
     const driverMap = new Map<string, {
-      totalTrips: number;
+      driverName: string;
       completedTrips: number;
       cancelledTrips: number;
       noShowTrips: number;
       totalMiles: number;
       onTimeCount: number;
-      tripsWithOnTimeData: number;
+      lateCount: number;
     }>();
     
     for (const trip of trips) {
-      let data = driverMap.get(trip.driverName);
-      if (!data) {
-        data = {
-          totalTrips: 0,
+      const canonical = this.getCanonicalDriverName(trip.driverName);
+      
+      if (!driverMap.has(canonical)) {
+        driverMap.set(canonical, {
+          driverName: canonical,
           completedTrips: 0,
           cancelledTrips: 0,
           noShowTrips: 0,
           totalMiles: 0,
           onTimeCount: 0,
-          tripsWithOnTimeData: 0,
-        };
-        driverMap.set(trip.driverName, data);
+          lateCount: 0,
+        });
       }
       
-      data.totalTrips++;
-      if (trip.status === "completed") data.completedTrips++;
-      if (trip.isCancelled) data.cancelledTrips++;
-      if (trip.isNoShow) data.noShowTrips++;
-      if (trip.milesActual) data.totalMiles += trip.milesActual;
-      if (trip.wasOnTime !== null) {
-        data.tripsWithOnTimeData++;
-        if (trip.wasOnTime) data.onTimeCount++;
+      const summary = driverMap.get(canonical)!;
+      
+      if (trip.status === "completed") {
+        summary.completedTrips++;
+        summary.totalMiles += trip.milesActual || 0;
+        
+        if (trip.wasOnTime === true) {
+          summary.onTimeCount++;
+        } else if (trip.wasOnTime === false) {
+          summary.lateCount++;
+        }
+      } else if (trip.status === "cancelled") {
+        summary.cancelledTrips++;
+      } else if (trip.status === "no_show") {
+        summary.noShowTrips++;
       }
     }
     
-    return Array.from(driverMap.entries()).map(([driverName, data]) => ({
-      driverName,
-      totalTrips: data.totalTrips,
-      completedTrips: data.completedTrips,
-      cancelledTrips: data.cancelledTrips,
-      noShowTrips: data.noShowTrips,
-      totalMiles: Math.round(data.totalMiles * 10) / 10,
-      onTimeCount: data.onTimeCount,
-      onTimePercent: data.tripsWithOnTimeData > 0 
-        ? Math.round((data.onTimeCount / data.tripsWithOnTimeData) * 100)
-        : 0,
+    return Array.from(driverMap.values()).map(d => ({
+      ...d,
+      onTimePercent: d.onTimeCount + d.lateCount > 0
+        ? Math.round((d.onTimeCount / (d.onTimeCount + d.lateCount)) * 100)
+        : 100,
     }));
   }
 }
 
-// ============================================================================
-// Singleton
-// ============================================================================
-
-let actualImportServiceInstance: ActualImportService | null = null;
+// Singleton instance
+let instance: ActualImportService | null = null;
 
 export function getActualImportService(): ActualImportService {
-  if (!actualImportServiceInstance) {
-    actualImportServiceInstance = new ActualImportService();
+  if (!instance) {
+    instance = new ActualImportService();
   }
-  return actualImportServiceInstance;
-}
-
-export function resetActualImportService(): void {
-  actualImportServiceInstance = null;
-  importStorage.clear();
-  importHashIndex.clear();
-  actualTripStorage.clear();
-  importCounter = 0;
-  tripCounter = 0;
+  return instance;
 }
