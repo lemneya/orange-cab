@@ -148,12 +148,20 @@ interface StoredImport {
   ignoredColumns: string[];
   extractedColumns: string[];
   importedAt: string;
+  // Partition fields
+  opcoId: string;
+  brokerId: string;
+  brokerAccountId: string;
 }
 
 interface StoredActualTrip extends ActualTripRow {
   id: number;
   importId: number;
   createdAt: string;
+  // Partition fields
+  opcoId: string;
+  brokerId: string;
+  brokerAccountId: string;
 }
 
 // Driver alias mapping for Compare join robustness
@@ -412,8 +420,13 @@ export class ActualImportService {
    */
   async importCSV(
     csvContent: string,
-    fileName?: string
-  ): Promise<ImportResult> {
+    fileName?: string,
+    partition?: {
+      opcoId: string;
+      brokerId: string;
+      brokerAccountId: string;
+    }
+  ): Promise<ImportResult & { opcoId?: string; brokerId?: string; brokerAccountId?: string }> {
     const fileHash = computeFileHash(csvContent);
     
     // Check for duplicate (idempotency)
@@ -644,6 +657,10 @@ export class ActualImportService {
       ignoredColumns,
       extractedColumns,
       importedAt: new Date().toISOString(),
+      // Partition fields
+      opcoId: partition?.opcoId || "SAHRAWI",
+      brokerId: partition?.brokerId || "MODIVCARE",
+      brokerAccountId: partition?.brokerAccountId || "MODIVCARE_SAHRAWI",
     };
     
     importStorage.set(importId, importRecord);
@@ -657,6 +674,10 @@ export class ActualImportService {
         id,
         importId,
         createdAt: new Date().toISOString(),
+        // Partition fields
+        opcoId: partition?.opcoId || "SAHRAWI",
+        brokerId: partition?.brokerId || "MODIVCARE",
+        brokerAccountId: partition?.brokerAccountId || "MODIVCARE_SAHRAWI",
       };
       actualTripStorage.set(id, storedTrip);
       
@@ -706,6 +727,10 @@ export class ActualImportService {
       warnings,
       ignoredColumns,
       extractedColumns,
+      // Partition fields
+      opcoId: partition?.opcoId,
+      brokerId: partition?.brokerId,
+      brokerAccountId: partition?.brokerAccountId,
     };
   }
   
@@ -798,14 +823,40 @@ export class ActualImportService {
     return importStorage.get(importId) || null;
   }
   
-  async getImports(): Promise<StoredImport[]> {
-    return Array.from(importStorage.values())
-      .sort((a, b) => b.importedAt.localeCompare(a.importedAt));
+  async getImports(filter?: {
+    opcoId?: string;
+    brokerAccountId?: string;
+  }): Promise<StoredImport[]> {
+    let imports = Array.from(importStorage.values());
+    
+    if (filter?.opcoId) {
+      imports = imports.filter(i => i.opcoId === filter.opcoId);
+    }
+    if (filter?.brokerAccountId) {
+      imports = imports.filter(i => i.brokerAccountId === filter.brokerAccountId);
+    }
+    
+    return imports.sort((a, b) => b.importedAt.localeCompare(a.importedAt));
   }
   
-  async getActualTripsByDate(serviceDate: string): Promise<StoredActualTrip[]> {
-    return Array.from(actualTripStorage.values())
+  async getActualTripsByDate(
+    serviceDate: string,
+    filter?: {
+      opcoId?: string;
+      brokerAccountId?: string;
+    }
+  ): Promise<StoredActualTrip[]> {
+    let trips = Array.from(actualTripStorage.values())
       .filter(t => t.serviceDate === serviceDate);
+    
+    if (filter?.opcoId) {
+      trips = trips.filter(t => t.opcoId === filter.opcoId);
+    }
+    if (filter?.brokerAccountId) {
+      trips = trips.filter(t => t.brokerAccountId === filter.brokerAccountId);
+    }
+    
+    return trips;
   }
   
   /**
@@ -829,8 +880,15 @@ export class ActualImportService {
   /**
    * Get driver summary for a service date
    * Uses driver alias mapping for robust aggregation
+   * Filters by partition if provided
    */
-  async getDriverSummaryByDate(serviceDate: string): Promise<{
+  async getDriverSummaryByDate(
+    serviceDate: string,
+    filter?: {
+      opcoId?: string;
+      brokerAccountId?: string;
+    }
+  ): Promise<{
     driverName: string;
     completedTrips: number;
     cancelledTrips: number;
@@ -840,7 +898,7 @@ export class ActualImportService {
     lateCount: number;
     onTimePercent: number;
   }[]> {
-    const trips = await this.getActualTripsByDate(serviceDate);
+    const trips = await this.getActualTripsByDate(serviceDate, filter);
     
     // Group by canonical driver name
     const driverMap = new Map<string, {

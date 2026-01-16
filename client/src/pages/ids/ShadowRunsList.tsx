@@ -26,19 +26,32 @@ import {
   Eye
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import IDSContextSwitcher, { OpcoId, BrokerAccountId } from "@/components/ids/IDSContextSwitcher";
 
 export default function ShadowRunsList() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   
+  // Partition filter state
+  const [selectedOpco, setSelectedOpco] = useState<OpcoId>(null);
+  const [selectedBrokerAccount, setSelectedBrokerAccount] = useState<BrokerAccountId>(null);
+  
   const { data: shadowRuns, isLoading } = trpc.ids.getShadowRuns.useQuery({ limit: 100 });
 
   const runs = shadowRuns || [];
   
-  const filteredRuns = runs.filter(run => 
-    run.runDate.includes(searchTerm) ||
-    run.id.toString().includes(searchTerm)
-  );
+  // Filter by partition and search term
+  const filteredRuns = runs.filter(run => {
+    // Search filter
+    const matchesSearch = run.runDate.includes(searchTerm) ||
+      run.id.toString().includes(searchTerm);
+    
+    // Partition filter
+    const matchesOpco = !selectedOpco || run.opcoId === selectedOpco;
+    const matchesBrokerAccount = !selectedBrokerAccount || run.brokerAccountId === selectedBrokerAccount;
+    
+    return matchesSearch && matchesOpco && matchesBrokerAccount;
+  });
 
   return (
     <div className="space-y-6">
@@ -63,6 +76,16 @@ export default function ShadowRunsList() {
           New Shadow Solve
         </Button>
       </div>
+
+      {/* Context Switcher */}
+      <IDSContextSwitcher
+        opcoId={selectedOpco}
+        brokerAccountId={selectedBrokerAccount}
+        onOpcoChange={setSelectedOpco}
+        onBrokerAccountChange={setSelectedBrokerAccount}
+        showAll={true}
+        compact={true}
+      />
 
       {/* Search and Filters */}
       <Card>

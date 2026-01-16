@@ -43,12 +43,42 @@ export const templateLockTypeEnum = mysqlEnum("templateLockType", [
     "soft",
   ]);
 
+// OpCo (Operating Company) enum
+export const opcoIdEnum = mysqlEnum("opcoId", [
+    "SAHRAWI",
+    "METRIX",
+  ]);
+
+// Broker enum
+export const brokerIdEnum = mysqlEnum("brokerId", [
+    "MODIVCARE",
+    "MTM",
+    "ACCESS2CARE",
+  ]);
+
+// Valid broker account combinations
+export const BROKER_ACCOUNTS = {
+  MODIVCARE_SAHRAWI: { opcoId: "SAHRAWI", brokerId: "MODIVCARE", label: "Modivcare – Sahrawi" },
+  MODIVCARE_METRIX: { opcoId: "METRIX", brokerId: "MODIVCARE", label: "Modivcare – Metrix" },
+  MTM_MAIN: { opcoId: "SAHRAWI", brokerId: "MTM", label: "MTM" },
+  A2C_MAIN: { opcoId: "SAHRAWI", brokerId: "ACCESS2CARE", label: "Access2Care" },
+} as const;
+
+export type OpcoId = "SAHRAWI" | "METRIX";
+export type BrokerId = "MODIVCARE" | "MTM" | "ACCESS2CARE";
+export type BrokerAccountId = keyof typeof BROKER_ACCOUNTS;
+
 // ============================================================================
 // IDS Trips Table
 // ============================================================================
 
 export const idsTrips = mysqlTable("ids_trips", {
     id: int("id").autoincrement().primaryKey(),
+
+    // Partition fields (required for multi-company operations)
+    opcoId: opcoIdEnum.notNull().default("SAHRAWI"),
+    brokerId: brokerIdEnum.notNull().default("MODIVCARE"),
+    brokerAccountId: varchar("brokerAccountId", { length: 50 }).notNull().default("MODIVCARE_SAHRAWI"),
 
     // External reference
     externalId: varchar("externalId", { length: 100 }),
@@ -198,6 +228,11 @@ export const idsPayRules = mysqlTable("ids_pay_rules", {
 export const idsShadowRuns = mysqlTable("ids_shadow_runs", {
     id: int("id").autoincrement().primaryKey(),
 
+    // Partition fields (required for multi-company operations)
+    opcoId: opcoIdEnum.notNull().default("SAHRAWI"),
+    brokerId: brokerIdEnum.notNull().default("MODIVCARE"),
+    brokerAccountId: varchar("brokerAccountId", { length: 50 }).notNull().default("MODIVCARE_SAHRAWI"),
+
     // Run metadata
     runDate: date("runDate").notNull(),
     runTimestamp: timestamp("runTimestamp").defaultNow().notNull(),
@@ -237,10 +272,15 @@ export const idsShadowRuns = mysqlTable("ids_shadow_runs", {
 export const idsActualTrips = mysqlTable("ids_actual_trips", {
     id: int("id").autoincrement().primaryKey(),
 
+    // Partition fields (required for multi-company operations)
+    opcoId: opcoIdEnum.notNull().default("SAHRAWI"),
+    brokerId: brokerIdEnum.notNull().default("MODIVCARE"),
+    brokerAccountId: varchar("brokerAccountId", { length: 50 }).notNull().default("MODIVCARE_SAHRAWI"),
+
     // Import reference
     importId: int("importId").references(() => idsImportAudit.id).notNull(),
 
-    // Trip identification (from Trip Id column)
+    // Trip identification - unique key: (opcoId, brokerAccountId, serviceDate, tripId)
     tripId: varchar("tripId", { length: 100 }).notNull(),
     serviceDate: date("serviceDate").notNull(),
 
@@ -292,8 +332,14 @@ export const idsActualTrips = mysqlTable("ids_actual_trips", {
 export const idsImportAudit = mysqlTable("ids_import_audit", {
     id: int("id").autoincrement().primaryKey(),
 
+    // Partition fields (required for multi-company operations)
+    opcoId: opcoIdEnum.notNull().default("SAHRAWI"),
+    brokerId: brokerIdEnum.notNull().default("MODIVCARE"),
+    brokerAccountId: varchar("brokerAccountId", { length: 50 }).notNull().default("MODIVCARE_SAHRAWI"),
+
     // File identification
-    fileHash: varchar("fileHash", { length: 64 }).notNull().unique(), // SHA-256
+    // Note: fileHash is unique per (opcoId, brokerAccountId) - same file can be imported under different accounts
+    fileHash: varchar("fileHash", { length: 64 }).notNull(), // SHA-256 (removed unique constraint)
     fileName: varchar("fileName", { length: 255 }),
     fileSize: int("fileSize"),
 
