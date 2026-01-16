@@ -1,7 +1,7 @@
 // Report Viewer Page - OC-REPORT-0
 // View generated report with KPI cards, tables, and export options
 
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "../../lib/trpc";
 
@@ -84,6 +84,36 @@ export default function ReportViewer() {
   const runId = parseInt(params.id || "0");
   const { data: run, isLoading } = trpc.reports.getReportRunById.useQuery({ id: runId });
   const { data: artifacts } = trpc.reports.getArtifacts.useQuery({ runId });
+  const { data: narratives, refetch: refetchNarratives } = trpc.reports.getNarratives.useQuery({ runId });
+  const { data: llmStatus } = trpc.reports.checkLLMStatus.useQuery();
+  const generateNarrativeMutation = trpc.reports.generateNarrative.useMutation();
+
+  const [narrativeStyle, setNarrativeStyle] = useState<"INTERNAL" | "CLIENT">("INTERNAL");
+  const [showNarrativePanel, setShowNarrativePanel] = useState(false);
+  const [currentNarrative, setCurrentNarrative] = useState<string | null>(null);
+
+  const handleGenerateNarrative = async () => {
+    try {
+      const result = await generateNarrativeMutation.mutateAsync({
+        runId,
+        style: narrativeStyle,
+        useTemplate: !llmStatus?.available, // Use template if LLM unavailable
+      });
+      if (result.result.success && result.result.markdown) {
+        setCurrentNarrative(result.result.markdown);
+        setShowNarrativePanel(true);
+      }
+      refetchNarratives();
+    } catch (error) {
+      console.error("Failed to generate narrative:", error);
+    }
+  };
+
+  const handleCopyNarrative = () => {
+    if (currentNarrative) {
+      navigator.clipboard.writeText(currentNarrative);
+    }
+  };
 
   const handleExportPDF = () => {
     // Use browser print to PDF
@@ -477,6 +507,128 @@ export default function ReportViewer() {
             </div>
           </section>
         )}
+
+        {/* Narrative Section */}
+        <section className="print:hidden">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-slate-900">AI Narrative</h2>
+            <div className="flex items-center gap-3">
+              {/* LLM Status */}
+              <div className="flex items-center gap-2 text-sm">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    llmStatus?.available ? "bg-green-500" : "bg-amber-500"
+                  }`}
+                />
+                <span className="text-slate-500">
+                  {llmStatus?.available ? "LLM Ready" : "Using Template"}
+                </span>
+              </div>
+              {/* Style Toggle */}
+              <div className="flex rounded-lg border overflow-hidden">
+                <button
+                  onClick={() => setNarrativeStyle("INTERNAL")}
+                  className={`px-3 py-1.5 text-sm ${
+                    narrativeStyle === "INTERNAL"
+                      ? "bg-slate-900 text-white"
+                      : "bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  Internal
+                </button>
+                <button
+                  onClick={() => setNarrativeStyle("CLIENT")}
+                  className={`px-3 py-1.5 text-sm ${
+                    narrativeStyle === "CLIENT"
+                      ? "bg-slate-900 text-white"
+                      : "bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  Client
+                </button>
+              </div>
+              {/* Generate Button */}
+              <button
+                onClick={handleGenerateNarrative}
+                disabled={generateNarrativeMutation.isPending}
+                className="px-4 py-2 rounded-lg bg-purple-500 text-white text-sm font-medium hover:bg-purple-600 disabled:opacity-50"
+              >
+                {generateNarrativeMutation.isPending ? "Generating..." : "Generate Narrative"}
+              </button>
+            </div>
+          </div>
+
+          {/* Narrative Output Panel */}
+          {showNarrativePanel && currentNarrative && (
+            <div className="bg-white rounded-xl border overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50">
+                <span className="font-medium text-slate-700">Draft Narrative</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCopyNarrative}
+                    className="px-3 py-1 rounded border text-sm text-slate-600 hover:bg-slate-100"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    onClick={() => setShowNarrativePanel(false)}
+                    className="px-3 py-1 rounded border text-sm text-slate-600 hover:bg-slate-100"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 prose prose-slate max-w-none">
+                <pre className="whitespace-pre-wrap font-sans text-sm text-slate-700">
+                  {currentNarrative}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* Previous Narratives */}
+          {narratives && narratives.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-slate-500 mb-2">Previous Narratives</h3>
+              <div className="space-y-2">
+                {narratives.map((narrative) => (
+                  <div
+                    key={narrative.id}
+                    className="flex items-center justify-between p-3 bg-white rounded-lg border"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Pill tone={narrative.style === "INTERNAL" ? "purple" : "blue"}>
+                        {narrative.style}
+                      </Pill>
+                      <Pill tone={narrative.status === "success" ? "green" : "red"}>
+                        {narrative.status}
+                      </Pill>
+                      <span className="text-sm text-slate-500">
+                        {narrative.modelId} • {narrative.promptVersion}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-500">
+                        {new Date(narrative.createdAt).toLocaleString()}
+                      </span>
+                      {narrative.outputMarkdown && (
+                        <button
+                          onClick={() => {
+                            setCurrentNarrative(narrative.outputMarkdown || null);
+                            setShowNarrativePanel(true);
+                          }}
+                          className="px-2 py-1 rounded border text-xs text-slate-600 hover:bg-slate-50"
+                        >
+                          View
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
 
         {/* Artifacts */}
         {artifacts && artifacts.length > 0 && (

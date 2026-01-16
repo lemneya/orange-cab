@@ -137,6 +137,42 @@ export const reportArtifacts = pgTable("report_artifacts", {
 });
 
 // ============================================
+// REPORT NARRATIVES (AI-generated)
+// ============================================
+
+export const reportNarratives = pgTable("report_narratives", {
+  id: serial("id").primaryKey(),
+  reportRunId: integer("report_run_id").notNull(),
+  
+  // Narrative style
+  style: varchar("style", { length: 50 }).notNull(), // INTERNAL | CLIENT
+  
+  // Status tracking
+  status: varchar("status", { length: 50 }).notNull(), // queued | running | success | failed
+  
+  // LLM configuration
+  promptVersion: varchar("prompt_version", { length: 100 }), // e.g., "v1.0.0"
+  modelId: varchar("model_id", { length: 100 }), // e.g., "LFM2-2.6B-EXP"
+  
+  // Output
+  outputMarkdown: text("output_markdown"), // Final rendered markdown
+  outputJson: jsonb("output_json").$type<{
+    title?: string;
+    executive_summary?: string[];
+    findings?: Array<{ severity: string; text: string }>;
+    actions?: Array<{ owner_role: string; deadline: string; text: string }>;
+    client_bullets?: string[];
+  }>(), // Structured model output before rendering
+  
+  // Error handling
+  error: text("error"),
+  
+  // Metadata
+  createdBy: varchar("created_by", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================
 // TYPE EXPORTS
 // ============================================
 
@@ -146,3 +182,5 @@ export type ReportRun = typeof reportRuns.$inferSelect;
 export type NewReportRun = typeof reportRuns.$inferInsert;
 export type ReportArtifact = typeof reportArtifacts.$inferSelect;
 export type NewReportArtifact = typeof reportArtifacts.$inferInsert;
+export type ReportNarrative = typeof reportNarratives.$inferSelect;
+export type NewReportNarrative = typeof reportNarratives.$inferInsert;
