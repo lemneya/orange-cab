@@ -1,0 +1,397 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orange-cab.local/schemas/oc-owner-snapshot-v1.schema.json",
+  "title": "OC Owner Snapshot v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["meta", "scope", "period", "kpis", "alerts", "timeline", "sections"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "generated_at", "snapshot_checksum", "data_freshness"],
+      "properties": {
+        "schema_version": { "type": "string", "const": "1.0" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "snapshot_checksum": { "type": "string", "minLength": 8 },
+        "data_freshness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["last_sync_at", "sources"],
+          "properties": {
+            "last_sync_at": { "type": "string", "format": "date-time" },
+            "sources": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "status"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "enum": ["MEDIROUTE", "SHELL_FLEET", "TOLLS", "IDS", "MAINTENANCE", "PAYROLL", "ADMIN"]
+                  },
+                  "status": { "type": "string", "enum": ["OK", "STALE", "MISSING"] },
+                  "note": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["opco_id", "broker_account_id"],
+      "properties": {
+        "opco_id": { "type": "string", "minLength": 1 },
+        "broker_account_id": { "type": "string", "minLength": 1 },
+        "opco_name": { "type": "string" },
+        "broker_account_name": { "type": "string" }
+      }
+    },
+    "period": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_date", "end_date", "timezone", "compare_to"],
+      "properties": {
+        "start_date": { "type": "string", "format": "date" },
+        "end_date": { "type": "string", "format": "date" },
+        "timezone": { "type": "string", "minLength": 1 },
+        "compare_to": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start_date", "end_date"],
+          "properties": {
+            "start_date": { "type": "string", "format": "date" },
+            "end_date": { "type": "string", "format": "date" }
+          }
+        }
+      }
+    },
+    "kpis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revenue", "on_time", "demand_loss", "deadhead", "cash_out"],
+      "properties": {
+        "revenue": { "$ref": "#/$defs/kpi_money" },
+        "on_time": { "$ref": "#/$defs/kpi_percent" },
+        "demand_loss": { "$ref": "#/$defs/kpi_demand_loss" },
+        "deadhead": { "$ref": "#/$defs/kpi_distance" },
+        "cash_out": { "$ref": "#/$defs/kpi_cash_out" }
+      }
+    },
+    "alerts": {
+      "type": "array",
+      "maxItems": 12,
+      "items": { "$ref": "#/$defs/alert" }
+    },
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_hour", "end_hour", "demand_pressure", "risk_pressure"],
+      "properties": {
+        "start_hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+        "end_hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+        "demand_pressure": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/timeline_point" }
+        },
+        "risk_pressure": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/timeline_point" }
+        },
+        "legend": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["WILL_CALL", "WCH", "TIGHT_WINDOWS", "NO_COVER_RISK"] }
+        }
+      }
+    },
+    "sections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["loss_workbench", "late_causes", "cost_leaks", "fleet_readiness", "ids_impact"],
+      "properties": {
+        "loss_workbench": { "$ref": "#/$defs/section_loss_workbench" },
+        "late_causes": { "$ref": "#/$defs/section_cause_table" },
+        "cost_leaks": { "$ref": "#/$defs/section_cost_leaks" },
+        "fleet_readiness": { "$ref": "#/$defs/section_fleet_readiness" },
+        "ids_impact": { "$ref": "#/$defs/section_ids_impact" }
+      }
+    }
+  },
+  "$defs": {
+    "kpi_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unit"],
+      "properties": {
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "delta": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value", "unit"],
+          "properties": {
+            "value": { "type": "number" },
+            "unit": { "type": "string" },
+            "direction": { "type": "string", "enum": ["UP", "DOWN", "FLAT"] }
+          }
+        },
+        "threshold": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "warn": { "type": "number" },
+            "danger": { "type": "number" }
+          }
+        },
+        "note": { "type": "string" }
+      }
+    },
+    "kpi_money": {
+      "allOf": [
+        { "$ref": "#/$defs/kpi_base" },
+        { "properties": { "unit": { "const": "USD" } } }
+      ]
+    },
+    "kpi_percent": {
+      "allOf": [
+        { "$ref": "#/$defs/kpi_base" },
+        { "properties": { "unit": { "const": "PCT" } } }
+      ]
+    },
+    "kpi_distance": {
+      "allOf": [
+        { "$ref": "#/$defs/kpi_base" },
+        { "properties": { "unit": { "const": "MI" } } }
+      ]
+    },
+    "kpi_demand_loss": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unit", "breakdown"],
+      "properties": {
+        "value": { "type": "number" },
+        "unit": { "type": "string", "const": "PCT" },
+        "delta": { "$ref": "#/$defs/kpi_base/properties/delta" },
+        "breakdown": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["scheduled", "completed", "canceled", "no_show", "no_cover", "estimated_lost_revenue_usd"],
+          "properties": {
+            "scheduled": { "type": "integer", "minimum": 0 },
+            "completed": { "type": "integer", "minimum": 0 },
+            "canceled": { "type": "integer", "minimum": 0 },
+            "no_show": { "type": "integer", "minimum": 0 },
+            "no_cover": { "type": "integer", "minimum": 0 },
+            "estimated_lost_revenue_usd": { "type": "number", "minimum": 0 },
+            "data_available": { "type": "boolean" },
+            "data_note": { "type": "string" }
+          }
+        }
+      }
+    },
+    "kpi_cash_out": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unit", "components"],
+      "properties": {
+        "value": { "type": "number" },
+        "unit": { "type": "string", "const": "USD" },
+        "delta": { "$ref": "#/$defs/kpi_base/properties/delta" },
+        "components": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["payroll_usd", "fuel_usd", "tolls_usd"],
+          "properties": {
+            "payroll_usd": { "type": "number", "minimum": 0 },
+            "fuel_usd": { "type": "number", "minimum": 0 },
+            "tolls_usd": { "type": "number", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "alert": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "type", "message", "deep_link"],
+      "properties": {
+        "severity": { "type": "string", "enum": ["HIGH", "MED", "LOW"] },
+        "type": {
+          "type": "string",
+          "enum": [
+            "BROKER_PENALTY_RISK",
+            "WCH_PRESSURE",
+            "UNASSIGNED_TRIPS",
+            "LOCK_VIOLATIONS",
+            "VEHICLE_DOWNTIME_SPIKE",
+            "FUEL_TOLL_ANOMALY",
+            "DRIVER_SHORTAGE",
+            "IMPORT_FAILURE"
+          ]
+        },
+        "message": { "type": "string", "minLength": 3 },
+        "deep_link": { "type": "string", "minLength": 1 },
+        "evidence_keys": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "timeline_point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hour", "value"],
+      "properties": {
+        "hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+        "value": { "type": "number", "minimum": 0 }
+      }
+    },
+    "section_loss_workbench": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows"],
+      "properties": {
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["broker_account_id", "scheduled", "completed", "canceled", "no_show", "no_cover", "est_lost_usd", "top_cause", "deep_link"],
+            "properties": {
+              "broker_account_id": { "type": "string" },
+              "scheduled": { "type": "integer", "minimum": 0 },
+              "completed": { "type": "integer", "minimum": 0 },
+              "canceled": { "type": "integer", "minimum": 0 },
+              "no_show": { "type": "integer", "minimum": 0 },
+              "no_cover": { "type": "integer", "minimum": 0 },
+              "est_lost_usd": { "type": "number", "minimum": 0 },
+              "top_cause": { "type": "string" },
+              "deep_link": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "section_cause_table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows"],
+      "properties": {
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["cause", "count", "severity", "suggested_fix", "deep_link"],
+            "properties": {
+              "cause": {
+                "type": "string",
+                "enum": ["LATE_WINDOWS", "LOCK_CONSTRAINTS", "WCH_MISMATCH", "DEADHEAD", "WILL_CALL_VOLATILITY", "DATA_MISSING"]
+              },
+              "count": { "type": "integer", "minimum": 0 },
+              "severity": { "type": "string", "enum": ["HIGH", "MED", "LOW"] },
+              "suggested_fix": { "type": "string" },
+              "deep_link": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "section_cost_leaks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows"],
+      "properties": {
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["leak_type", "amount_usd", "delta_usd", "top_entity", "suggested_fix", "deep_link"],
+            "properties": {
+              "leak_type": { "type": "string", "enum": ["DEADHEAD", "FUEL", "TOLLS", "LOW_UTILIZATION", "OVERTIME", "REWORK"] },
+              "amount_usd": { "type": "number" },
+              "delta_usd": { "type": "number" },
+              "top_entity": { "type": "string" },
+              "suggested_fix": { "type": "string" },
+              "deep_link": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "section_fleet_readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "rows"],
+      "properties": {
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["vehicles_total", "vehicles_active", "in_shop", "wch_ready", "inspections_due"],
+          "properties": {
+            "vehicles_total": { "type": "integer", "minimum": 0 },
+            "vehicles_active": { "type": "integer", "minimum": 0 },
+            "in_shop": { "type": "integer", "minimum": 0 },
+            "wch_ready": { "type": "integer", "minimum": 0 },
+            "inspections_due": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["vehicle_unit", "status", "days_down", "next_due", "deep_link"],
+            "properties": {
+              "vehicle_unit": { "type": "string" },
+              "status": { "type": "string", "enum": ["ACTIVE", "IN_SHOP", "LOT", "RETIRING", "RETIRED"] },
+              "days_down": { "type": "integer", "minimum": 0 },
+              "next_due": { "type": "string" },
+              "deep_link": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "section_ids_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "rows"],
+      "properties": {
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["on_time_uplift_pct", "deadhead_saved_mi", "pay_saved_usd"],
+          "properties": {
+            "on_time_uplift_pct": { "type": "number" },
+            "deadhead_saved_mi": { "type": "number" },
+            "pay_saved_usd": { "type": "number" }
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["date", "shadow_run_id", "on_time_delta_pct", "deadhead_delta_mi", "pay_delta_usd", "deep_link"],
+            "properties": {
+              "date": { "type": "string", "format": "date" },
+              "shadow_run_id": { "type": "string" },
+              "on_time_delta_pct": { "type": "number" },
+              "deadhead_delta_mi": { "type": "number" },
+              "pay_delta_usd": { "type": "number" },
+              "deep_link": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
