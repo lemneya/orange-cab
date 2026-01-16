@@ -53,7 +53,8 @@ import {
   Cloud,
   Brain,
   Settings,
-  History
+  History,
+  Play
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -168,6 +169,9 @@ const navigationGroups = [
     ],
   },
   {
+    label: "Simulator",
+    items: [
+      { icon: Play, label: "One-Day Proof", path: "/simulator/day" },
     label: "Owner Cockpit",
     items: [
       { icon: LayoutDashboard, label: "Dashboard", path: "/owner" },

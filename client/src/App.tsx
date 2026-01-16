@@ -88,6 +88,10 @@ import AuditLogPage from "./pages/admin/AuditLogPage";
 import ReportsList from "./pages/reports/ReportsList";
 import ReportViewer from "./pages/reports/ReportViewer";
 
+// Simulator
+import OneDaySimulator from "./pages/simulator/OneDaySimulator";
+import SimRunViewer from "./pages/simulator/SimRunViewer";
+import ProofPackViewer from "./pages/simulator/ProofPackViewer";
 // Owner Cockpit
 import OwnerCockpit from "./pages/owner/OwnerCockpit";
 import PacksList from "./pages/owner/PacksList";
@@ -180,6 +184,10 @@ function Router() {
         <Route path="/reports" component={ReportsList} />
         <Route path="/reports/runs/:id" component={ReportViewer} />
         
+        {/* Simulator */}
+        <Route path="/simulator/day" component={OneDaySimulator} />
+        <Route path="/simulator/runs/:id" component={SimRunViewer} />
+        <Route path="/simulator/packs/:id" component={ProofPackViewer} />
         {/* Owner Cockpit */}
         <Route path="/owner" component={OwnerCockpit} />
         <Route path="/owner/packs" component={PacksList} />
