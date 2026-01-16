@@ -14,9 +14,10 @@ Each gate must link to:
 |----------|------|-------------|--------|
 | 1 | **IDS-CAPACITY-0** | Compute vehicles_required, MLF, vehicles_removed | 🔜 Next |
 | 2 | **OC-ROI-0** | ROI engine tied to capacity + compare + admin assumptions | Planned |
-| 3 | **OC-MKT-0** | Marketplace intake + accept/decline audit | Planned |
-| 4 | **OC-RULES-0** | Broker rulesets + driver enforcement | Planned |
-| 5 | **BILLING-0** | Billing readiness + denial prevention automation | Planned |
+| 3 | **OC-PRICING-0** | Pricing logic + software stack cost savings | Planned |
+| 4 | **OC-MKT-0** | Marketplace intake + accept/decline audit | Planned |
+| 5 | **OC-RULES-0** | Broker rulesets + driver enforcement | Planned |
+| 6 | **BILLING-0** | Billing readiness + denial prevention automation | Planned |
 
 ---
 
