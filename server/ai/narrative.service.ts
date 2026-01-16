@@ -704,3 +704,219 @@ export function generateTemplateNarrative(
     modelId,
   };
 }
+
+
+// ============================================
+// OWNER SNAPSHOT INTEGRATION
+// ============================================
+
+import type { OwnerSnapshot } from '../owner/snapshot.types';
+import { deriveTokenAllowlist as deriveOwnerTokenAllowlist, resolveToken } from '../owner/snapshot.types';
+
+/**
+ * Generates a narrative from an OwnerSnapshot.
+ * Uses the snapshot's derived token allowlist for validation.
+ */
+export async function generateOwnerNarrative(
+  snapshot: OwnerSnapshot,
+  style: NarrativeStyle
+): Promise<NarrativeResult> {
+  const promptVersion = "owner-v1.0.0";
+  const modelId = LLM_CONFIG.model;
+  
+  // Derive token allowlist from snapshot
+  const allowlist = deriveOwnerTokenAllowlist(snapshot);
+  
+  // Build metrics from snapshot for placeholder replacement
+  const metrics: Record<string, string> = {};
+  for (const token of allowlist) {
+    const value = resolveToken(token, snapshot);
+    if (value !== null) {
+      metrics[token] = value;
+    }
+  }
+  
+  // Check LLM availability
+  const llmStatus = await checkLLMStatus();
+  if (!llmStatus.available) {
+    // Fall back to template
+    return generateOwnerTemplateNarrative(snapshot, style, metrics);
+  }
+  
+  // Build prompts
+  const systemPrompt = buildOwnerSystemPrompt(style, Array.from(allowlist));
+  const userPrompt = buildOwnerUserPrompt(snapshot);
+  
+  const llmResult = await localLLM.completeJson(
+    systemPrompt,
+    userPrompt,
+    NARRATIVE_SCHEMA,
+    { temperature: 0.3, maxTokens: 2048 }
+  );
+  
+  if (!llmResult.success) {
+    return generateOwnerTemplateNarrative(snapshot, style, metrics);
+  }
+  
+  // Validate placeholders
+  const validation = validateNarrativeOutput(llmResult.data, allowlist);
+  if (!validation.valid) {
+    return {
+      success: false,
+      error: `Invalid tokens: ${validation.invalidTokens.join(", ")}`,
+      promptVersion,
+      modelId,
+    };
+  }
+  
+  // Replace placeholders
+  const resolvedOutput = replaceOwnerPlaceholders(llmResult.data, metrics);
+  
+  // Check for PHI
+  const markdown = renderToMarkdown(resolvedOutput, style);
+  const phiCheck = checkForPHI(markdown);
+  if (phiCheck.hasPHI) {
+    return {
+      success: false,
+      error: `PHI detected in output: ${phiCheck.matches.join(", ")}`,
+      promptVersion,
+      modelId,
+    };
+  }
+  
+  return {
+    success: true,
+    markdown,
+    outputJson: resolvedOutput,
+    promptVersion,
+    modelId,
+  };
+}
+
+function buildOwnerSystemPrompt(style: NarrativeStyle, tokens: string[]): string {
+  const styleGuide = style === "INTERNAL" 
+    ? "Write for internal operations team. Include findings with severity levels and actionable recommendations."
+    : "Write for client/board presentation. Focus on value delivered and opportunities.";
+  
+  return `You are an operations analyst generating a narrative report.
+
+${styleGuide}
+
+CRITICAL RULES:
+1. You MUST use ONLY the following placeholder tokens: ${tokens.join(", ")}
+2. Wrap each token in curly braces like {TOKEN_NAME}
+3. Do NOT invent any new tokens
+4. Do NOT include any actual values - only placeholders
+5. Do NOT include any PHI (names, addresses, phone numbers, SSN, DOB)
+
+Output valid JSON matching the schema.`;
+}
+
+function buildOwnerUserPrompt(snapshot: OwnerSnapshot): string {
+  const { scope, period, kpis, alerts } = snapshot;
+  
+  return `Generate a narrative for:
+- Company: ${scope.opco_name || scope.opco_id}
+- Account: ${scope.broker_account_name || scope.broker_account_id}
+- Period: ${period.start_date} to ${period.end_date}
+
+Key metrics:
+- Revenue: $${kpis.revenue.value.toLocaleString()}
+- On-time: ${kpis.on_time.value}%
+- Demand loss: ${kpis.demand_loss.value}%
+- Deadhead: ${kpis.deadhead.value} miles
+- Cash out: $${kpis.cash_out.value.toLocaleString()}
+
+Top alerts: ${alerts.slice(0, 3).map(a => a.message).join("; ")}
+
+Use placeholders like {KPI_REVENUE_USD}, {KPI_ONTIME_PCT}, etc.`;
+}
+
+function replaceOwnerPlaceholders(
+  output: NarrativeOutput,
+  metrics: Record<string, string>
+): NarrativeOutput {
+  function replaceInString(str: string): string {
+    return str.replace(/\{([A-Z_0-9]+)\}/g, (match, token) => {
+      return metrics[token] ?? match;
+    });
+  }
+  
+  return {
+    title: output.title ? replaceInString(output.title) : undefined,
+    executive_summary: output.executive_summary?.map(replaceInString),
+    findings: output.findings?.map(f => ({
+      ...f,
+      text: replaceInString(f.text),
+    })),
+    actions: output.actions?.map(a => ({
+      ...a,
+      text: replaceInString(a.text),
+      deadline: replaceInString(a.deadline),
+    })),
+    client_bullets: output.client_bullets?.map(replaceInString),
+  };
+}
+
+function generateOwnerTemplateNarrative(
+  snapshot: OwnerSnapshot,
+  style: NarrativeStyle,
+  metrics: Record<string, string>
+): NarrativeResult {
+  const promptVersion = "owner-template-v1.0.0";
+  const modelId = "template-engine";
+  
+  const { kpis, alerts, sections } = snapshot;
+  
+  const output: NarrativeOutput = style === "INTERNAL" ? {
+    title: `Weekly Ops — ${metrics.DATE_RANGE} — ${metrics.OPCO_NAME}/${metrics.BROKER_ACCOUNT_NAME}`,
+    executive_summary: [
+      `Revenue: ${metrics.KPI_REVENUE_USD} (${metrics.KPI_REVENUE_DELTA_DIR} ${metrics.KPI_REVENUE_DELTA_PCT}).`,
+      `On-time rate: ${metrics.KPI_ONTIME_PCT}. ${kpis.on_time.value < 90 ? "Below target - needs attention." : "Meeting target."}`,
+      `Cash out: ${metrics.KPI_CASHOUT_USD} (Payroll: ${metrics.KPI_PAYROLL_USD}, Fuel: ${metrics.KPI_FUEL_USD}, Tolls: ${metrics.KPI_TOLLS_USD}).`,
+      `Deadhead: ${metrics.KPI_DEADHEAD_MI} (${metrics.KPI_DEADHEAD_DELTA_DIR} ${metrics.KPI_DEADHEAD_DELTA_MI}).`,
+    ],
+    findings: [
+      ...alerts.filter(a => a.severity === 'HIGH').map(a => ({
+        severity: "high" as const,
+        text: a.message,
+      })),
+      ...alerts.filter(a => a.severity === 'MED').map(a => ({
+        severity: "medium" as const,
+        text: a.message,
+      })),
+    ].slice(0, 5),
+    actions: [
+      {
+        owner_role: "DISPATCH",
+        deadline: metrics.NEXT_WEEKDAY,
+        text: `Review top late causes and implement lock templates.`,
+      },
+      {
+        owner_role: "OPS",
+        deadline: metrics.NEXT_WEEKDAY,
+        text: `Analyze IDS impact: ${metrics.IDS_ONTIME_UPLIFT_PCT} on-time uplift, ${metrics.IDS_DEADHEAD_SAVED_MI} deadhead saved.`,
+      },
+    ],
+  } : {
+    title: `Operations Summary — ${metrics.DATE_RANGE}`,
+    executive_summary: [
+      `Revenue: ${metrics.KPI_REVENUE_USD} with ${metrics.KPI_ONTIME_PCT} on-time performance.`,
+    ],
+    client_bullets: [
+      `On-time improvement potential: ${metrics.IDS_ONTIME_UPLIFT_PCT} based on IDS analysis.`,
+      `Estimated monthly savings: ${metrics.IDS_PAY_SAVED_USD} from route optimization.`,
+      `Fleet readiness: ${metrics.FLEET_ACTIVE} of ${metrics.FLEET_TOTAL} vehicles active.`,
+    ],
+  };
+  
+  const markdown = renderToMarkdown(output, style);
+  
+  return {
+    success: true,
+    markdown,
+    outputJson: output,
+    promptVersion,
+    modelId,
+  };
+}

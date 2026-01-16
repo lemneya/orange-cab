@@ -167,6 +167,13 @@ const navigationGroups = [
       { icon: BarChart3, label: "Reports Hub", path: "/reports" },
     ],
   },
+  {
+    label: "Owner Cockpit",
+    items: [
+      { icon: LayoutDashboard, label: "Dashboard", path: "/owner" },
+      { icon: FileText, label: "Weekly Packs", path: "/owner/packs" },
+    ],
+  },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
