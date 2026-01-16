@@ -42,6 +42,19 @@ export default function ActualImport() {
   const [preview, setPreview] = useState<any>(null);
   const [importResult, setImportResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // Partition selection - required before import
+  const [selectedOpcoId, setSelectedOpcoId] = useState<number | null>(null);
+  const [selectedBrokerAccountId, setSelectedBrokerAccountId] = useState<number | null>(null);
+
+  // Fetch OpCos and Broker Accounts from Admin tables (not hardcoded)
+  const { data: opcos } = trpc.admin.getOpcos.useQuery();
+  const { data: brokerAccounts } = trpc.admin.getBrokerAccounts.useQuery();
+
+  // Filter broker accounts by selected OpCo
+  const filteredBrokerAccounts = brokerAccounts?.filter(
+    (a) => !selectedOpcoId || a.opcoId === selectedOpcoId
+  );
 
   const previewMutation = trpc.ids.previewActualCSV.useMutation();
   const importMutation = trpc.ids.importActualCSV.useMutation();
@@ -60,6 +73,10 @@ export default function ActualImport() {
   }, []);
 
   const handlePreview = async () => {
+    if (!selectedOpcoId || !selectedBrokerAccountId) {
+      setError("Please select Company and Funding Account first");
+      return;
+    }
     if (!csvContent) {
       setError("Please upload a CSV file first");
       return;
@@ -76,12 +93,17 @@ export default function ActualImport() {
   };
 
   const handleImport = async () => {
-    if (!csvContent) return;
+    if (!csvContent || !selectedOpcoId || !selectedBrokerAccountId) return;
 
     setError(null);
     setStep("importing");
     try {
-      const result = await importMutation.mutateAsync({ csvContent, fileName });
+      const result = await importMutation.mutateAsync({ 
+        csvContent, 
+        fileName,
+        opcoId: selectedOpcoId,
+        brokerAccountId: selectedBrokerAccountId,
+      });
       setImportResult(result);
       setStep("complete");
     } catch (err: any) {
@@ -97,6 +119,8 @@ export default function ActualImport() {
     setPreview(null);
     setImportResult(null);
     setError(null);
+    setSelectedOpcoId(null);
+    setSelectedBrokerAccountId(null);
   };
 
   return (
@@ -162,6 +186,53 @@ export default function ActualImport() {
         <div className="rounded-xl border bg-white p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Upload Completed Trips CSV</h2>
           
+          {/* Required: OpCo and Broker Account Selection */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="font-medium text-blue-800 mb-3">Step 1: Select Company & Funding Account (Required)</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Company (OpCo) *</label>
+                <select
+                  value={selectedOpcoId || ""}
+                  onChange={(e) => {
+                    const val = e.target.value ? parseInt(e.target.value) : null;
+                    setSelectedOpcoId(val);
+                    setSelectedBrokerAccountId(null); // Reset broker account when OpCo changes
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Company...</option>
+                  {opcos?.map((opco) => (
+                    <option key={opco.id} value={opco.id}>
+                      {opco.name} ({opco.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Funding Account *</label>
+                <select
+                  value={selectedBrokerAccountId || ""}
+                  onChange={(e) => setSelectedBrokerAccountId(e.target.value ? parseInt(e.target.value) : null)}
+                  disabled={!selectedOpcoId}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select Funding Account...</option>
+                  {filteredBrokerAccounts?.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-blue-600">
+              This ensures data is partitioned correctly and prevents collisions between different broker manifests.
+            </p>
+          </div>
+
+          {/* Step 2: File Upload */}
+          <h3 className="font-medium text-slate-700 mb-3">Step 2: Upload CSV File</h3>
           <div className="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center">
             <input
               type="file"

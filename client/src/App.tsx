@@ -68,6 +68,17 @@ import NewShadowRun from "./pages/ids/NewShadowRun";
 import IDSContracts from "./pages/ids/Contracts";
 import ActualImport from "./pages/ids/ActualImport";
 
+// Admin Hub
+import AdminHub from "./pages/admin/AdminHub";
+import OpcosPage from "./pages/admin/OpcosPage";
+import BrokersPage from "./pages/admin/BrokersPage";
+import BrokerAccountsPage from "./pages/admin/BrokerAccountsPage";
+import RateCardsPage from "./pages/admin/RateCardsPage";
+import PayDefaultsPage from "./pages/admin/PayDefaultsPage";
+import DriverContractsPage from "./pages/admin/DriverContractsPage";
+import UsersPage from "./pages/admin/UsersPage";
+import AuditLogPage from "./pages/admin/AuditLogPage";
+
 function Router() {
   return (
     <DashboardLayout>
@@ -136,6 +147,17 @@ function Router() {
         <Route path="/ids/shadow-runs/:id" component={ShadowRunDetail} />
         <Route path="/ids/contracts" component={IDSContracts} />
         <Route path="/ids/actual-import" component={ActualImport} />
+        
+        {/* Admin Hub */}
+        <Route path="/admin" component={AdminHub} />
+        <Route path="/admin/opcos" component={OpcosPage} />
+        <Route path="/admin/brokers" component={BrokersPage} />
+        <Route path="/admin/broker-accounts" component={BrokerAccountsPage} />
+        <Route path="/admin/rate-cards" component={RateCardsPage} />
+        <Route path="/admin/pay-defaults" component={PayDefaultsPage} />
+        <Route path="/admin/driver-contracts" component={DriverContractsPage} />
+        <Route path="/admin/users" component={UsersPage} />
+        <Route path="/admin/audit-log" component={AuditLogPage} />
         
         {/* Fallback */}
         <Route path="/404" component={NotFound} />
