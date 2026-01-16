@@ -75,6 +75,8 @@ import BrokersPage from "./pages/admin/BrokersPage";
 import BrokerAccountsPage from "./pages/admin/BrokerAccountsPage";
 import RateCardsPage from "./pages/admin/RateCardsPage";
 import PayDefaultsPage from "./pages/admin/PayDefaultsPage";
+import DriverContractsPage from "./pages/admin/DriverContractsPage";
+import UsersPage from "./pages/admin/UsersPage";
 import AuditLogPage from "./pages/admin/AuditLogPage";
 
 function Router() {
@@ -153,6 +155,8 @@ function Router() {
         <Route path="/admin/broker-accounts" component={BrokerAccountsPage} />
         <Route path="/admin/rate-cards" component={RateCardsPage} />
         <Route path="/admin/pay-defaults" component={PayDefaultsPage} />
+        <Route path="/admin/driver-contracts" component={DriverContractsPage} />
+        <Route path="/admin/users" component={UsersPage} />
         <Route path="/admin/audit-log" component={AuditLogPage} />
         
         {/* Fallback */}

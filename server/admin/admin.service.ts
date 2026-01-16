@@ -925,7 +925,7 @@ class AdminService {
       isActive: true,
     }, actor);
 
-    await this.createBrokerAccount({
+    const a2cMain = await this.createBrokerAccount({
       brokerId: a2c.id,
       opcoId: sahrawi.id,
       name: "Access2Care Main",
@@ -933,7 +933,112 @@ class AdminService {
       isActive: true,
     }, actor);
 
-    console.log("[Admin] Seed data created successfully");
+    // Get broker accounts for rate cards
+    const modivcareS = await this.getBrokerAccounts({ opcoId: sahrawi.id });
+    const modivcareM = await this.getBrokerAccounts({ opcoId: metrix.id });
+    const modivcareSahrawiAccount = modivcareS.find(a => a.code === "MODIVCARE_SAHRAWI");
+    const modivcareMetrixAccount = modivcareM.find(a => a.code === "MODIVCARE_METRIX");
+
+    // Create Billing Rate Cards
+    if (modivcareSahrawiAccount) {
+      const sahrawiCard = await this.createRateCard({
+        opcoId: sahrawi.id,
+        brokerAccountId: modivcareSahrawiAccount.id,
+        name: "Sahrawi/Modivcare Standard Rates",
+        effectiveDate: "2026-01-01",
+        currency: "USD",
+        notes: "Standard rates for Modivcare trips",
+        isActive: true,
+      }, actor);
+
+      // Add rate rules
+      await this.createRateRule({
+        rateCardId: sahrawiCard.id,
+        ruleType: "BASE_PLUS_MILE",
+        mobilityType: "STD",
+        baseAmount: 8.00,
+        ratePerMile: 1.25,
+        minCharge: 12.00,
+        priority: 1,
+        isActive: true,
+      }, actor);
+
+      await this.createRateRule({
+        rateCardId: sahrawiCard.id,
+        ruleType: "BASE_PLUS_MILE",
+        mobilityType: "WCH",
+        baseAmount: 15.00,
+        ratePerMile: 1.50,
+        minCharge: 20.00,
+        priority: 2,
+        isActive: true,
+      }, actor);
+    }
+
+    if (modivcareMetrixAccount) {
+      const metrixCard = await this.createRateCard({
+        opcoId: metrix.id,
+        brokerAccountId: modivcareMetrixAccount.id,
+        name: "Metrix/Modivcare Standard Rates",
+        effectiveDate: "2026-01-01",
+        currency: "USD",
+        notes: "Standard rates for Modivcare trips",
+        isActive: true,
+      }, actor);
+
+      await this.createRateRule({
+        rateCardId: metrixCard.id,
+        ruleType: "BASE_PLUS_MILE",
+        mobilityType: "STD",
+        baseAmount: 7.50,
+        ratePerMile: 1.20,
+        minCharge: 11.00,
+        priority: 1,
+        isActive: true,
+      }, actor);
+    }
+
+    // Create Driver Pay Defaults
+    await this.createPayDefault({
+      opcoId: sahrawi.id,
+      name: "Sahrawi W2 Hourly Default",
+      contractType: "W2",
+      payScheme: "HOURLY",
+      hourlyRate: 16.00,
+      minDailyGuarantee: 100.00,
+      effectiveDate: "2026-01-01",
+      notes: "Default pay for new W2 hires at Sahrawi",
+      isActive: true,
+      applyToNewHires: true,
+    }, actor);
+
+    await this.createPayDefault({
+      opcoId: metrix.id,
+      name: "Metrix W2 Hourly Default",
+      contractType: "W2",
+      payScheme: "HOURLY",
+      hourlyRate: 15.50,
+      minDailyGuarantee: 95.00,
+      effectiveDate: "2026-01-01",
+      notes: "Default pay for new W2 hires at Metrix",
+      isActive: true,
+      applyToNewHires: true,
+    }, actor);
+
+    await this.createPayDefault({
+      opcoId: sahrawi.id,
+      name: "Sahrawi 1099 Per Trip Default",
+      contractType: "1099",
+      payScheme: "PER_TRIP",
+      perTripRate: 10.00,
+      perMileRate: 0.45,
+      effectiveDate: "2026-01-01",
+      notes: "Default pay for 1099 contractors at Sahrawi",
+      isActive: true,
+      applyToNewHires: true,
+    }, actor);
+
+    console.log("[Admin] Seed data created successfully with rate cards and pay defaults");
   }
 }
 

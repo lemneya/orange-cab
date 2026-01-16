@@ -1,10 +1,13 @@
 /**
  * OC-ADMIN-0: Admin Hub Overview
  * 
- * Central dashboard for managing OpCos, Brokers, Accounts, Rate Cards, and Driver Pay
+ * Central dashboard organized into sections:
+ * - Organization: OpCos, Brokers, Broker Accounts
+ * - Rates: Billing Rate Cards, Rate Rules
+ * - Driver Pay: Default Plans, Driver Contracts
+ * - Users & Roles: Role assignments, RBAC
  */
 
-import { useState } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +22,9 @@ import {
   ArrowRight,
   Shield,
   History,
+  UserCog,
+  FileText,
+  Wallet,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
@@ -33,87 +39,110 @@ export default function AdminHub() {
   const { data: payDefaults } = trpc.admin.getPayDefaults.useQuery();
   const { data: auditLog } = trpc.admin.getAuditLog.useQuery({ limit: 5 });
 
-  const stats = [
+  // Organized sections
+  const sections = [
     {
-      title: "Operating Companies",
-      value: opcos?.length || 0,
+      title: "Organization",
+      description: "Manage companies, brokers, and account relationships",
       icon: Building2,
-      href: "/admin/opcos",
       color: "text-blue-600",
       bgColor: "bg-blue-100",
+      items: [
+        {
+          title: "Operating Companies",
+          description: "Sahrawi, Metrix, and other OpCos",
+          count: opcos?.length || 0,
+          href: "/admin/opcos",
+          icon: Building2,
+        },
+        {
+          title: "Brokers",
+          description: "Modivcare, MTM, Access2Care",
+          count: brokers?.length || 0,
+          href: "/admin/brokers",
+          icon: Briefcase,
+        },
+        {
+          title: "Broker Accounts",
+          description: "OpCo-specific broker relationships",
+          count: brokerAccounts?.length || 0,
+          href: "/admin/broker-accounts",
+          icon: CreditCard,
+        },
+      ],
     },
     {
-      title: "Brokers",
-      value: brokers?.length || 0,
-      icon: Briefcase,
-      href: "/admin/brokers",
+      title: "Rates",
+      description: "Billing rate cards and pricing rules",
+      icon: DollarSign,
       color: "text-green-600",
       bgColor: "bg-green-100",
+      items: [
+        {
+          title: "Billing Rate Cards",
+          description: "What your company earns per trip",
+          count: rateCards?.length || 0,
+          href: "/admin/rate-cards",
+          icon: DollarSign,
+        },
+      ],
     },
     {
-      title: "Broker Accounts",
-      value: brokerAccounts?.length || 0,
-      icon: CreditCard,
-      href: "/admin/broker-accounts",
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
-    },
-    {
-      title: "Rate Cards",
-      value: rateCards?.length || 0,
-      icon: DollarSign,
-      href: "/admin/rate-cards",
+      title: "Driver Pay",
+      description: "Pay plans, contracts, and overrides",
+      icon: Wallet,
       color: "text-amber-600",
       bgColor: "bg-amber-100",
+      items: [
+        {
+          title: "Default Pay Plans",
+          description: "Default rates for new drivers by OpCo",
+          count: payDefaults?.length || 0,
+          href: "/admin/pay-defaults",
+          icon: FileText,
+        },
+        {
+          title: "Driver Contracts",
+          description: "Per-driver pay overrides",
+          count: 0, // TODO: Add driver contracts query
+          href: "/admin/driver-contracts",
+          icon: Users,
+        },
+      ],
     },
     {
-      title: "Pay Defaults",
-      value: payDefaults?.length || 0,
-      icon: Users,
-      href: "/admin/pay-defaults",
-      color: "text-red-600",
-      bgColor: "bg-red-100",
+      title: "Users & Roles",
+      description: "Access control and permissions",
+      icon: UserCog,
+      color: "text-purple-600",
+      bgColor: "bg-purple-100",
+      items: [
+        {
+          title: "User Roles",
+          description: "Assign roles to users",
+          count: 0, // TODO: Add users query
+          href: "/admin/users",
+          icon: UserCog,
+        },
+        {
+          title: "Audit Log",
+          description: "View all admin changes",
+          count: auditLog?.length || 0,
+          href: "/admin/audit-log",
+          icon: History,
+        },
+      ],
     },
   ];
 
-  const quickLinks = [
-    {
-      title: "Operating Companies",
-      description: "Manage Sahrawi, Metrix, and other operating companies",
-      icon: Building2,
-      href: "/admin/opcos",
-    },
-    {
-      title: "Brokers",
-      description: "Configure Modivcare, MTM, Access2Care, and other brokers",
-      icon: Briefcase,
-      href: "/admin/brokers",
-    },
-    {
-      title: "Broker Accounts",
-      description: "Set up OpCo-specific broker relationships",
-      icon: CreditCard,
-      href: "/admin/broker-accounts",
-    },
-    {
-      title: "Billing Rate Cards",
-      description: "Define what your company earns per trip type",
-      icon: DollarSign,
-      href: "/admin/rate-cards",
-    },
-    {
-      title: "Driver Pay Defaults",
-      description: "Set default pay rates for new drivers",
-      icon: Users,
-      href: "/admin/pay-defaults",
-    },
-    {
-      title: "Audit Log",
-      description: "View all changes made to admin settings",
-      icon: History,
-      href: "/admin/audit-log",
-    },
-  ];
+  // Stats summary
+  const totalStats = {
+    opcos: opcos?.length || 0,
+    brokers: brokers?.length || 0,
+    accounts: brokerAccounts?.length || 0,
+    rateCards: rateCards?.length || 0,
+    payPlans: payDefaults?.length || 0,
+  };
 
   return (
     <div className="space-y-6">
@@ -125,7 +154,7 @@ export default function AdminHub() {
             Admin Hub
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage operating companies, brokers, rate cards, and driver pay settings
+            Central configuration for organization, rates, and driver pay
           </p>
         </div>
         <Badge variant="outline" className="flex items-center gap-1">
@@ -134,67 +163,100 @@ export default function AdminHub() {
         </Badge>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-5">
-        {stats.map((stat) => (
-          <Card
-            key={stat.title}
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setLocation(stat.href)}
-          >
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                </div>
-                <div className={`p-3 rounded-full ${stat.bgColor}`}>
-                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Quick Stats Bar */}
+      <div className="flex flex-wrap gap-4 p-4 bg-slate-50 rounded-lg">
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-blue-600" />
+          <span className="font-medium">{totalStats.opcos}</span>
+          <span className="text-muted-foreground text-sm">OpCos</span>
+        </div>
+        <div className="h-4 w-px bg-slate-300" />
+        <div className="flex items-center gap-2">
+          <Briefcase className="h-4 w-4 text-green-600" />
+          <span className="font-medium">{totalStats.brokers}</span>
+          <span className="text-muted-foreground text-sm">Brokers</span>
+        </div>
+        <div className="h-4 w-px bg-slate-300" />
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-purple-600" />
+          <span className="font-medium">{totalStats.accounts}</span>
+          <span className="text-muted-foreground text-sm">Accounts</span>
+        </div>
+        <div className="h-4 w-px bg-slate-300" />
+        <div className="flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-amber-600" />
+          <span className="font-medium">{totalStats.rateCards}</span>
+          <span className="text-muted-foreground text-sm">Rate Cards</span>
+        </div>
+        <div className="h-4 w-px bg-slate-300" />
+        <div className="flex items-center gap-2">
+          <Wallet className="h-4 w-4 text-red-600" />
+          <span className="font-medium">{totalStats.payPlans}</span>
+          <span className="text-muted-foreground text-sm">Pay Plans</span>
+        </div>
       </div>
 
-      {/* Quick Links */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quickLinks.map((link) => (
-          <Card
-            key={link.title}
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setLocation(link.href)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-slate-100">
-                    <link.icon className="h-5 w-5 text-slate-600" />
-                  </div>
-                  <CardTitle className="text-lg">{link.title}</CardTitle>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+      {/* Sections */}
+      {sections.map((section) => (
+        <Card key={section.title}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${section.bgColor}`}>
+                <section.icon className={`h-5 w-5 ${section.color}`} />
               </div>
-            </CardHeader>
-            <CardContent>
-              <CardDescription>{link.description}</CardDescription>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              <div>
+                <CardTitle>{section.title}</CardTitle>
+                <CardDescription>{section.description}</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {section.items.map((item) => (
+                <div
+                  key={item.title}
+                  className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-slate-50 transition-colors"
+                  onClick={() => setLocation(item.href)}
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">{item.title}</p>
+                      <p className="text-sm text-muted-foreground">{item.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{item.count}</Badge>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
 
       {/* Recent Activity */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Recent Activity
-          </CardTitle>
-          <CardDescription>Latest changes to admin settings</CardDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-slate-100">
+                <History className="h-5 w-5 text-slate-600" />
+              </div>
+              <div>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Latest changes to admin settings</CardDescription>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setLocation("/admin/audit-log")}>
+              View All
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {auditLog && auditLog.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {auditLog.map((entry) => (
                 <div
                   key={entry.id}
@@ -213,14 +275,14 @@ export default function AdminHub() {
                       {entry.action}
                     </Badge>
                     <div>
-                      <p className="font-medium">
+                      <p className="font-medium text-sm">
                         {entry.entity}
                         {entry.entityId ? ` #${entry.entityId}` : ""}
                       </p>
-                      <p className="text-sm text-muted-foreground">by {entry.actor}</p>
+                      <p className="text-xs text-muted-foreground">by {entry.actor}</p>
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {new Date(entry.timestamp).toLocaleString()}
                   </p>
                 </div>
@@ -229,13 +291,6 @@ export default function AdminHub() {
           ) : (
             <p className="text-center text-muted-foreground py-8">No recent activity</p>
           )}
-          <Button
-            variant="outline"
-            className="w-full mt-4"
-            onClick={() => setLocation("/admin/audit-log")}
-          >
-            View All Activity
-          </Button>
         </CardContent>
       </Card>
     </div>
