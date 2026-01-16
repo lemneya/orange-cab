@@ -7,11 +7,63 @@ import { z } from "zod";
 // CONFIGURATION
 // ============================================
 
+// ============================================
+// SSRF PROTECTION - ALLOWLIST PRIVATE IPS ONLY
+// ============================================
+
+const ALLOWED_HOSTS = [
+  "127.0.0.1",
+  "localhost",
+  "0.0.0.0",
+];
+
+const ALLOWED_IP_PATTERNS = [
+  /^10\./,           // 10.x.x.x
+  /^192\.168\./,     // 192.168.x.x
+  /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // 172.16.x.x - 172.31.x.x
+];
+
+function isAllowedHost(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+    
+    // Must be http (not https for local servers)
+    if (parsed.protocol !== "http:") {
+      return false;
+    }
+    
+    // Check explicit allowlist
+    if (ALLOWED_HOSTS.includes(hostname)) {
+      return true;
+    }
+    
+    // Check private IP patterns
+    for (const pattern of ALLOWED_IP_PATTERNS) {
+      if (pattern.test(hostname)) {
+        return true;
+      }
+    }
+    
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function validateBaseUrl(url: string): string {
+  if (!isAllowedHost(url)) {
+    console.warn(`[SSRF Protection] Blocked non-private URL: ${url}. Using default.`);
+    return "http://127.0.0.1:8080";
+  }
+  return url;
+}
+
 export const LLM_CONFIG = {
-  baseUrl: process.env.LOCAL_LLM_BASE_URL || "http://127.0.0.1:8080",
+  baseUrl: validateBaseUrl(process.env.LOCAL_LLM_BASE_URL || "http://127.0.0.1:8080"),
   model: process.env.LOCAL_LLM_MODEL || "LFM2-2.6B-EXP",
   enabled: process.env.LOCAL_LLM_ENABLED === "true",
-  timeout: parseInt(process.env.LOCAL_LLM_TIMEOUT || "30000", 10),
+  timeout: parseInt(process.env.LOCAL_LLM_TIMEOUT || "60000", 10), // 60s hard timeout
 };
 
 // ============================================
