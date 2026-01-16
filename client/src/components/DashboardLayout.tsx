@@ -161,6 +161,12 @@ const navigationGroups = [
       { icon: History, label: "Audit Log", path: "/admin/audit-log" },
     ],
   },
+  {
+    label: "Reports",
+    items: [
+      { icon: BarChart3, label: "Reports Hub", path: "/reports" },
+    ],
+  },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
