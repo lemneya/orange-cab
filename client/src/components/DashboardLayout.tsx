@@ -172,6 +172,10 @@ const navigationGroups = [
     label: "Simulator",
     items: [
       { icon: Play, label: "One-Day Proof", path: "/simulator/day" },
+    label: "Owner Cockpit",
+    items: [
+      { icon: LayoutDashboard, label: "Dashboard", path: "/owner" },
+      { icon: FileText, label: "Weekly Packs", path: "/owner/packs" },
     ],
   },
 ];

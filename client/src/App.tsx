@@ -67,6 +67,10 @@ import ShadowRunDetail from "./pages/ids/ShadowRunDetail";
 import NewShadowRun from "./pages/ids/NewShadowRun";
 import IDSContracts from "./pages/ids/Contracts";
 import ActualImport from "./pages/ids/ActualImport";
+import ShadowRunMap from "./pages/ids/ShadowRunMap";
+
+// Driver Mode
+import DriverRunView from "./pages/driver/DriverRunView";
 import ManifestImport from "./pages/ids/ManifestImport";
 
 // Admin Hub
@@ -88,6 +92,10 @@ import ReportViewer from "./pages/reports/ReportViewer";
 import OneDaySimulator from "./pages/simulator/OneDaySimulator";
 import SimRunViewer from "./pages/simulator/SimRunViewer";
 import ProofPackViewer from "./pages/simulator/ProofPackViewer";
+// Owner Cockpit
+import OwnerCockpit from "./pages/owner/OwnerCockpit";
+import PacksList from "./pages/owner/PacksList";
+import PackViewer from "./pages/owner/PackViewer";
 
 function Router() {
   return (
@@ -155,6 +163,8 @@ function Router() {
         <Route path="/ids/shadow-runs" component={ShadowRunsList} />
         <Route path="/ids/shadow-runs/new" component={NewShadowRun} />
         <Route path="/ids/shadow-runs/:id" component={ShadowRunDetail} />
+        <Route path="/ids/shadow-runs/:id/map" component={ShadowRunMap} />
+        <Route path="/driver/:shadowRunId/:driverId" component={DriverRunView} />
         <Route path="/ids/contracts" component={IDSContracts} />
         <Route path="/ids/actual-import" component={ActualImport} />
         <Route path="/ids/manifest-import" component={ManifestImport} />
@@ -178,6 +188,10 @@ function Router() {
         <Route path="/simulator/day" component={OneDaySimulator} />
         <Route path="/simulator/runs/:id" component={SimRunViewer} />
         <Route path="/simulator/packs/:id" component={ProofPackViewer} />
+        {/* Owner Cockpit */}
+        <Route path="/owner" component={OwnerCockpit} />
+        <Route path="/owner/packs" component={PacksList} />
+        <Route path="/owner/packs/:id" component={PackViewer} />
         
         {/* Fallback */}
         <Route path="/404" component={NotFound} />
