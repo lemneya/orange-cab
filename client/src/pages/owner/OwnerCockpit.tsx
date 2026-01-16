@@ -75,20 +75,20 @@ export default function OwnerCockpit() {
   // Queries
   const { data: opcos } = useQuery({
     queryKey: ["admin", "opcos"],
-    queryFn: () => trpc.admin.getOpcos.query(),
+    queryFn: () => trpc.admin.getOpcos(),
   });
 
   const { data: brokerAccounts } = useQuery({
     queryKey: ["admin", "brokerAccounts"],
-    queryFn: () => trpc.admin.getBrokerAccounts.query(),
+    queryFn: () => trpc.admin.getBrokerAccounts(),
   });
 
   // Mock snapshot data (in production, this comes from owner.getSnapshot)
   const snapshot = useMemo(() => ({
     opcoId: selectedOpco,
-    opcoName: opcos?.find(o => o.id === selectedOpco)?.name || "All Companies",
+    opcoName: opcos?.find((o: { id: string; name: string }) => o.id === selectedOpco)?.name || "All Companies",
     brokerAccountId: selectedBrokerAccount === "all" ? null : selectedBrokerAccount,
-    brokerAccountName: brokerAccounts?.find(b => b.id === selectedBrokerAccount)?.name || null,
+    brokerAccountName: brokerAccounts?.find((b: { id: string; name: string }) => b.id === selectedBrokerAccount)?.name || null,
     startDate: new Date().toISOString().split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
     generatedAt: new Date().toISOString(),
