@@ -53,7 +53,8 @@ import {
   Cloud,
   Brain,
   Settings,
-  History
+  History,
+  Play
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -165,6 +166,12 @@ const navigationGroups = [
     label: "Reports",
     items: [
       { icon: BarChart3, label: "Reports Hub", path: "/reports" },
+    ],
+  },
+  {
+    label: "Simulator",
+    items: [
+      { icon: Play, label: "One-Day Proof", path: "/simulator/day" },
     ],
   },
 ];
