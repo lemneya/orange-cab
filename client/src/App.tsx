@@ -67,6 +67,10 @@ import ShadowRunDetail from "./pages/ids/ShadowRunDetail";
 import NewShadowRun from "./pages/ids/NewShadowRun";
 import IDSContracts from "./pages/ids/Contracts";
 import ActualImport from "./pages/ids/ActualImport";
+import ShadowRunMap from "./pages/ids/ShadowRunMap";
+
+// Driver Mode
+import DriverRunView from "./pages/driver/DriverRunView";
 
 // Admin Hub
 import AdminHub from "./pages/admin/AdminHub";
@@ -149,6 +153,8 @@ function Router() {
         <Route path="/ids/shadow-runs" component={ShadowRunsList} />
         <Route path="/ids/shadow-runs/new" component={NewShadowRun} />
         <Route path="/ids/shadow-runs/:id" component={ShadowRunDetail} />
+        <Route path="/ids/shadow-runs/:id/map" component={ShadowRunMap} />
+        <Route path="/driver/:shadowRunId/:driverId" component={DriverRunView} />
         <Route path="/ids/contracts" component={IDSContracts} />
         <Route path="/ids/actual-import" component={ActualImport} />
         
