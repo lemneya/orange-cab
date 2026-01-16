@@ -21,6 +21,7 @@ import {
 } from "./ids.types";
 import { TRPCError } from "@trpc/server";
 import { getActualImportService } from "./ids.actual-import.service";
+import * as manifestImportService from "./ids.manifest-import.service";
 
 // ============================================================================
 // Guard Middleware
@@ -461,6 +462,92 @@ export const idsRouter = router({
         serviceDate: shadowRun.runDate,
         comparison,
       };
+    }),
+
+  // ============================================================================
+  // Manifest Import Endpoints
+  // ============================================================================
+
+  previewManifest: protectedProcedure
+    .input(z.object({
+      content: z.string(),
+      fileName: z.string(),
+      opcoId: z.enum(["SAHRAWI", "METRIX"]),
+      brokerId: z.enum(["MODIVCARE", "MTM", "ACCESS2CARE"]),
+      brokerAccountId: z.enum(["MODIVCARE_SAHRAWI", "MODIVCARE_METRIX", "MTM_MAIN", "A2C_MAIN"]),
+    }))
+    .mutation(async ({ input }) => {
+      requireIDS();
+      return manifestImportService.previewManifest(input.content, input.fileName, {
+        opcoId: input.opcoId,
+        brokerId: input.brokerId,
+        brokerAccountId: input.brokerAccountId,
+      });
+    }),
+
+  importManifest: protectedProcedure
+    .input(z.object({
+      content: z.string(),
+      fileName: z.string(),
+      opcoId: z.enum(["SAHRAWI", "METRIX"]),
+      brokerId: z.enum(["MODIVCARE", "MTM", "ACCESS2CARE"]),
+      brokerAccountId: z.enum(["MODIVCARE_SAHRAWI", "MODIVCARE_METRIX", "MTM_MAIN", "A2C_MAIN"]),
+      formatOverride: z.enum(["modivcare_pdf_sahrawi", "modivcare_pdf_metrix", "mtm_csv", "a2c_csv"]).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      requireIDS();
+      return manifestImportService.importManifest(input.content, input.fileName, {
+        opcoId: input.opcoId,
+        brokerId: input.brokerId,
+        brokerAccountId: input.brokerAccountId,
+      }, input.formatOverride);
+    }),
+
+  getManifestImports: protectedProcedure
+    .input(z.object({
+      opcoId: z.enum(["SAHRAWI", "METRIX"]).optional(),
+      brokerId: z.enum(["MODIVCARE", "MTM", "ACCESS2CARE"]).optional(),
+      brokerAccountId: z.enum(["MODIVCARE_SAHRAWI", "MODIVCARE_METRIX", "MTM_MAIN", "A2C_MAIN"]).optional(),
+    }).optional())
+    .query(async ({ input }) => {
+      requireIDS();
+      return manifestImportService.getManifestImports(input);
+    }),
+
+  getManifestTrips: protectedProcedure
+    .input(z.object({
+      serviceDate: z.string(),
+      opcoId: z.enum(["SAHRAWI", "METRIX"]).optional(),
+      brokerAccountId: z.enum(["MODIVCARE_SAHRAWI", "MODIVCARE_METRIX", "MTM_MAIN", "A2C_MAIN"]).optional(),
+      fundingSource: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      requireIDS();
+      return manifestImportService.getManifestTripsByDate(input.serviceDate, {
+        opcoId: input.opcoId,
+        brokerAccountId: input.brokerAccountId,
+        fundingSource: input.fundingSource,
+      });
+    }),
+
+  getFundingSources: protectedProcedure
+    .input(z.object({
+      opcoId: z.enum(["SAHRAWI", "METRIX"]).optional(),
+      brokerAccountId: z.enum(["MODIVCARE_SAHRAWI", "MODIVCARE_METRIX", "MTM_MAIN", "A2C_MAIN"]).optional(),
+    }).optional())
+    .query(async ({ input }) => {
+      requireIDS();
+      return manifestImportService.getFundingSources(input);
+    }),
+
+  getManifestTripCounts: protectedProcedure
+    .input(z.object({
+      opcoId: z.enum(["SAHRAWI", "METRIX"]).optional(),
+      brokerAccountId: z.enum(["MODIVCARE_SAHRAWI", "MODIVCARE_METRIX", "MTM_MAIN", "A2C_MAIN"]).optional(),
+    }).optional())
+    .query(async ({ input }) => {
+      requireIDS();
+      return manifestImportService.getManifestTripCountsByDate(input);
     }),
 });
 

@@ -98,11 +98,27 @@ export default function ActualImport() {
     setError(null);
     setStep("importing");
     try {
+      // Get partition values from selected entities
+      const selectedOpco = opcos?.find((o) => o.id === selectedOpcoId);
+      const selectedBrokerAccount = brokerAccounts?.find((a) => a.id === selectedBrokerAccountId);
+      
+      if (!selectedOpco || !selectedBrokerAccount) {
+        setError("Invalid partition selection");
+        setStep("preview");
+        return;
+      }
+      
+      const opcoCode = selectedOpco.code as "SAHRAWI" | "METRIX";
+      const brokerAccountCode = selectedBrokerAccount.code as "MODIVCARE_SAHRAWI" | "MODIVCARE_METRIX" | "MTM_MAIN" | "A2C_MAIN";
+      const brokerId = selectedBrokerAccount.brokerId === 1 ? "MODIVCARE" : 
+                       selectedBrokerAccount.brokerId === 2 ? "MTM" : "ACCESS2CARE";
+      
       const result = await importMutation.mutateAsync({ 
         csvContent, 
         fileName,
-        opcoId: selectedOpcoId,
-        brokerAccountId: selectedBrokerAccountId,
+        opcoId: opcoCode,
+        brokerId: brokerId as "MODIVCARE" | "MTM" | "ACCESS2CARE",
+        brokerAccountId: brokerAccountCode,
       });
       setImportResult(result);
       setStep("complete");

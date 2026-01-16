@@ -71,6 +71,7 @@ import ShadowRunMap from "./pages/ids/ShadowRunMap";
 
 // Driver Mode
 import DriverRunView from "./pages/driver/DriverRunView";
+import ManifestImport from "./pages/ids/ManifestImport";
 
 // Admin Hub
 import AdminHub from "./pages/admin/AdminHub";
@@ -86,6 +87,11 @@ import AuditLogPage from "./pages/admin/AuditLogPage";
 // Reports
 import ReportsList from "./pages/reports/ReportsList";
 import ReportViewer from "./pages/reports/ReportViewer";
+
+// Owner Cockpit
+import OwnerCockpit from "./pages/owner/OwnerCockpit";
+import PacksList from "./pages/owner/PacksList";
+import PackViewer from "./pages/owner/PackViewer";
 
 function Router() {
   return (
@@ -157,6 +163,7 @@ function Router() {
         <Route path="/driver/:shadowRunId/:driverId" component={DriverRunView} />
         <Route path="/ids/contracts" component={IDSContracts} />
         <Route path="/ids/actual-import" component={ActualImport} />
+        <Route path="/ids/manifest-import" component={ManifestImport} />
         
         {/* Admin Hub */}
         <Route path="/admin" component={AdminHub} />
@@ -172,6 +179,11 @@ function Router() {
         {/* Reports */}
         <Route path="/reports" component={ReportsList} />
         <Route path="/reports/runs/:id" component={ReportViewer} />
+        
+        {/* Owner Cockpit */}
+        <Route path="/owner" component={OwnerCockpit} />
+        <Route path="/owner/packs" component={PacksList} />
+        <Route path="/owner/packs/:id" component={PackViewer} />
         
         {/* Fallback */}
         <Route path="/404" component={NotFound} />

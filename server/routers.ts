@@ -4,6 +4,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { idsRouter } from "./ids/ids.router";
 import { adminRouter } from "./admin/admin.router";
 import { reportsRouter } from "./reports/reports.router";
+import { ownerRouter } from "./owner/owner.router";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 
@@ -510,6 +511,7 @@ export const appRouter = router({
 
   // Reports Engine
   reports: reportsRouter,
+  owner: ownerRouter,
 });
 
 export type AppRouter = typeof appRouter;

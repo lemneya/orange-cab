@@ -617,6 +617,61 @@ export function getArtifactsByRunId(runId: number): StoredReportArtifact[] {
 }
 
 // ============================================
+// NARRATIVE MANAGEMENT
+// ============================================
+
+export interface StoredNarrative {
+  id: number;
+  reportRunId: number;
+  style: "INTERNAL" | "CLIENT";
+  status: "queued" | "running" | "success" | "failed";
+  promptVersion?: string;
+  modelId?: string;
+  outputMarkdown?: string;
+  outputJson?: {
+    title?: string;
+    executive_summary?: string[];
+    findings?: Array<{ severity: string; text: string }>;
+    actions?: Array<{ owner_role: string; deadline: string; text: string }>;
+    client_bullets?: string[];
+  };
+  error?: string;
+  createdBy?: string;
+  createdAt: Date;
+}
+
+const narratives: StoredNarrative[] = [];
+let narrativeIdCounter = 1;
+
+export function createNarrative(data: {
+  reportRunId: number;
+  style: "INTERNAL" | "CLIENT";
+  status: "queued" | "running" | "success" | "failed";
+  promptVersion?: string;
+  modelId?: string;
+  outputMarkdown?: string;
+  outputJson?: StoredNarrative["outputJson"];
+  error?: string;
+  createdBy?: string;
+}): StoredNarrative {
+  const narrative: StoredNarrative = {
+    id: narrativeIdCounter++,
+    ...data,
+    createdAt: new Date(),
+  };
+  narratives.push(narrative);
+  return narrative;
+}
+
+export function getNarrativesByRunId(runId: number): StoredNarrative[] {
+  return narratives.filter((n) => n.reportRunId === runId);
+}
+
+export function getNarrativeById(id: number): StoredNarrative | undefined {
+  return narratives.find((n) => n.id === id);
+}
+
+// ============================================
 // INITIALIZE
 // ============================================
 
