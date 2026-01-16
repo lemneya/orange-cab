@@ -67,6 +67,7 @@ import ShadowRunDetail from "./pages/ids/ShadowRunDetail";
 import NewShadowRun from "./pages/ids/NewShadowRun";
 import IDSContracts from "./pages/ids/Contracts";
 import ActualImport from "./pages/ids/ActualImport";
+import ManifestImport from "./pages/ids/ManifestImport";
 
 // Admin Hub
 import AdminHub from "./pages/admin/AdminHub";
@@ -151,6 +152,7 @@ function Router() {
         <Route path="/ids/shadow-runs/:id" component={ShadowRunDetail} />
         <Route path="/ids/contracts" component={IDSContracts} />
         <Route path="/ids/actual-import" component={ActualImport} />
+        <Route path="/ids/manifest-import" component={ManifestImport} />
         
         {/* Admin Hub */}
         <Route path="/admin" component={AdminHub} />

@@ -363,6 +363,124 @@ export const idsImportAudit = mysqlTable("ids_import_audit", {
 });
 
 // ============================================================================
+// Manifest Format Enum
+// ============================================================================
+
+export const manifestFormatEnum = mysqlEnum("manifestFormat", [
+    "modivcare_pdf_sahrawi",
+    "modivcare_pdf_metrix",
+    "mtm_csv",
+    "a2c_csv",
+  ]);
+
+export type ManifestFormat = "modivcare_pdf_sahrawi" | "modivcare_pdf_metrix" | "mtm_csv" | "a2c_csv";
+
+// ============================================================================
+// Manifest Trips Table - Pre-dispatch trips from broker manifests
+// PHI-safe: no patient names, phones, DOB, or full addresses stored
+// ============================================================================
+
+export const idsManifestTrips = mysqlTable("ids_manifest_trips", {
+    id: int("id").autoincrement().primaryKey(),
+
+    // Partition fields (required for multi-company operations)
+    opcoId: opcoIdEnum.notNull().default("SAHRAWI"),
+    brokerId: brokerIdEnum.notNull().default("MODIVCARE"),
+    brokerAccountId: varchar("brokerAccountId", { length: 50 }).notNull().default("MODIVCARE_SAHRAWI"),
+
+    // Import reference
+    importId: int("importId").notNull(),
+
+    // Trip identification - unique key: (opcoId, brokerAccountId, serviceDate, externalTripId)
+    externalTripId: varchar("externalTripId", { length: 100 }).notNull(),
+    serviceDate: date("serviceDate").notNull(),
+
+    // Funding source (for filtering)
+    fundingSource: varchar("fundingSource", { length: 100 }),
+
+    // Trip type
+    mobilityType: varchar("mobilityType", { length: 20 }).notNull(), // AMB, WC, STR
+    levelOfService: varchar("levelOfService", { length: 50 }), // A, W, etc.
+    spaceType: varchar("spaceType", { length: 20 }), // 1, 2, etc.
+
+    // Scheduled times
+    appointmentTime: time("appointmentTime"),
+    requestedPickupTime: time("requestedPickupTime"),
+    pickupWindowStart: time("pickupWindowStart"),
+    pickupWindowEnd: time("pickupWindowEnd"),
+
+    // GPS coordinates (for routing, no address text)
+    pickupLat: decimal("pickupLat", { precision: 10, scale: 7 }),
+    pickupLon: decimal("pickupLon", { precision: 10, scale: 7 }),
+    dropoffLat: decimal("dropoffLat", { precision: 10, scale: 7 }),
+    dropoffLon: decimal("dropoffLon", { precision: 10, scale: 7 }),
+
+    // City/zone (for zone-based routing)
+    pickupCity: varchar("pickupCity", { length: 100 }),
+    dropoffCity: varchar("dropoffCity", { length: 100 }),
+    pickupZip: varchar("pickupZip", { length: 20 }),
+    dropoffZip: varchar("dropoffZip", { length: 20 }),
+
+    // Estimated miles
+    estimatedMiles: decimal("estimatedMiles", { precision: 8, scale: 2 }),
+
+    // Status flags
+    status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, assigned, cancelled
+    isCancelled: boolean("isCancelled").default(false),
+    isWillCall: boolean("isWillCall").default(false),
+    isStanding: boolean("isStanding").default(false),
+
+    // Special requirements (JSON array)
+    specialRequirements: json("specialRequirements"),
+
+    // Audit
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+// ============================================================================
+// Manifest Import Audit Table - Tracks manifest imports
+// ============================================================================
+
+export const idsManifestImports = mysqlTable("ids_manifest_imports", {
+    id: int("id").autoincrement().primaryKey(),
+
+    // Partition fields
+    opcoId: opcoIdEnum.notNull().default("SAHRAWI"),
+    brokerId: brokerIdEnum.notNull().default("MODIVCARE"),
+    brokerAccountId: varchar("brokerAccountId", { length: 50 }).notNull().default("MODIVCARE_SAHRAWI"),
+
+    // Format used for parsing
+    format: manifestFormatEnum.notNull(),
+
+    // File identification
+    fileHash: varchar("fileHash", { length: 64 }).notNull(),
+    fileName: varchar("fileName", { length: 255 }),
+    fileSize: int("fileSize"),
+
+    // Service date range
+    serviceDateFrom: date("serviceDateFrom"),
+    serviceDateTo: date("serviceDateTo"),
+
+    // Import stats
+    totalRows: int("totalRows").notNull(),
+    importedRows: int("importedRows").notNull(),
+    cancelledRows: int("cancelledRows").notNull().default(0),
+    skippedRows: int("skippedRows").notNull().default(0),
+    errorRows: int("errorRows").notNull().default(0),
+
+    // LOS breakdown (JSON: { "AMB": 50, "WC": 20, "STR": 5 })
+    losCounts: json("losCounts"),
+
+    // "Nothing dropped" proof
+    accountedRows: int("accountedRows").notNull(),
+    isComplete: boolean("isComplete").notNull().default(false),
+
+    // Audit
+    importedBy: int("importedBy").references(() => users.id),
+    importedAt: timestamp("importedAt").defaultNow().notNull(),
+});
+
+// ============================================================================
 // Type Exports
 // ============================================================================
 
@@ -386,3 +504,9 @@ export type InsertIDSActualTrip = typeof idsActualTrips.$inferInsert;
 
 export type IDSImportAudit = typeof idsImportAudit.$inferSelect;
 export type InsertIDSImportAudit = typeof idsImportAudit.$inferInsert;
+
+export type IDSManifestTrip = typeof idsManifestTrips.$inferSelect;
+export type InsertIDSManifestTrip = typeof idsManifestTrips.$inferInsert;
+
+export type IDSManifestImport = typeof idsManifestImports.$inferSelect;
+export type InsertIDSManifestImport = typeof idsManifestImports.$inferInsert;
