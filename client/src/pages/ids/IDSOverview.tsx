@@ -20,16 +20,26 @@ import {
   Upload
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import IDSContextSwitcher, { OpcoId, BrokerAccountId } from "@/components/ids/IDSContextSwitcher";
 
 export default function IDSOverview() {
   const [, setLocation] = useLocation();
+  
+  // Partition filter state
+  const [selectedOpco, setSelectedOpco] = useState<OpcoId>(null);
+  const [selectedBrokerAccount, setSelectedBrokerAccount] = useState<BrokerAccountId>(null);
   
   // Get IDS status
   const { data: status, isLoading: statusLoading } = trpc.ids.getStatus.useQuery();
   const { data: config } = trpc.ids.getConfig.useQuery();
   const { data: shadowRuns } = trpc.ids.getShadowRuns.useQuery({ limit: 5 });
 
-  const recentRuns = shadowRuns || [];
+  // Filter runs by partition
+  const recentRuns = (shadowRuns || []).filter(run => {
+    const matchesOpco = !selectedOpco || run.opcoId === selectedOpco;
+    const matchesBrokerAccount = !selectedBrokerAccount || run.brokerAccountId === selectedBrokerAccount;
+    return matchesOpco && matchesBrokerAccount;
+  });
 
   return (
     <div className="space-y-6">
@@ -55,6 +65,16 @@ export default function IDSOverview() {
           </Button>
         </div>
       </div>
+
+      {/* Context Switcher */}
+      <IDSContextSwitcher
+        opcoId={selectedOpco}
+        brokerAccountId={selectedBrokerAccount}
+        onOpcoChange={setSelectedOpco}
+        onBrokerAccountChange={setSelectedBrokerAccount}
+        showAll={true}
+        compact={true}
+      />
 
       {/* Status Alert */}
       {status && (
