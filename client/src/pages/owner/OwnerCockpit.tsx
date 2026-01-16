@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 // Types
+type NamedRow = { id: string; name: string };
 interface KPICard {
   id: string;
   title: string;
