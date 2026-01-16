@@ -50,6 +50,8 @@ interface StoredShadowRun {
   lockedTripsCount: number;
   result: SolveResponse;
   lockViolations: number;
+  opcoId?: number;
+  brokerAccountId?: number;
 }
 
 let shadowRunCounter = 0;

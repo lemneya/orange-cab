@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+// import { useQuery } from "@tanstack/react-query";
 import { trpc } from "../../lib/trpc";
 import {
   DollarSign,
@@ -73,22 +73,15 @@ export default function OwnerCockpit() {
   const [narrativeStyle, setNarrativeStyle] = useState<"internal" | "client">("internal");
 
   // Queries
-  const { data: opcos } = useQuery({
-    queryKey: ["admin", "opcos"],
-    queryFn: () => trpc.admin.getOpcos.query(),
-  });
-
-  const { data: brokerAccounts } = useQuery({
-    queryKey: ["admin", "brokerAccounts"],
-    queryFn: () => trpc.admin.getBrokerAccounts.query(),
-  });
+  const { data: opcos } = trpc.admin.getOpcos.useQuery({});
+  const { data: brokerAccounts } = trpc.admin.getBrokerAccounts.useQuery({});
 
   // Mock snapshot data (in production, this comes from owner.getSnapshot)
   const snapshot = useMemo(() => ({
     opcoId: selectedOpco,
-    opcoName: opcos?.find(o => o.id === selectedOpco)?.name || "All Companies",
+    opcoName: opcos?.find(o => String(o.id) === selectedOpco)?.name || "All Companies",
     brokerAccountId: selectedBrokerAccount === "all" ? null : selectedBrokerAccount,
-    brokerAccountName: brokerAccounts?.find(b => b.id === selectedBrokerAccount)?.name || null,
+    brokerAccountName: brokerAccounts?.find(b => String(b.id) === selectedBrokerAccount)?.name || null,
     startDate: new Date().toISOString().split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
     generatedAt: new Date().toISOString(),

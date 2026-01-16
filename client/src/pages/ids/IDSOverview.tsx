@@ -36,8 +36,8 @@ export default function IDSOverview() {
 
   // Filter runs by partition
   const recentRuns = (shadowRuns || []).filter(run => {
-    const matchesOpco = !selectedOpco || run.opcoId === selectedOpco;
-    const matchesBrokerAccount = !selectedBrokerAccount || run.brokerAccountId === selectedBrokerAccount;
+    const matchesOpco = !selectedOpco || String(run.opcoId) === selectedOpco;
+    const matchesBrokerAccount = !selectedBrokerAccount || String(run.brokerAccountId) === selectedBrokerAccount;
     return matchesOpco && matchesBrokerAccount;
   });
 

@@ -40,6 +40,18 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
+// Type for audit log entries
+type AuditLogEntry = {
+  id: number;
+  entity: string;
+  entityId?: number;
+  action: string;
+  actor: string;
+  timestamp: string;
+  beforeJson?: Record<string, unknown> | null;
+  afterJson?: Record<string, unknown> | null;
+};
+
 const ENTITIES = [
   { value: "", label: "All Entities" },
   { value: "opcos", label: "Operating Companies" },
@@ -62,7 +74,7 @@ const ACTIONS = [
 
 export default function AuditLogPage() {
   const [, setLocation] = useLocation();
-  const [selectedEntry, setSelectedEntry] = useState<typeof auditLog extends (infer T)[] | undefined ? T : never | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(null);
   const [filters, setFilters] = useState({
     entity: "",
     action: "",

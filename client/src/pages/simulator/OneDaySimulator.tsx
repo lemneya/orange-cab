@@ -140,8 +140,8 @@ export default function OneDaySimulator() {
   const [narrativeStyle, setNarrativeStyle] = useState<"INTERNAL" | "CLIENT">("CLIENT");
   
   // Fetch admin data
-  const { data: opcos } = trpc.admin.opcos.list.useQuery();
-  const { data: brokerAccounts } = trpc.admin.brokerAccounts.list.useQuery();
+  const { data: opcos } = trpc.admin.getOpcos.useQuery({});
+  const { data: brokerAccounts } = trpc.admin.getBrokerAccounts.useQuery({});
   
   const filteredAccounts = brokerAccounts?.filter(
     (a: any) => !opcoId || a.opcoId === opcoId
