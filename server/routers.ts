@@ -3,6 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { idsRouter } from "./ids/ids.router";
 import { adminRouter } from "./admin/admin.router";
+import { reportsRouter } from "./reports/reports.router";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 
@@ -506,6 +507,9 @@ export const appRouter = router({
 
   // Admin Hub (OpCos, Brokers, Rate Cards, Driver Pay)
   admin: adminRouter,
+
+  // Reports Engine
+  reports: reportsRouter,
 });
 
 export type AppRouter = typeof appRouter;

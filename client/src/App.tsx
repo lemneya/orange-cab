@@ -79,6 +79,10 @@ import DriverContractsPage from "./pages/admin/DriverContractsPage";
 import UsersPage from "./pages/admin/UsersPage";
 import AuditLogPage from "./pages/admin/AuditLogPage";
 
+// Reports
+import ReportsList from "./pages/reports/ReportsList";
+import ReportViewer from "./pages/reports/ReportViewer";
+
 function Router() {
   return (
     <DashboardLayout>
@@ -158,6 +162,10 @@ function Router() {
         <Route path="/admin/driver-contracts" component={DriverContractsPage} />
         <Route path="/admin/users" component={UsersPage} />
         <Route path="/admin/audit-log" component={AuditLogPage} />
+        
+        {/* Reports */}
+        <Route path="/reports" component={ReportsList} />
+        <Route path="/reports/runs/:id" component={ReportViewer} />
         
         {/* Fallback */}
         <Route path="/404" component={NotFound} />
