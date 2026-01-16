@@ -419,7 +419,7 @@ export function validateNarrativeOutput(
   return {
     valid: errors.length === 0,
     errors,
-    invalidTokens: [...new Set(invalidTokens)],
+    invalidTokens: Array.from(new Set(invalidTokens)),
   };
 }
 
@@ -729,7 +729,7 @@ export async function generateOwnerNarrative(
   
   // Build metrics from snapshot for placeholder replacement
   const metrics: Record<string, string> = {};
-  for (const token of allowlist) {
+  for (const token of Array.from(allowlist)) {
     const value = resolveToken(token, snapshot);
     if (value !== null) {
       metrics[token] = value;

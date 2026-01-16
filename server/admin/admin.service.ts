@@ -498,7 +498,7 @@ class AdminService {
     if (!existing) return false;
     
     // Also delete associated rules
-    for (const [ruleId, rule] of rateRuleStorage) {
+    for (const [ruleId, rule] of Array.from(rateRuleStorage)) {
       if (rule.rateCardId === id) {
         rateRuleStorage.delete(ruleId);
       }
@@ -1009,7 +1009,6 @@ class AdminService {
       effectiveDate: "2026-01-01",
       notes: "Default pay for new W2 hires at Sahrawi",
       isActive: true,
-      applyToNewHires: true,
     }, actor);
 
     await this.createPayDefault({
@@ -1022,7 +1021,6 @@ class AdminService {
       effectiveDate: "2026-01-01",
       notes: "Default pay for new W2 hires at Metrix",
       isActive: true,
-      applyToNewHires: true,
     }, actor);
 
     await this.createPayDefault({
@@ -1035,7 +1033,6 @@ class AdminService {
       effectiveDate: "2026-01-01",
       notes: "Default pay for 1099 contractors at Sahrawi",
       isActive: true,
-      applyToNewHires: true,
     }, actor);
 
     console.log("[Admin] Seed data created successfully with rate cards and pay defaults");

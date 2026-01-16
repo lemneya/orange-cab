@@ -585,7 +585,7 @@ export default function ReportViewer() {
               </div>
               {/* Snapshot checksum footer for trust/audit */}
               <div className="px-4 py-2 border-t bg-slate-50 text-xs text-slate-400">
-                Generated from snapshot checksum: {run?.snapshotChecksum || run?.id?.slice(0, 8) || 'N/A'}
+                Generated from snapshot checksum: {(run as any)?.snapshotChecksum || String(run?.id || '').slice(0, 8) || 'N/A'}
                 {run?.createdAt && ` • Report run: ${new Date(run.createdAt).toLocaleString()}`}
               </div>
             </div>

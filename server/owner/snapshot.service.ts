@@ -175,9 +175,9 @@ interface IDSData {
     actualPay: number;
   }>;
   summary: {
-    onTimeUplift: number;
-    deadheadSaved: number;
-    paySaved: number;
+    on_time_uplift_pct: number;
+    deadhead_saved_mi: number;
+    pay_saved_usd: number;
   };
   lastSync?: Date;
 }
@@ -203,9 +203,9 @@ async function aggregateIDSData(
       },
     ],
     summary: {
-      onTimeUplift: 3.5,
-      deadheadSaved: 70,
-      paySaved: 1225,
+      on_time_uplift_pct: 3.5,
+      deadhead_saved_mi: 70,
+      pay_saved_usd: 1225,
     },
     lastSync: new Date(),
   };

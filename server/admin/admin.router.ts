@@ -74,7 +74,7 @@ const rateRuleSchema = z.object({
   timeBandStart: z.string().optional(),
   timeBandEnd: z.string().optional(),
   priority: z.number().default(100),
-  conditionsJson: z.record(z.unknown()).optional(),
+  conditionsJson: z.record(z.string(), z.unknown()).optional(),
   description: z.string().optional(),
   isActive: z.boolean().default(true),
 });
