@@ -1,4 +1,4 @@
-# INTEGRABILITY Blueprint v1.0
+# INTEGRABILITY Blueprint v1.1
 **SSOT Document — Orange Cab / IDS Operating System**
 
 **Core Idea:** IDS wins because it integrates *all* NEMT money-leaks + risks into one controllable OS.
@@ -14,6 +14,8 @@ We do not sell "dispatch software." We sell **owner outcomes**:
 3) **Make more money** (accept more trips safely)
 4) **Lose less money** (billing leakage + maintenance drain + penalties)
 5) **Reduce stress** (confidence + control + evidence trail)
+6) **Lower software stack cost** (replace per-trip/per-vehicle SaaS with one subscription OS)
+
 
 **If a feature doesn't improve one of these, we don't build it.**
 
@@ -121,6 +123,22 @@ Quantify:
 
 ## 4) The 5 Pillars (system modules)
 
+### M6 — Software Stack Cost Savings (Hard Savings)
+**Objective:** Prove IDS is cheaper than the enforced SaaS stack while delivering higher operational performance.
+
+Baseline monthly costs (owner inputs or defaults):
+- Cost_MediRoute = trips_month × 0.30
+- - Cost_RouteGenie = vehicles × per_vehicle_fee (min applies)
+  - - Cost_OtherTools = Σ(other tools)
+   
+    - IDS monthly cost:
+    - - Cost_IDS = base_subscription + Σ(addon_modules)
+     
+      - Hard savings:
+      - - SoftwareSavings = (Cost_MediRoute + Cost_RouteGenie + Cost_OtherTools) − Cost_IDS
+       
+        - **Rule:** ROI must show assumptions and evidence links (trip count, vehicle count, plan selection).
+
 ### Pillar A — Dispatch + Capacity (IDS)
 **Purpose:** maximize multiload capacity with constraints and explainability.
 
@@ -208,6 +226,7 @@ The ROI layer converts operational deltas into dollars:
 - maintenance savings (uptime)
 - revenue upside (more trips accepted)
 - penalties avoided (rules enforced)
+- - software stack savings (replace per-trip/per-vehicle SaaS costs with subscription OS)
 
 Every line item must show:
 - formula
@@ -215,6 +234,8 @@ Every line item must show:
 - evidence link
 
 **Hard Savings vs Upside vs Risk Avoided must never be blended silently.**
+
+**ROI Rule:** "Hard Savings" must include SoftwareSavings as a first-class component whenever pricing inputs are available.
 
 ---
 
@@ -263,19 +284,21 @@ All snapshots include:
 **Next Gates (priority order):**
 1. **IDS-CAPACITY-0** — compute vehicles_required, MLF, vehicles_removed (the killer proof)
 2. **OC-ROI-0** — ROI engine tied to capacity + compare + admin assumptions
-3. **OC-MKT-0** — marketplace intake + accept/decline audit
-4. **OC-RULES-0** — broker rulesets + driver enforcement
-5. **BILLING-0** — billing readiness + denial prevention automation
+3. **OC-PRICING-0** — pricing logic + software stack cost savings
+4. **OC-MKT-0** — marketplace intake + accept/decline audit
+5. **OC-RULES-0** — broker rulesets + driver enforcement
+6. **BILLING-0** — billing readiness + denial prevention automation
 
 ---
 
 ## 11) PR Requirements (every PR must comply)
 
 Each PR must include in its description:
-- Which principle(s) it advances: P1–P6
-- Which proof metric(s) it improves: M1–M5
+- Which principle(s) it advances: P1–P7
+- Which proof metric(s) it improves: M1–M6
 - Evidence: screenshots/logs/tests
 - Any new data tables must include partition keys
+- - If the change impacts pricing/pack/ROI, include Principles P7 and Metric M6 explicitly
 
 **PR template snippet:**
 ```
