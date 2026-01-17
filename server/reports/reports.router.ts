@@ -172,7 +172,7 @@ export const reportsRouter = router({
         opcoId: run.filtersJson.opcoId,
         brokerAccountId: run.filtersJson.brokerAccountId,
         kpis: run.kpisJson || {},
-        audit: run.auditJson,
+        audit: run.auditJson ?? undefined,
       };
 
       // Try LLM first, fallback to template if requested or unavailable

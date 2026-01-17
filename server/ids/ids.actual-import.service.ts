@@ -59,7 +59,7 @@ const ALLOWED_COLUMNS = {
 } as const;
 
 // Flatten all allowed column names for quick lookup
-const ALL_ALLOWED_COLUMNS = new Set(
+const ALL_ALLOWED_COLUMNS: Set<string> = new Set(
   Object.values(ALLOWED_COLUMNS).flat()
 );
 
@@ -805,7 +805,7 @@ export class ActualImportService {
     const seen = new Set<string>();
     const result: DriverAlias[] = [];
     
-    for (const entry of driverAliasStorage.values()) {
+    for (const entry of Array.from(driverAliasStorage.values())) {
       if (!seen.has(entry.canonical)) {
         seen.add(entry.canonical);
         result.push(entry);
