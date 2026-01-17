@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeAll } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
+import { getDb } from "./db";
+import { users } from "../drizzle/schema";
+import { sql } from "drizzle-orm";
 
 type CookieCall = {
   name: string;
@@ -8,6 +11,22 @@ type CookieCall = {
 };
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
+
+// Seed test user before all tests (required for FK constraint on createdBy)
+beforeAll(async () => {
+    const db = await getDb();
+    if (db) {
+          // Insert test user with id=1 (ignore if already exists)
+          await db.insert(users).values({
+                  id: 1,
+                  openId: "test-user",
+                  email: "test@example.com",
+                  name: "Test User",
+                  loginMethod: "manus",
+                  role: "user",
+          }).onDuplicateKeyUpdate({ set: { openId: sql`openId` } });
+    }
+});
 
 function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] } {
   const clearedCookies: CookieCall[] = [];
