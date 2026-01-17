@@ -117,14 +117,7 @@ echo "Migration exit code: $?" >> evidence/DEPLOY-GATE-0/migrate.log
 echo "Completed at: $(date)" >> evidence/DEPLOY-GATE-0/migrate.log
 ```
 
-If the repo only has `db:push`, you must first generate proper migrations:
-```bash
-# Generate migration files from schema changes
-pnpm drizzle-kit generate
-
-# Then apply migrations
-pnpm drizzle-kit migrate 2>&1 | tee -a evidence/DEPLOY-GATE-0/migrate.log
-```
+**If the repo only has `db:push`, STOP**: Do not deploy. Create and merge a PR that adds versioned migrations and a `db:migrate` command first. Deploying with `db:push` is forbidden in staging/production.
 
 ### 3.3 Build Application
 
