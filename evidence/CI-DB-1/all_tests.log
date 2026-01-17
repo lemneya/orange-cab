@@ -1,0 +1,967 @@
+ci	Set up job	﻿2026-01-17T02:04:32.0099887Z Current runner version: '2.331.0'
+ci	Set up job	2026-01-17T02:04:32.0124726Z ##[group]Runner Image Provisioner
+ci	Set up job	2026-01-17T02:04:32.0125535Z Hosted Compute Agent
+ci	Set up job	2026-01-17T02:04:32.0126090Z Version: 20251211.462
+ci	Set up job	2026-01-17T02:04:32.0126713Z Commit: 6cbad8c2bb55d58165063d031ccabf57e2d2db61
+ci	Set up job	2026-01-17T02:04:32.0127424Z Build Date: 2025-12-11T16:28:49Z
+ci	Set up job	2026-01-17T02:04:32.0128068Z Worker ID: {3df15909-a336-41a3-863d-9034cadb4fcf}
+ci	Set up job	2026-01-17T02:04:32.0128781Z ##[endgroup]
+ci	Set up job	2026-01-17T02:04:32.0129321Z ##[group]Operating System
+ci	Set up job	2026-01-17T02:04:32.0129845Z Ubuntu
+ci	Set up job	2026-01-17T02:04:32.0130349Z 24.04.3
+ci	Set up job	2026-01-17T02:04:32.0131261Z LTS
+ci	Set up job	2026-01-17T02:04:32.0131732Z ##[endgroup]
+ci	Set up job	2026-01-17T02:04:32.0132203Z ##[group]Runner Image
+ci	Set up job	2026-01-17T02:04:32.0132841Z Image: ubuntu-24.04
+ci	Set up job	2026-01-17T02:04:32.0133348Z Version: 20260111.209.1
+ci	Set up job	2026-01-17T02:04:32.0134286Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260111.209/images/ubuntu/Ubuntu2404-Readme.md
+ci	Set up job	2026-01-17T02:04:32.0135732Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260111.209
+ci	Set up job	2026-01-17T02:04:32.0136944Z ##[endgroup]
+ci	Set up job	2026-01-17T02:04:32.0138017Z ##[group]GITHUB_TOKEN Permissions
+ci	Set up job	2026-01-17T02:04:32.0140121Z Contents: read
+ci	Set up job	2026-01-17T02:04:32.0140975Z Metadata: read
+ci	Set up job	2026-01-17T02:04:32.0141533Z Packages: read
+ci	Set up job	2026-01-17T02:04:32.0142035Z ##[endgroup]
+ci	Set up job	2026-01-17T02:04:32.0144391Z Secret source: Actions
+ci	Set up job	2026-01-17T02:04:32.0145341Z Prepare workflow directory
+ci	Set up job	2026-01-17T02:04:32.0571181Z Prepare all required actions
+ci	Set up job	2026-01-17T02:04:32.0611259Z Getting action download info
+ci	Set up job	2026-01-17T02:04:32.4848081Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+ci	Set up job	2026-01-17T02:04:32.5974109Z Download action repository 'pnpm/action-setup@v2' (SHA:eae0cfeb286e66ffb5155f1a79b90583a127a68b)
+ci	Set up job	2026-01-17T02:04:33.2097368Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+ci	Set up job	2026-01-17T02:04:33.3974323Z Complete job name: ci
+ci	Initialize containers	﻿2026-01-17T02:04:33.4461536Z ##[group]Checking docker version
+ci	Initialize containers	2026-01-17T02:04:33.4474644Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+ci	Initialize containers	2026-01-17T02:04:33.5203142Z '1.48'
+ci	Initialize containers	2026-01-17T02:04:33.5214649Z Docker daemon API version: '1.48'
+ci	Initialize containers	2026-01-17T02:04:33.5215379Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+ci	Initialize containers	2026-01-17T02:04:33.5379143Z '1.48'
+ci	Initialize containers	2026-01-17T02:04:33.5392505Z Docker client API version: '1.48'
+ci	Initialize containers	2026-01-17T02:04:33.5397889Z ##[endgroup]
+ci	Initialize containers	2026-01-17T02:04:33.5401106Z ##[group]Clean up resources from previous jobs
+ci	Initialize containers	2026-01-17T02:04:33.5406092Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=6c6638"
+ci	Initialize containers	2026-01-17T02:04:33.5556512Z ##[command]/usr/bin/docker network prune --force --filter "label=6c6638"
+ci	Initialize containers	2026-01-17T02:04:33.5682513Z ##[endgroup]
+ci	Initialize containers	2026-01-17T02:04:33.5683025Z ##[group]Create local container network
+ci	Initialize containers	2026-01-17T02:04:33.5693162Z ##[command]/usr/bin/docker network create --label 6c6638 github_network_d5a2d4d80baf48439326330edeae93a1
+ci	Initialize containers	2026-01-17T02:04:33.6181760Z 19260236cb9e884d534eb6eca30ae76b3cdec9b9e6b8de5e660c36a79ca6ae22
+ci	Initialize containers	2026-01-17T02:04:33.6199987Z ##[endgroup]
+ci	Initialize containers	2026-01-17T02:04:33.6223648Z ##[group]Starting mysql service container
+ci	Initialize containers	2026-01-17T02:04:33.6243705Z ##[command]/usr/bin/docker pull mysql:8.0
+ci	Initialize containers	2026-01-17T02:04:34.6494632Z 8.0: Pulling from library/mysql
+ci	Initialize containers	2026-01-17T02:04:34.9107822Z 658e67031dba: Pulling fs layer
+ci	Initialize containers	2026-01-17T02:04:34.9108584Z ef7bcbef3f90: Pulling fs layer
+ci	Initialize containers	2026-01-17T02:04:34.9109012Z caee3c6664fb: Pulling fs layer
+ci	Initialize containers	2026-01-17T02:04:34.9109383Z 80caa0f442af: Pulling fs layer
+ci	Initialize containers	2026-01-17T02:04:34.9109731Z ea7ef84dcaea: Pulling fs layer
+ci	Initialize containers	2026-01-17T02:04:34.9110027Z f40e06a2cd88: Pulling fs layer
+ci	Initialize containers	2026-01-17T02:04:34.9110458Z 83bab8f9c85f: Pulling fs layer
+ci	Initialize containers	2026-01-17T02:04:34.9110994Z 655eb0dfc8fe: Pulling fs layer
+ci	Initialize containers	2026-01-17T02:04:34.9111418Z c9ae3e76dfc9: Pulling fs layer
+ci	Initialize containers	2026-01-17T02:04:34.9111806Z cc3a161f487a: Pulling fs layer
+ci	Initialize containers	2026-01-17T02:04:34.9112326Z afd8a12fa4e1: Pulling fs layer
+ci	Initialize containers	2026-01-17T02:04:34.9112820Z 83bab8f9c85f: Waiting
+ci	Initialize containers	2026-01-17T02:04:34.9113439Z 80caa0f442af: Waiting
+ci	Initialize containers	2026-01-17T02:04:34.9113695Z f40e06a2cd88: Waiting
+ci	Initialize containers	2026-01-17T02:04:34.9114064Z ea7ef84dcaea: Waiting
+ci	Initialize containers	2026-01-17T02:04:34.9114333Z 655eb0dfc8fe: Waiting
+ci	Initialize containers	2026-01-17T02:04:34.9114584Z c9ae3e76dfc9: Waiting
+ci	Initialize containers	2026-01-17T02:04:34.9114839Z cc3a161f487a: Waiting
+ci	Initialize containers	2026-01-17T02:04:34.9115085Z afd8a12fa4e1: Waiting
+ci	Initialize containers	2026-01-17T02:04:35.1512449Z ef7bcbef3f90: Verifying Checksum
+ci	Initialize containers	2026-01-17T02:04:35.1513584Z ef7bcbef3f90: Download complete
+ci	Initialize containers	2026-01-17T02:04:35.1519881Z caee3c6664fb: Verifying Checksum
+ci	Initialize containers	2026-01-17T02:04:35.1520863Z caee3c6664fb: Download complete
+ci	Initialize containers	2026-01-17T02:04:35.3814265Z 658e67031dba: Verifying Checksum
+ci	Initialize containers	2026-01-17T02:04:35.3817380Z 658e67031dba: Download complete
+ci	Initialize containers	2026-01-17T02:04:35.4070007Z ea7ef84dcaea: Verifying Checksum
+ci	Initialize containers	2026-01-17T02:04:35.4071374Z ea7ef84dcaea: Download complete
+ci	Initialize containers	2026-01-17T02:04:35.4317224Z 80caa0f442af: Verifying Checksum
+ci	Initialize containers	2026-01-17T02:04:35.4317930Z 80caa0f442af: Download complete
+ci	Initialize containers	2026-01-17T02:04:35.6334404Z f40e06a2cd88: Verifying Checksum
+ci	Initialize containers	2026-01-17T02:04:35.6852651Z f40e06a2cd88: Download complete
+ci	Initialize containers	2026-01-17T02:04:35.6853286Z 655eb0dfc8fe: Verifying Checksum
+ci	Initialize containers	2026-01-17T02:04:35.6858201Z 655eb0dfc8fe: Download complete
+ci	Initialize containers	2026-01-17T02:04:35.8197298Z 83bab8f9c85f: Verifying Checksum
+ci	Initialize containers	2026-01-17T02:04:35.8199103Z 83bab8f9c85f: Download complete
+ci	Initialize containers	2026-01-17T02:04:35.9473951Z cc3a161f487a: Verifying Checksum
+ci	Initialize containers	2026-01-17T02:04:35.9474503Z cc3a161f487a: Download complete
+ci	Initialize containers	2026-01-17T02:04:36.0663130Z afd8a12fa4e1: Verifying Checksum
+ci	Initialize containers	2026-01-17T02:04:36.0663733Z afd8a12fa4e1: Download complete
+ci	Initialize containers	2026-01-17T02:04:36.6542052Z c9ae3e76dfc9: Verifying Checksum
+ci	Initialize containers	2026-01-17T02:04:36.6542657Z c9ae3e76dfc9: Download complete
+ci	Initialize containers	2026-01-17T02:04:36.7499993Z 658e67031dba: Pull complete
+ci	Initialize containers	2026-01-17T02:04:38.3137158Z ef7bcbef3f90: Pull complete
+ci	Initialize containers	2026-01-17T02:04:38.3337837Z caee3c6664fb: Pull complete
+ci	Initialize containers	2026-01-17T02:04:38.5320351Z 80caa0f442af: Pull complete
+ci	Initialize containers	2026-01-17T02:04:38.5426083Z ea7ef84dcaea: Pull complete
+ci	Initialize containers	2026-01-17T02:04:38.5636300Z f40e06a2cd88: Pull complete
+ci	Initialize containers	2026-01-17T02:04:39.3057997Z 83bab8f9c85f: Pull complete
+ci	Initialize containers	2026-01-17T02:04:39.3164815Z 655eb0dfc8fe: Pull complete
+ci	Initialize containers	2026-01-17T02:04:46.4667642Z c9ae3e76dfc9: Pull complete
+ci	Initialize containers	2026-01-17T02:04:46.4777962Z cc3a161f487a: Pull complete
+ci	Initialize containers	2026-01-17T02:04:46.4884779Z afd8a12fa4e1: Pull complete
+ci	Initialize containers	2026-01-17T02:04:46.4924645Z Digest: sha256:9c3380eac945af0736031b200027f581925927c81e010056214a4bd6b6693714
+ci	Initialize containers	2026-01-17T02:04:46.4939422Z Status: Downloaded newer image for mysql:8.0
+ci	Initialize containers	2026-01-17T02:04:46.4947716Z docker.io/library/mysql:8.0
+ci	Initialize containers	2026-01-17T02:04:46.5011504Z ##[command]/usr/bin/docker create --name dc00b195b743498e86d343a11e5fe440_mysql80_011597 --label 6c6638 --network github_network_d5a2d4d80baf48439326330edeae93a1 --network-alias mysql -p 3306:3306 --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent" --health-interval=5s --health-timeout=3s --health-retries=30 -e "MYSQL_ROOT_PASSWORD=root" -e "MYSQL_DATABASE=orangecab_test" -e "MYSQL_USER=test" -e "MYSQL_PASSWORD=test" -e GITHUB_ACTIONS=true -e CI=true mysql:8.0
+ci	Initialize containers	2026-01-17T02:04:46.5248752Z c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69
+ci	Initialize containers	2026-01-17T02:04:46.5273284Z ##[command]/usr/bin/docker start c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69
+ci	Initialize containers	2026-01-17T02:04:46.7224810Z c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69
+ci	Initialize containers	2026-01-17T02:04:46.7248806Z ##[command]/usr/bin/docker ps --all --filter id=c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+ci	Initialize containers	2026-01-17T02:04:46.7374179Z c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69 Up Less than a second (health: starting)
+ci	Initialize containers	2026-01-17T02:04:46.7395279Z ##[command]/usr/bin/docker port c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69
+ci	Initialize containers	2026-01-17T02:04:46.7522127Z 3306/tcp -> 0.0.0.0:3306
+ci	Initialize containers	2026-01-17T02:04:46.7522733Z 3306/tcp -> [::]:3306
+ci	Initialize containers	2026-01-17T02:04:46.7577398Z ##[endgroup]
+ci	Initialize containers	2026-01-17T02:04:46.7588614Z ##[group]Waiting for all services to be ready
+ci	Initialize containers	2026-01-17T02:04:46.7604751Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69
+ci	Initialize containers	2026-01-17T02:04:46.7738129Z starting
+ci	Initialize containers	2026-01-17T02:04:46.7769093Z mysql service is starting, waiting 2 seconds before checking again.
+ci	Initialize containers	2026-01-17T02:04:48.7769426Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69
+ci	Initialize containers	2026-01-17T02:04:48.7891074Z starting
+ci	Initialize containers	2026-01-17T02:04:48.7909239Z mysql service is starting, waiting 3 seconds before checking again.
+ci	Initialize containers	2026-01-17T02:04:52.6462860Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69
+ci	Initialize containers	2026-01-17T02:04:52.6589379Z starting
+ci	Initialize containers	2026-01-17T02:04:52.6603091Z mysql service is starting, waiting 8 seconds before checking again.
+ci	Initialize containers	2026-01-17T02:05:00.8102645Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69
+ci	Initialize containers	2026-01-17T02:05:00.8225117Z healthy
+ci	Initialize containers	2026-01-17T02:05:00.8246628Z mysql service is healthy.
+ci	Initialize containers	2026-01-17T02:05:00.8247337Z ##[endgroup]
+ci	Run actions/checkout@v4	﻿2026-01-17T02:05:00.8507361Z ##[group]Run actions/checkout@v4
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8507909Z with:
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8508111Z   repository: lemneya/orange-cab
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8508500Z   token: ***
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8508680Z   ssh-strict: true
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8570237Z   ssh-user: git
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8570487Z   persist-credentials: true
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8571013Z   clean: true
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8571221Z   sparse-checkout-cone-mode: true
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8571460Z   fetch-depth: 1
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8571637Z   fetch-tags: false
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8571828Z   show-progress: true
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8572014Z   lfs: false
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8572182Z   submodules: false
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8572430Z   set-safe-directory: true
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8573942Z env:
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8574383Z   DATABASE_URL: ***127.0.0.1:3306/orangecab_test
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.8574674Z ##[endgroup]
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9643855Z Syncing repository: lemneya/orange-cab
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9645103Z ##[group]Getting Git version info
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9645638Z Working directory is '/home/runner/work/orange-cab/orange-cab'
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9646262Z [command]/usr/bin/git version
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9711330Z git version 2.52.0
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9736860Z ##[endgroup]
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9750087Z Temporarily overriding HOME='/home/runner/work/_temp/2b63a76f-1a6b-4ba7-acfe-6ef75b8efd45' before making global git config changes
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9751696Z Adding repository directory to the temporary git global config as a safe directory
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9755764Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orange-cab/orange-cab
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9792211Z Deleting the contents of '/home/runner/work/orange-cab/orange-cab'
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9795553Z ##[group]Initializing the repository
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9799382Z [command]/usr/bin/git init /home/runner/work/orange-cab/orange-cab
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9900451Z hint: Using 'master' as the name for the initial branch. This default branch name
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9901922Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9902841Z hint: to use in all of your new repositories, which will suppress this warning,
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9903636Z hint: call:
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9904027Z hint:
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9904518Z hint: 	git config --global init.defaultBranch <name>
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9905106Z hint:
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9905634Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9906535Z hint: 'development'. The just-created branch can be renamed via this command:
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9907039Z hint:
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9907307Z hint: 	git branch -m <name>
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9907808Z hint:
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9908264Z hint: Disable this message with "git config set advice.defaultBranchName false"
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9908942Z Initialized empty Git repository in /home/runner/work/orange-cab/orange-cab/.git/
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9916032Z [command]/usr/bin/git remote add origin https://github.com/lemneya/orange-cab
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9947467Z ##[endgroup]
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9948066Z ##[group]Disabling automatic garbage collection
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9951910Z [command]/usr/bin/git config --local gc.auto 0
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9978555Z ##[endgroup]
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9979093Z ##[group]Setting up auth
+ci	Run actions/checkout@v4	2026-01-17T02:05:00.9985798Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.0014800Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.0337047Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.0366374Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.0584047Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.0613950Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.0831055Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.0863923Z ##[endgroup]
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.0864605Z ##[group]Fetching the repository
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.0872742Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +69c5ab8e2945891309ab7f13ef98ec702264681a:refs/remotes/pull/27/merge
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.5935258Z From https://github.com/lemneya/orange-cab
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.5936237Z  * [new ref]         69c5ab8e2945891309ab7f13ef98ec702264681a -> pull/27/merge
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.5966753Z ##[endgroup]
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.5967316Z ##[group]Determining the checkout info
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.5969273Z ##[endgroup]
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.5974360Z [command]/usr/bin/git sparse-checkout disable
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6014574Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6039766Z ##[group]Checking out the ref
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6045175Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/27/merge
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6264171Z Note: switching to 'refs/remotes/pull/27/merge'.
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6264527Z 
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6264792Z You are in 'detached HEAD' state. You can look around, make experimental
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6265408Z changes and commit them, and you can discard any commits you make in this
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6266030Z state without impacting any branches by switching back to a branch.
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6266384Z 
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6266616Z If you want to create a new branch to retain commits you create, you may
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6267168Z do so (now or later) by using -c with the switch command. Example:
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6267493Z 
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6267637Z   git switch -c <new-branch-name>
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6267850Z 
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6267977Z Or undo this operation with:
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6268246Z 
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6268389Z   git switch -
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6268649Z 
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6269092Z Turn off this advice by setting config variable advice.detachedHead to false
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6269798Z 
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6270766Z HEAD is now at 69c5ab8 Merge a1218070bc85b7c01e91abc16ac623d8ac11c197 into 61f212205cc036b3dac3dc6d567d3e1058e806a6
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6274182Z ##[endgroup]
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6308790Z [command]/usr/bin/git log -1 --format=%H
+ci	Run actions/checkout@v4	2026-01-17T02:05:01.6330048Z 69c5ab8e2945891309ab7f13ef98ec702264681a
+ci	Run pnpm/action-setup@v2	﻿2026-01-17T02:05:01.6510493Z ##[group]Run pnpm/action-setup@v2
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:01.6510998Z with:
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:01.6511163Z   version: 10
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:01.6511346Z   dest: ~/setup-pnpm
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:01.6511539Z   run_install: null
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:01.6511742Z   package_json_file: package.json
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:01.6511968Z   standalone: false
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:01.6512145Z env:
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:01.6512570Z   DATABASE_URL: ***127.0.0.1:3306/orangecab_test
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:01.6512831Z ##[endgroup]
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:01.7386794Z ##[group]Running self-installer...
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:02.2906763Z Progress: resolved 1, reused 0, downloaded 0, added 0
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:02.2995371Z Packages: +1
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:02.2995784Z +
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:02.9963871Z Packages are hard linked from the content-addressable store to the virtual store.
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:02.9965050Z   Content-addressable store is at: /home/runner/.local/share/pnpm/store/v3
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:02.9965819Z   Virtual store is at:             node_modules/.pnpm
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:03.0179010Z 
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:03.0179453Z dependencies:
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:03.0179812Z + pnpm 10.28.0
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:03.0180016Z 
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:03.0225735Z Done in 1s
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:03.2916584Z Progress: resolved 1, reused 0, downloaded 1, added 1, done
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:03.3052101Z ##[endgroup]
+ci	Run pnpm/action-setup@v2	2026-01-17T02:05:03.3055807Z Installation Completed!
+ci	Run actions/setup-node@v4	﻿2026-01-17T02:05:03.3184350Z ##[group]Run actions/setup-node@v4
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.3184627Z with:
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.3184796Z   node-version: 22
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.3184980Z   cache: pnpm
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.3185150Z   always-auth: false
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.3185343Z   check-latest: false
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.3185650Z   token: ***
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.3185811Z env:
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.3186109Z   DATABASE_URL: ***127.0.0.1:3306/orangecab_test
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.3186450Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.3186742Z ##[endgroup]
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.4935994Z Found in cache @ /opt/hostedtoolcache/node/22.21.1/x64
+ci	Run actions/setup-node@v4	2026-01-17T02:05:03.4942596Z ##[group]Environment details
+ci	Run actions/setup-node@v4	2026-01-17T02:05:06.7190025Z node: v22.21.1
+ci	Run actions/setup-node@v4	2026-01-17T02:05:06.7191127Z npm: 10.9.4
+ci	Run actions/setup-node@v4	2026-01-17T02:05:06.7191459Z yarn: 1.22.22
+ci	Run actions/setup-node@v4	2026-01-17T02:05:06.7192917Z ##[endgroup]
+ci	Run actions/setup-node@v4	2026-01-17T02:05:06.7217689Z [command]/home/runner/setup-pnpm/node_modules/.bin/pnpm store path --silent
+ci	Run actions/setup-node@v4	2026-01-17T02:05:08.5507834Z /home/runner/setup-pnpm/node_modules/.bin/store/v10
+ci	Run actions/setup-node@v4	2026-01-17T02:05:08.8760181Z pnpm cache is not found
+ci	Install deps	﻿2026-01-17T02:05:08.8861111Z ##[group]Run pnpm i --frozen-lockfile
+ci	Install deps	2026-01-17T02:05:08.8861489Z [36;1mpnpm i --frozen-lockfile[0m
+ci	Install deps	2026-01-17T02:05:08.8937454Z shell: /usr/bin/bash -e {0}
+ci	Install deps	2026-01-17T02:05:08.8937712Z env:
+ci	Install deps	2026-01-17T02:05:08.8938171Z   DATABASE_URL: ***127.0.0.1:3306/orangecab_test
+ci	Install deps	2026-01-17T02:05:08.8938519Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+ci	Install deps	2026-01-17T02:05:08.8938828Z ##[endgroup]
+ci	Install deps	2026-01-17T02:05:09.5065489Z Lockfile is up to date, resolution step is skipped
+ci	Install deps	2026-01-17T02:05:09.5666131Z Progress: resolved 1, reused 0, downloaded 0, added 0
+ci	Install deps	2026-01-17T02:05:09.6958819Z Packages: +829
+ci	Install deps	2026-01-17T02:05:09.6959716Z ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ci	Install deps	2026-01-17T02:05:10.5685883Z Progress: resolved 829, reused 0, downloaded 108, added 99
+ci	Install deps	2026-01-17T02:05:11.5718129Z Progress: resolved 829, reused 0, downloaded 290, added 284
+ci	Install deps	2026-01-17T02:05:12.5742258Z Progress: resolved 829, reused 0, downloaded 339, added 324
+ci	Install deps	2026-01-17T02:05:13.5734839Z Progress: resolved 829, reused 0, downloaded 486, added 478
+ci	Install deps	2026-01-17T02:05:14.5742910Z Progress: resolved 829, reused 0, downloaded 759, added 754
+ci	Install deps	2026-01-17T02:05:15.4722241Z Progress: resolved 829, reused 0, downloaded 829, added 829, done
+ci	Install deps	2026-01-17T02:05:15.9041192Z 
+ci	Install deps	2026-01-17T02:05:15.9041830Z dependencies:
+ci	Install deps	2026-01-17T02:05:15.9042292Z + @aws-sdk/client-s3 3.907.0
+ci	Install deps	2026-01-17T02:05:15.9042914Z + @aws-sdk/s3-request-presigner 3.907.0
+ci	Install deps	2026-01-17T02:05:15.9043443Z + @deck.gl/core 9.2.5
+ci	Install deps	2026-01-17T02:05:15.9044275Z + @deck.gl/layers 9.2.5
+ci	Install deps	2026-01-17T02:05:15.9044713Z + @deck.gl/mapbox 9.2.5
+ci	Install deps	2026-01-17T02:05:15.9045147Z + @hookform/resolvers 5.2.2
+ci	Install deps	2026-01-17T02:05:15.9045672Z + @radix-ui/react-accordion 1.2.12
+ci	Install deps	2026-01-17T02:05:15.9046249Z + @radix-ui/react-alert-dialog 1.1.15
+ci	Install deps	2026-01-17T02:05:15.9046854Z + @radix-ui/react-aspect-ratio 1.1.7
+ci	Install deps	2026-01-17T02:05:15.9047461Z + @radix-ui/react-avatar 1.1.10
+ci	Install deps	2026-01-17T02:05:15.9048007Z + @radix-ui/react-checkbox 1.3.3
+ci	Install deps	2026-01-17T02:05:15.9048581Z + @radix-ui/react-collapsible 1.1.12
+ci	Install deps	2026-01-17T02:05:15.9049037Z + @radix-ui/react-context-menu 2.2.16
+ci	Install deps	2026-01-17T02:05:15.9049601Z + @radix-ui/react-dialog 1.1.15
+ci	Install deps	2026-01-17T02:05:15.9050155Z + @radix-ui/react-dropdown-menu 2.1.16
+ci	Install deps	2026-01-17T02:05:15.9050938Z + @radix-ui/react-hover-card 1.1.15
+ci	Install deps	2026-01-17T02:05:15.9051477Z + @radix-ui/react-label 2.1.7
+ci	Install deps	2026-01-17T02:05:15.9052016Z + @radix-ui/react-menubar 1.1.16
+ci	Install deps	2026-01-17T02:05:15.9052632Z + @radix-ui/react-navigation-menu 1.2.14
+ci	Install deps	2026-01-17T02:05:15.9053238Z + @radix-ui/react-popover 1.1.15
+ci	Install deps	2026-01-17T02:05:15.9053786Z + @radix-ui/react-progress 1.1.7
+ci	Install deps	2026-01-17T02:05:15.9054367Z + @radix-ui/react-radio-group 1.3.8
+ci	Install deps	2026-01-17T02:05:15.9055023Z + @radix-ui/react-scroll-area 1.2.10
+ci	Install deps	2026-01-17T02:05:15.9055582Z + @radix-ui/react-select 2.2.6
+ci	Install deps	2026-01-17T02:05:15.9056115Z + @radix-ui/react-separator 1.1.7
+ci	Install deps	2026-01-17T02:05:15.9056646Z + @radix-ui/react-slider 1.3.6
+ci	Install deps	2026-01-17T02:05:15.9057141Z + @radix-ui/react-slot 1.2.3
+ci	Install deps	2026-01-17T02:05:15.9057641Z + @radix-ui/react-switch 1.2.6
+ci	Install deps	2026-01-17T02:05:15.9058103Z + @radix-ui/react-tabs 1.1.13
+ci	Install deps	2026-01-17T02:05:15.9058584Z + @radix-ui/react-toggle 1.1.10
+ci	Install deps	2026-01-17T02:05:15.9059082Z + @radix-ui/react-toggle-group 1.1.11
+ci	Install deps	2026-01-17T02:05:15.9059636Z + @radix-ui/react-tooltip 1.2.8
+ci	Install deps	2026-01-17T02:05:15.9060104Z + @tanstack/react-query 5.90.2
+ci	Install deps	2026-01-17T02:05:15.9060511Z + @trpc/client 11.6.0
+ci	Install deps	2026-01-17T02:05:15.9061090Z + @trpc/react-query 11.6.0
+ci	Install deps	2026-01-17T02:05:15.9061480Z + @trpc/server 11.6.0
+ci	Install deps	2026-01-17T02:05:15.9061808Z + axios 1.12.2
+ci	Install deps	2026-01-17T02:05:15.9062210Z + class-variance-authority 0.7.1
+ci	Install deps	2026-01-17T02:05:15.9062613Z + clsx 2.1.1
+ci	Install deps	2026-01-17T02:05:15.9062943Z + cmdk 1.1.1
+ci	Install deps	2026-01-17T02:05:15.9063274Z + cookie 1.0.2
+ci	Install deps	2026-01-17T02:05:15.9063602Z + date-fns 4.1.0
+ci	Install deps	2026-01-17T02:05:15.9063949Z + dotenv 17.2.3
+ci	Install deps	2026-01-17T02:05:15.9064330Z + drizzle-orm 0.44.6
+ci	Install deps	2026-01-17T02:05:15.9064758Z + embla-carousel-react 8.6.0
+ci	Install deps	2026-01-17T02:05:15.9065189Z + express 4.21.2
+ci	Install deps	2026-01-17T02:05:15.9065574Z + framer-motion 12.23.22
+ci	Install deps	2026-01-17T02:05:15.9065995Z + input-otp 1.4.2
+ci	Install deps	2026-01-17T02:05:15.9066733Z + jose 6.1.0
+ci	Install deps	2026-01-17T02:05:15.9067103Z + lucide-react 0.453.0
+ci	Install deps	2026-01-17T02:05:15.9067526Z + maplibre-gl 5.16.0
+ci	Install deps	2026-01-17T02:05:15.9067892Z + mysql2 3.15.1
+ci	Install deps	2026-01-17T02:05:15.9068231Z + nanoid 5.1.6
+ci	Install deps	2026-01-17T02:05:15.9068589Z + next-themes 0.4.6
+ci	Install deps	2026-01-17T02:05:15.9068934Z + react 19.2.1
+ci	Install deps	2026-01-17T02:05:15.9069314Z + react-day-picker 9.11.1
+ci	Install deps	2026-01-17T02:05:15.9069740Z + react-dom 19.2.1
+ci	Install deps	2026-01-17T02:05:15.9070135Z + react-hook-form 7.64.0
+ci	Install deps	2026-01-17T02:05:15.9070736Z + react-map-gl 8.1.0
+ci	Install deps	2026-01-17T02:05:15.9071214Z + react-resizable-panels 3.0.6
+ci	Install deps	2026-01-17T02:05:15.9071685Z + recharts 2.15.4
+ci	Install deps	2026-01-17T02:05:15.9072038Z + sonner 2.0.7
+ci	Install deps	2026-01-17T02:05:15.9072395Z + streamdown 1.4.0
+ci	Install deps	2026-01-17T02:05:15.9072780Z + superjson 1.13.3
+ci	Install deps	2026-01-17T02:05:15.9073241Z + tailwind-merge 3.3.1
+ci	Install deps	2026-01-17T02:05:15.9073676Z + tailwindcss-animate 1.0.7
+ci	Install deps	2026-01-17T02:05:15.9074085Z + vaul 1.1.2
+ci	Install deps	2026-01-17T02:05:15.9074407Z + wouter 3.7.1
+ci	Install deps	2026-01-17T02:05:15.9074742Z + zod 4.1.12
+ci	Install deps	2026-01-17T02:05:15.9074942Z 
+ci	Install deps	2026-01-17T02:05:15.9075116Z devDependencies:
+ci	Install deps	2026-01-17T02:05:15.9075613Z + @builder.io/vite-plugin-jsx-loc 0.1.1
+ci	Install deps	2026-01-17T02:05:15.9076212Z + @tailwindcss/typography 0.5.19
+ci	Install deps	2026-01-17T02:05:15.9076695Z + @tailwindcss/vite 4.1.14
+ci	Install deps	2026-01-17T02:05:15.9077115Z + @types/express 4.17.21
+ci	Install deps	2026-01-17T02:05:15.9077542Z + @types/google.maps 3.58.1
+ci	Install deps	2026-01-17T02:05:15.9077959Z + @types/node 24.7.0
+ci	Install deps	2026-01-17T02:05:15.9078350Z + @types/react 19.2.1
+ci	Install deps	2026-01-17T02:05:15.9079035Z + @types/react-dom 19.2.1
+ci	Install deps	2026-01-17T02:05:15.9079484Z + @vitejs/plugin-react 5.0.4
+ci	Install deps	2026-01-17T02:05:15.9079902Z + add 2.0.6
+ci	Install deps	2026-01-17T02:05:15.9080255Z + autoprefixer 10.4.21
+ci	Install deps	2026-01-17T02:05:15.9080833Z + drizzle-kit 0.31.5
+ci	Install deps	2026-01-17T02:05:15.9081235Z + esbuild 0.25.10
+ci	Install deps	2026-01-17T02:05:15.9081585Z + pnpm 10.18.0
+ci	Install deps	2026-01-17T02:05:15.9081943Z + postcss 8.5.6
+ci	Install deps	2026-01-17T02:05:15.9082279Z + prettier 3.6.2
+ci	Install deps	2026-01-17T02:05:15.9082662Z + tailwindcss 4.1.14
+ci	Install deps	2026-01-17T02:05:15.9083037Z + tsx 4.20.6
+ci	Install deps	2026-01-17T02:05:15.9083421Z + tw-animate-css 1.4.0
+ci	Install deps	2026-01-17T02:05:15.9083823Z + typescript 5.9.3
+ci	Install deps	2026-01-17T02:05:15.9084161Z + vite 7.1.9
+ci	Install deps	2026-01-17T02:05:15.9084602Z + vite-plugin-manus-runtime 0.0.57
+ci	Install deps	2026-01-17T02:05:15.9085064Z + vitest 2.1.9
+ci	Install deps	2026-01-17T02:05:15.9085259Z 
+ci	Install deps	2026-01-17T02:05:15.9089541Z ╭ Warning ─────────────────────────────────────────────────────────────────────╮│                                                                              ││   Ignored build scripts: @tailwindcss/oxide, esbuild.                        ││   Run "pnpm approve-builds" to pick which dependencies should be allowed     ││   to run scripts.                                                            ││                                                                              │╰──────────────────────────────────────────────────────────────────────────────╯
+ci	Install deps	2026-01-17T02:05:15.9092040Z 
+ci	Install deps	2026-01-17T02:05:15.9447072Z Done in 6.7s using pnpm v10.4.1
+ci	Install mysql client (for readiness check)	﻿2026-01-17T02:05:16.0028991Z ##[group]Run sudo apt-get update && sudo apt-get install -y mysql-client
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.0029532Z [36;1msudo apt-get update && sudo apt-get install -y mysql-client[0m
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.0062865Z shell: /usr/bin/bash -e {0}
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.0063101Z env:
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.0063505Z   DATABASE_URL: ***127.0.0.1:3306/orangecab_test
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.0063844Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.0064132Z ##[endgroup]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.1882795Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.2043723Z Get:6 https://packages.microsoft.com/repos/azure-cli noble InRelease [3564 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.2234293Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.2288570Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.2289637Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.2290930Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.2314104Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.4385624Z Get:8 https://packages.microsoft.com/repos/azure-cli noble/main amd64 Packages [1948 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.4844369Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [11.4 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.4866330Z Get:10 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [80.6 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.4891863Z Get:11 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [61.9 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.6093833Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1694 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.6192756Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [313 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.6208882Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [175 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.6224037Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 c-n-f Metadata [15.9 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.6233816Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1514 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.6328396Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [308 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.6355835Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [378 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.6386283Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 c-n-f Metadata [31.4 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.6396878Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [2426 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.6540701Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [554 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7018078Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Components [212 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7028293Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7037664Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [7312 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7045296Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [10.5 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7054697Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-backports/restricted amd64 Components [216 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7065656Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Components [212 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7197159Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1404 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7277626Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [228 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7292043Z Get:30 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [21.5 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7301363Z Get:31 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 c-n-f Metadata [9724 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7313679Z Get:32 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [922 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7372298Z Get:33 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [209 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7382923Z Get:34 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [71.4 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7394204Z Get:35 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 c-n-f Metadata [19.7 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7856038Z Get:36 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [2302 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7962224Z Get:37 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [527 kB]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7993339Z Get:38 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Components [212 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:16.7999960Z Get:39 http://azure.archive.ubuntu.com/ubuntu noble-security/multiverse amd64 Components [212 B]
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:26.5173101Z Fetched 13.7 MB in 2s (7429 kB/s)
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:27.2820902Z Reading package lists...
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:27.3140327Z Reading package lists...
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:27.4751159Z Building dependency tree...
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:27.4757879Z Reading state information...
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:27.6457528Z mysql-client is already the newest version (8.0.44-0ubuntu0.24.04.2).
+ci	Install mysql client (for readiness check)	2026-01-17T02:05:27.6458227Z 0 upgraded, 0 newly installed, 0 to remove and 109 not upgraded.
+ci	Wait for MySQL	﻿2026-01-17T02:05:27.6502799Z ##[group]Run for i in $(seq 1 60); do
+ci	Wait for MySQL	2026-01-17T02:05:27.6503127Z [36;1mfor i in $(seq 1 60); do[0m
+ci	Wait for MySQL	2026-01-17T02:05:27.6503483Z [36;1m  mysqladmin ping -h 127.0.0.1 -utest -ptest --silent && exit 0[0m
+ci	Wait for MySQL	2026-01-17T02:05:27.6503836Z [36;1m  sleep 1[0m
+ci	Wait for MySQL	2026-01-17T02:05:27.6504017Z [36;1mdone[0m
+ci	Wait for MySQL	2026-01-17T02:05:27.6504287Z [36;1mecho "MySQL did not become ready in time" && exit 1[0m
+ci	Wait for MySQL	2026-01-17T02:05:27.6536134Z shell: /usr/bin/bash -e {0}
+ci	Wait for MySQL	2026-01-17T02:05:27.6536388Z env:
+ci	Wait for MySQL	2026-01-17T02:05:27.6536769Z   DATABASE_URL: ***127.0.0.1:3306/orangecab_test
+ci	Wait for MySQL	2026-01-17T02:05:27.6537112Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+ci	Wait for MySQL	2026-01-17T02:05:27.6537400Z ##[endgroup]
+ci	Wait for MySQL	2026-01-17T02:05:27.8458112Z mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+ci	Wait for MySQL	2026-01-17T02:05:27.8933366Z mysqld is alive
+ci	Push DB schema (migrations)	﻿2026-01-17T02:05:27.8965031Z ##[group]Run pnpm db:push
+ci	Push DB schema (migrations)	2026-01-17T02:05:27.8965301Z [36;1mpnpm db:push[0m
+ci	Push DB schema (migrations)	2026-01-17T02:05:27.8996475Z shell: /usr/bin/bash -e {0}
+ci	Push DB schema (migrations)	2026-01-17T02:05:27.8996894Z env:
+ci	Push DB schema (migrations)	2026-01-17T02:05:27.8997289Z   DATABASE_URL: ***127.0.0.1:3306/orangecab_test
+ci	Push DB schema (migrations)	2026-01-17T02:05:27.8997615Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+ci	Push DB schema (migrations)	2026-01-17T02:05:27.8997898Z ##[endgroup]
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.4465789Z 
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.4466781Z > vehicle-fleet-dashboard@1.0.0 db:push /home/runner/work/orange-cab/orange-cab
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.4467794Z > drizzle-kit generate && drizzle-kit migrate
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.4468200Z 
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.5807009Z No config path provided, using default 'drizzle.config.ts'
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.5809245Z Reading config file '/home/runner/work/orange-cab/orange-cab/drizzle.config.ts'
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.8574192Z Reading schema files:
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.8574917Z /home/runner/work/orange-cab/orange-cab/drizzle/schema.ts
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.8575188Z 
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9699932Z 24 tables
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9700411Z activity_log 11 columns 0 indexes 1 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9701081Z billing_batches 16 columns 0 indexes 1 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9701489Z call_logs 17 columns 0 indexes 1 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9701865Z company_bills 16 columns 0 indexes 1 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9702248Z company_files 12 columns 0 indexes 1 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9702651Z driver_applications 24 columns 0 indexes 1 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9703064Z driver_contracts 15 columns 0 indexes 2 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9703467Z driver_payments 15 columns 0 indexes 2 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9703847Z driver_schedule 10 columns 0 indexes 2 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9704259Z driver_vehicle_history 7 columns 0 indexes 2 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9704652Z drivers 26 columns 0 indexes 2 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9705015Z employee_payroll 17 columns 0 indexes 2 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9705396Z garage_bays 8 columns 0 indexes 1 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9705757Z mail_records 16 columns 0 indexes 3 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9706148Z maintenance_records 15 columns 0 indexes 2 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9706542Z mechanics 13 columns 0 indexes 0 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9706911Z payroll_periods 12 columns 0 indexes 1 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9707302Z repair_orders 25 columns 0 indexes 4 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9707693Z tickets_and_tolls 15 columns 0 indexes 3 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9708084Z time_adjustments 9 columns 0 indexes 2 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9708447Z trips 38 columns 0 indexes 2 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9708770Z users 9 columns 0 indexes 0 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9709134Z vehicle_documents 13 columns 0 indexes 2 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9709516Z vehicles 25 columns 0 indexes 1 fks
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9709713Z 
+ci	Push DB schema (migrations)	2026-01-17T02:05:28.9727449Z [✓] Your SQL migration file ➜ drizzle/0004_lazy_warpath.sql 🚀
+ci	Push DB schema (migrations)	2026-01-17T02:05:29.1298577Z No config path provided, using default 'drizzle.config.ts'
+ci	Push DB schema (migrations)	2026-01-17T02:05:29.1301639Z Reading config file '/home/runner/work/orange-cab/orange-cab/drizzle.config.ts'
+ci	Push DB schema (migrations)	2026-01-17T02:05:31.0807809Z [⣷] applying migrations...[2K[1G[⣯] applying migrations...[2K[1G[⣟] applying migrations...[2K[1G[⡿] applying migrations...[2K[1G[⢿] applying migrations...[2K[1G[⣻] applying migrations...[2K[1G[⣽] applying migrations...[2K[1G[⣷] applying migrations...[2K[1G[⣯] applying migrations...[2K[1G[⣟] applying migrations...[2K[1G[⡿] applying migrations...[2K[1G[✓] migrations applied successfully!
+ci	Typecheck	﻿2026-01-17T02:05:31.0834744Z ##[group]Run pnpm run check
+ci	Typecheck	2026-01-17T02:05:31.0835028Z [36;1mpnpm run check[0m
+ci	Typecheck	2026-01-17T02:05:31.0866856Z shell: /usr/bin/bash -e {0}
+ci	Typecheck	2026-01-17T02:05:31.0867098Z env:
+ci	Typecheck	2026-01-17T02:05:31.0867666Z   DATABASE_URL: ***127.0.0.1:3306/orangecab_test
+ci	Typecheck	2026-01-17T02:05:31.0868008Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+ci	Typecheck	2026-01-17T02:05:31.0868294Z ##[endgroup]
+ci	Typecheck	2026-01-17T02:05:31.6266355Z 
+ci	Typecheck	2026-01-17T02:05:31.6267308Z > vehicle-fleet-dashboard@1.0.0 check /home/runner/work/orange-cab/orange-cab
+ci	Typecheck	2026-01-17T02:05:31.6267886Z > tsc --noEmit
+ci	Typecheck	2026-01-17T02:05:31.6268040Z 
+ci	Test	﻿2026-01-17T02:05:47.1636142Z ##[group]Run pnpm test
+ci	Test	2026-01-17T02:05:47.1636410Z [36;1mpnpm test[0m
+ci	Test	2026-01-17T02:05:47.1667272Z shell: /usr/bin/bash -e {0}
+ci	Test	2026-01-17T02:05:47.1667697Z env:
+ci	Test	2026-01-17T02:05:47.1668108Z   DATABASE_URL: ***127.0.0.1:3306/orangecab_test
+ci	Test	2026-01-17T02:05:47.1668448Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+ci	Test	2026-01-17T02:05:47.1668735Z ##[endgroup]
+ci	Test	2026-01-17T02:05:47.7250877Z 
+ci	Test	2026-01-17T02:05:47.7251629Z > vehicle-fleet-dashboard@1.0.0 test /home/runner/work/orange-cab/orange-cab
+ci	Test	2026-01-17T02:05:47.7252110Z > vitest run
+ci	Test	2026-01-17T02:05:47.7252230Z 
+ci	Test	2026-01-17T02:05:48.0057195Z 
+ci	Test	2026-01-17T02:05:48.0059529Z [1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/home/runner/work/orange-cab/orange-cab[39m
+ci	Test	2026-01-17T02:05:48.0060247Z 
+ci	Test	2026-01-17T02:05:48.4254768Z [90mstdout[2m | server/ids/__tests__/partition.test.ts[2m > [22m[2mIDS Partition Tests[2m > [22m[2mUniqueness Tests[2m > [22m[2mshould import same trip ID under different partitions without collision
+ci	Test	2026-01-17T02:05:48.4261695Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4262327Z   importId: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4262890Z   fileHash: [32m'55e03bcec9714109...'[39m,
+ci	Test	2026-01-17T02:05:48.4264278Z   expectedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4264761Z   accountedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4265363Z   importedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4265827Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4266266Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4266702Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4267119Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4267515Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4268549Z   extractedColumns: [ [32m'TripId'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4269363Z }
+ci	Test	2026-01-17T02:05:48.4269747Z [IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4270294Z   importId: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4271025Z   fileHash: [32m'4884540044d1f890...'[39m,
+ci	Test	2026-01-17T02:05:48.4271564Z   expectedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4272014Z   accountedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4272484Z   importedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4272950Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4273336Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4273674Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4280917Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4281297Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4282239Z   extractedColumns: [ [32m'TripId'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4282976Z }
+ci	Test	2026-01-17T02:05:48.4283114Z 
+ci	Test	2026-01-17T02:05:48.4284560Z [90mstdout[2m | server/ids/__tests__/partition.test.ts[2m > [22m[2mIDS Partition Tests[2m > [22m[2mUniqueness Tests[2m > [22m[2mshould prevent duplicate file import (idempotency)
+ci	Test	2026-01-17T02:05:48.4285951Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4286459Z   importId: [33m3[39m,
+ci	Test	2026-01-17T02:05:48.4286926Z   fileHash: [32m'e823ea533e52f5d6...'[39m,
+ci	Test	2026-01-17T02:05:48.4287416Z   expectedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4287834Z   accountedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4288252Z   importedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4291732Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4292135Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4292469Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4292831Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4293184Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4294113Z   extractedColumns: [ [32m'TripId'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4294849Z }
+ci	Test	2026-01-17T02:05:48.4294989Z 
+ci	Test	2026-01-17T02:05:48.4296611Z [90mstdout[2m | server/ids/__tests__/partition.test.ts[2m > [22m[2mIDS Partition Tests[2m > [22m[2mUniqueness Tests[2m > [22m[2mshould allow same file under different partition (creates different batch)
+ci	Test	2026-01-17T02:05:48.4298158Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4299158Z   importId: [33m4[39m,
+ci	Test	2026-01-17T02:05:48.4299630Z   fileHash: [32m'91c5514070bc7800...'[39m,
+ci	Test	2026-01-17T02:05:48.4300326Z   expectedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4300963Z   accountedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4301418Z   importedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4301914Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4302397Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4302803Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4303269Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4303693Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4304743Z   extractedColumns: [ [32m'TripId'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4308992Z }
+ci	Test	2026-01-17T02:05:48.4309152Z 
+ci	Test	2026-01-17T02:05:48.4311034Z [90mstdout[2m | server/ids/__tests__/partition.test.ts[2m > [22m[2mIDS Partition Tests[2m > [22m[2mCompare Join Partitioning Tests[2m > [22m[2mshould filter trips by OpCo when querying
+ci	Test	2026-01-17T02:05:48.4312621Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4313231Z   importId: [33m5[39m,
+ci	Test	2026-01-17T02:05:48.4313827Z   fileHash: [32m'9fd50c751fc56211...'[39m,
+ci	Test	2026-01-17T02:05:48.4314416Z   expectedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4314878Z   accountedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4315360Z   importedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4315850Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4316342Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4316698Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4317087Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4317452Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4318425Z   extractedColumns: [ [32m'TripId'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4319186Z }
+ci	Test	2026-01-17T02:05:48.4319564Z [IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4320034Z   importId: [33m6[39m,
+ci	Test	2026-01-17T02:05:48.4320728Z   fileHash: [32m'bd936cd939b4b6c3...'[39m,
+ci	Test	2026-01-17T02:05:48.4321253Z   expectedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4321681Z   accountedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4322103Z   importedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4322532Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4322924Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4323266Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4323640Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4324010Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4324982Z   extractedColumns: [ [32m'TripId'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4325739Z }
+ci	Test	2026-01-17T02:05:48.4325873Z 
+ci	Test	2026-01-17T02:05:48.4327468Z [90mstdout[2m | server/ids/__tests__/partition.test.ts[2m > [22m[2mIDS Partition Tests[2m > [22m[2mCompare Join Partitioning Tests[2m > [22m[2mshould filter driver summary by broker account
+ci	Test	2026-01-17T02:05:48.4328962Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4329470Z   importId: [33m7[39m,
+ci	Test	2026-01-17T02:05:48.4329979Z   fileHash: [32m'fd7117dcb8b42e8d...'[39m,
+ci	Test	2026-01-17T02:05:48.4330478Z   expectedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4331209Z   accountedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4331643Z   importedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4332046Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4332447Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4332773Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4333139Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4333500Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4334638Z   extractedColumns: [ [32m'TripId'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m, [32m'RoutedDistance'[39m ]
+ci	Test	2026-01-17T02:05:48.4335528Z }
+ci	Test	2026-01-17T02:05:48.4335897Z [IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4336409Z   importId: [33m8[39m,
+ci	Test	2026-01-17T02:05:48.4336890Z   fileHash: [32m'6f5f43f59b71305f...'[39m,
+ci	Test	2026-01-17T02:05:48.4337348Z   expectedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4337763Z   accountedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4338465Z   importedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4338868Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4342388Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4342764Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4343137Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4343498Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4344608Z   extractedColumns: [ [32m'TripId'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m, [32m'RoutedDistance'[39m ]
+ci	Test	2026-01-17T02:05:48.4345469Z }
+ci	Test	2026-01-17T02:05:48.4345608Z 
+ci	Test	2026-01-17T02:05:48.4347355Z [90mstdout[2m | server/ids/__tests__/partition.test.ts[2m > [22m[2mIDS Partition Tests[2m > [22m[2mCompare Join Partitioning Tests[2m > [22m[2mshould return empty results when filtering by non-existent partition
+ci	Test	2026-01-17T02:05:48.4348940Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4349458Z   importId: [33m9[39m,
+ci	Test	2026-01-17T02:05:48.4349944Z   fileHash: [32m'87ec97dafac75706...'[39m,
+ci	Test	2026-01-17T02:05:48.4350429Z   expectedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4351119Z   accountedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4351543Z   importedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4351936Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4352324Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4352635Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4353001Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4353353Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4354292Z   extractedColumns: [ [32m'TripId'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4355058Z }
+ci	Test	2026-01-17T02:05:48.4355196Z 
+ci	Test	2026-01-17T02:05:48.4356537Z [90mstdout[2m | server/ids/__tests__/partition.test.ts[2m > [22m[2mIDS Partition Tests[2m > [22m[2mImport Filtering Tests[2m > [22m[2mshould filter imports by OpCo
+ci	Test	2026-01-17T02:05:48.4357868Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4358371Z   importId: [33m10[39m,
+ci	Test	2026-01-17T02:05:48.4358856Z   fileHash: [32m'b7cb3b505fd741e7...'[39m,
+ci	Test	2026-01-17T02:05:48.4359339Z   expectedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4359753Z   accountedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4360204Z   importedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4360778Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4361189Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4361525Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4361888Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4362239Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4363168Z   extractedColumns: [ [32m'TripId'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4364216Z }
+ci	Test	2026-01-17T02:05:48.4364590Z [IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4365080Z   importId: [33m11[39m,
+ci	Test	2026-01-17T02:05:48.4365555Z   fileHash: [32m'3af0699fe3b74885...'[39m,
+ci	Test	2026-01-17T02:05:48.4366023Z   expectedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4366442Z   accountedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4366848Z   importedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4367264Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4367654Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4367976Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4368331Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4368677Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4369583Z   extractedColumns: [ [32m'TripId'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4370316Z }
+ci	Test	2026-01-17T02:05:48.4370452Z 
+ci	Test	2026-01-17T02:05:48.4372108Z [90mstdout[2m | server/ids/__tests__/phi-regression.test.ts[2m > [22m[2mPHI Regression Tests[2m > [22m[2mALLOWLIST Pattern[2m > [22m[2mshould only extract columns from the allowlist
+ci	Test	2026-01-17T02:05:48.4373525Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4374027Z   importId: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4374484Z   fileHash: [32m'369380561364458f...'[39m,
+ci	Test	2026-01-17T02:05:48.4374943Z   expectedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4375356Z   accountedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4376004Z   importedRows: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4376416Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4376982Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4377315Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4377682Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4378556Z   ignoredColumns: [ [32m'Patient Name'[39m, [32m'Phone'[39m, [32m'DOB'[39m, [32m'Address'[39m ],
+ci	Test	2026-01-17T02:05:48.4380025Z   extractedColumns: [ [32m'Trip Id'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m, [32m'Req Pickup'[39m ]
+ci	Test	2026-01-17T02:05:48.4381157Z }
+ci	Test	2026-01-17T02:05:48.4381298Z 
+ci	Test	2026-01-17T02:05:48.4382794Z [90mstdout[2m | server/ids/__tests__/phi-regression.test.ts[2m > [22m[2mPHI Regression Tests[2m > [22m[2mALLOWLIST Pattern[2m > [22m[2mshould NOT store any PHI fields in the database
+ci	Test	2026-01-17T02:05:48.4384218Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4384725Z   importId: [33m2[39m,
+ci	Test	2026-01-17T02:05:48.4385221Z   fileHash: [32m'231a3ddfc9a2b59d...'[39m,
+ci	Test	2026-01-17T02:05:48.4385706Z   expectedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4386137Z   accountedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4386536Z   importedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4386941Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4387338Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4387662Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4388021Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4388377Z   ignoredColumns: [
+ci	Test	2026-01-17T02:05:48.4388892Z     [32m'Patient'[39m,         [32m'Member Name'[39m,
+ci	Test	2026-01-17T02:05:48.4389567Z     [32m'Phone'[39m,           [32m'Member Phone'[39m,
+ci	Test	2026-01-17T02:05:48.4390231Z     [32m'DOB'[39m,             [32m'Date of Birth'[39m,
+ci	Test	2026-01-17T02:05:48.4391079Z     [32m'Address'[39m,         [32m'Pickup Address'[39m,
+ci	Test	2026-01-17T02:05:48.4391730Z     [32m'Dropoff Address'[39m, [32m'SSN'[39m,
+ci	Test	2026-01-17T02:05:48.4392339Z     [32m'Email'[39m,           [32m'Medicaid'[39m,
+ci	Test	2026-01-17T02:05:48.4392842Z     [32m'Medicare'[39m
+ci	Test	2026-01-17T02:05:48.4393147Z   ],
+ci	Test	2026-01-17T02:05:48.4394016Z   extractedColumns: [ [32m'Trip Id'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4394778Z }
+ci	Test	2026-01-17T02:05:48.4394914Z 
+ci	Test	2026-01-17T02:05:48.4396532Z [90mstdout[2m | server/ids/__tests__/phi-regression.test.ts[2m > [22m[2mPHI Regression Tests[2m > [22m[2mALLOWLIST Pattern[2m > [22m[2mshould ignore new/unknown columns by default (vendor protection)
+ci	Test	2026-01-17T02:05:48.4398047Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4398553Z   importId: [33m3[39m,
+ci	Test	2026-01-17T02:05:48.4399030Z   fileHash: [32m'0439e3c3b96e5fd4...'[39m,
+ci	Test	2026-01-17T02:05:48.4399511Z   expectedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4399920Z   accountedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4400323Z   importedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4400975Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4401379Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4401710Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4402069Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4402410Z   ignoredColumns: [
+ci	Test	2026-01-17T02:05:48.4402804Z     [32m'New Vendor Field'[39m,
+ci	Test	2026-01-17T02:05:48.4403273Z     [32m'Another PHI Column'[39m,
+ci	Test	2026-01-17T02:05:48.4403742Z     [32m'Patient SSN Last 4'[39m,
+ci	Test	2026-01-17T02:05:48.4404203Z     [32m'Emergency Contact'[39m
+ci	Test	2026-01-17T02:05:48.4404547Z   ],
+ci	Test	2026-01-17T02:05:48.4405303Z   extractedColumns: [ [32m'Trip Id'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m ]
+ci	Test	2026-01-17T02:05:48.4405969Z }
+ci	Test	2026-01-17T02:05:48.4406100Z 
+ci	Test	2026-01-17T02:05:48.4407777Z [90mstdout[2m | server/ids/__tests__/phi-regression.test.ts[2m > [22m[2mPHI Regression Tests[2m > [22m[2mNothing Dropped Proof[2m > [22m[2mshould account for all rows (imported + skipped + errors = expected)
+ci	Test	2026-01-17T02:05:48.4409358Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4409864Z   importId: [33m4[39m,
+ci	Test	2026-01-17T02:05:48.4410697Z   fileHash: [32m'aef8e6cdea94992d...'[39m,
+ci	Test	2026-01-17T02:05:48.4411206Z   expectedRows: [33m5[39m,
+ci	Test	2026-01-17T02:05:48.4411786Z   accountedRows: [33m5[39m,
+ci	Test	2026-01-17T02:05:48.4412195Z   importedRows: [33m3[39m,
+ci	Test	2026-01-17T02:05:48.4412593Z   skippedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4412987Z   errorRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4413310Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4413669Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4414021Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4414949Z   extractedColumns: [ [32m'Trip Id'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4415687Z }
+ci	Test	2026-01-17T02:05:48.4415824Z 
+ci	Test	2026-01-17T02:05:48.4417237Z [90mstdout[2m | server/ids/__tests__/phi-regression.test.ts[2m > [22m[2mPHI Regression Tests[2m > [22m[2mIdempotency[2m > [22m[2mshould detect duplicate file imports via hash
+ci	Test	2026-01-17T02:05:48.4418607Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4419117Z   importId: [33m5[39m,
+ci	Test	2026-01-17T02:05:48.4419587Z   fileHash: [32m'8d407b40a422a090...'[39m,
+ci	Test	2026-01-17T02:05:48.4420073Z   expectedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4420498Z   accountedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4421061Z   importedRows: [33m1[39m,
+ci	Test	2026-01-17T02:05:48.4421458Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4421850Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4422179Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4422549Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4422903Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4423856Z   extractedColumns: [ [32m'Trip Id'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4424618Z }
+ci	Test	2026-01-17T02:05:48.4424755Z 
+ci	Test	2026-01-17T02:05:48.4426237Z [90mstdout[2m | server/ids/__tests__/phi-regression.test.ts[2m > [22m[2mPHI Regression Tests[2m > [22m[2mDriver Alias Mapping[2m > [22m[2mshould match drivers by normalized name
+ci	Test	2026-01-17T02:05:48.4427607Z [22m[39m[IDS Actual Import] Import completed: {
+ci	Test	2026-01-17T02:05:48.4428096Z   importId: [33m6[39m,
+ci	Test	2026-01-17T02:05:48.4428562Z   fileHash: [32m'68dd40b038826aa5...'[39m,
+ci	Test	2026-01-17T02:05:48.4429030Z   expectedRows: [33m3[39m,
+ci	Test	2026-01-17T02:05:48.4429451Z   accountedRows: [33m3[39m,
+ci	Test	2026-01-17T02:05:48.4429854Z   importedRows: [33m3[39m,
+ci	Test	2026-01-17T02:05:48.4430250Z   skippedRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4430889Z   errorRows: [33m0[39m,
+ci	Test	2026-01-17T02:05:48.4431235Z   missingRows: [],
+ci	Test	2026-01-17T02:05:48.4431597Z   isComplete: [33mtrue[39m,
+ci	Test	2026-01-17T02:05:48.4431953Z   ignoredColumns: [],
+ci	Test	2026-01-17T02:05:48.4432915Z   extractedColumns: [ [32m'Trip Id'[39m, [32m'Date'[39m, [32m'Driver'[39m, [32m'Vehicle'[39m, [32m'Type'[39m ]
+ci	Test	2026-01-17T02:05:48.4433660Z }
+ci	Test	2026-01-17T02:05:48.4433796Z 
+ci	Test	2026-01-17T02:05:48.4434814Z  [32m✓[39m server/ids/__tests__/partition.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 20[2mms[22m[39m
+ci	Test	2026-01-17T02:05:48.4436187Z  [32m✓[39m server/ids/__tests__/phi-regression.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 21[2mms[22m[39m
+ci	Test	2026-01-17T02:05:48.5825774Z  [32m✓[39m server/ai/__tests__/narrative.test.ts [2m([22m[2m22 tests[22m[2m)[22m[90m 65[2mms[22m[39m
+ci	Test	2026-01-17T02:05:48.9956794Z [90mstdout[2m | server/vehicles.test.ts
+ci	Test	2026-01-17T02:05:48.9973046Z [22m[39m[Admin] Seeding default data...
+ci	Test	2026-01-17T02:05:48.9973686Z [AUDIT] CREATE opcos#1 by system
+ci	Test	2026-01-17T02:05:48.9974239Z [AUDIT] CREATE opcos#2 by system
+ci	Test	2026-01-17T02:05:48.9974784Z [AUDIT] CREATE brokers#1 by system
+ci	Test	2026-01-17T02:05:48.9975341Z [AUDIT] CREATE brokers#2 by system
+ci	Test	2026-01-17T02:05:48.9975893Z [AUDIT] CREATE brokers#3 by system
+ci	Test	2026-01-17T02:05:48.9976463Z [AUDIT] CREATE broker_accounts#1 by system
+ci	Test	2026-01-17T02:05:48.9977053Z [AUDIT] CREATE broker_accounts#2 by system
+ci	Test	2026-01-17T02:05:48.9977664Z [AUDIT] CREATE broker_accounts#3 by system
+ci	Test	2026-01-17T02:05:48.9978291Z [AUDIT] CREATE broker_accounts#4 by system
+ci	Test	2026-01-17T02:05:48.9979454Z [AUDIT] CREATE billing_rate_cards#1 by system
+ci	Test	2026-01-17T02:05:48.9980143Z [AUDIT] CREATE billing_rate_rules#1 by system
+ci	Test	2026-01-17T02:05:48.9981327Z [AUDIT] CREATE billing_rate_rules#2 by system
+ci	Test	2026-01-17T02:05:48.9981981Z [AUDIT] CREATE billing_rate_cards#2 by system
+ci	Test	2026-01-17T02:05:48.9982619Z [AUDIT] CREATE billing_rate_rules#3 by system
+ci	Test	2026-01-17T02:05:48.9983368Z [AUDIT] CREATE driver_pay_defaults#1 by system
+ci	Test	2026-01-17T02:05:48.9984401Z [AUDIT] CREATE driver_pay_defaults#2 by system
+ci	Test	2026-01-17T02:05:48.9985214Z [AUDIT] CREATE driver_pay_defaults#3 by system
+ci	Test	2026-01-17T02:05:48.9986148Z [Admin] Seed data created successfully with rate cards and pay defaults
+ci	Test	2026-01-17T02:05:48.9986916Z 
+ci	Test	2026-01-17T02:05:49.0009625Z [90mstdout[2m | server/maintenance.test.ts
+ci	Test	2026-01-17T02:05:49.0010834Z [22m[39m[Admin] Seeding default data...
+ci	Test	2026-01-17T02:05:49.0011522Z [AUDIT] CREATE opcos#1 by system
+ci	Test	2026-01-17T02:05:49.0012365Z [AUDIT] CREATE opcos#2 by system
+ci	Test	2026-01-17T02:05:49.0013067Z [AUDIT] CREATE brokers#1 by system
+ci	Test	2026-01-17T02:05:49.0013687Z [AUDIT] CREATE brokers#2 by system
+ci	Test	2026-01-17T02:05:49.0014495Z [AUDIT] CREATE brokers#3 by system
+ci	Test	2026-01-17T02:05:49.0015279Z [AUDIT] CREATE broker_accounts#1 by system
+ci	Test	2026-01-17T02:05:49.0015972Z [AUDIT] CREATE broker_accounts#2 by system
+ci	Test	2026-01-17T02:05:49.0016843Z [AUDIT] CREATE broker_accounts#3 by system
+ci	Test	2026-01-17T02:05:49.0017526Z [AUDIT] CREATE broker_accounts#4 by system
+ci	Test	2026-01-17T02:05:49.0018241Z [AUDIT] CREATE billing_rate_cards#1 by system
+ci	Test	2026-01-17T02:05:49.0019144Z [AUDIT] CREATE billing_rate_rules#1 by system
+ci	Test	2026-01-17T02:05:49.0019898Z [AUDIT] CREATE billing_rate_rules#2 by system
+ci	Test	2026-01-17T02:05:49.0049186Z [AUDIT] CREATE billing_rate_cards#2 by system
+ci	Test	2026-01-17T02:05:49.0049976Z [AUDIT] CREATE billing_rate_rules#3 by system
+ci	Test	2026-01-17T02:05:49.0050826Z [AUDIT] CREATE driver_pay_defaults#1 by system
+ci	Test	2026-01-17T02:05:49.0051470Z [AUDIT] CREATE driver_pay_defaults#2 by system
+ci	Test	2026-01-17T02:05:49.0052124Z [AUDIT] CREATE driver_pay_defaults#3 by system
+ci	Test	2026-01-17T02:05:49.0052970Z [Admin] Seed data created successfully with rate cards and pay defaults
+ci	Test	2026-01-17T02:05:49.0053487Z 
+ci	Test	2026-01-17T02:05:49.0061665Z [90mstdout[2m | server/drivers.test.ts
+ci	Test	2026-01-17T02:05:49.0062361Z [22m[39m[Admin] Seeding default data...
+ci	Test	2026-01-17T02:05:49.0062904Z [AUDIT] CREATE opcos#1 by system
+ci	Test	2026-01-17T02:05:49.0063414Z [AUDIT] CREATE opcos#2 by system
+ci	Test	2026-01-17T02:05:49.0063882Z [AUDIT] CREATE brokers#1 by system
+ci	Test	2026-01-17T02:05:49.0064373Z [AUDIT] CREATE brokers#2 by system
+ci	Test	2026-01-17T02:05:49.0064836Z [AUDIT] CREATE brokers#3 by system
+ci	Test	2026-01-17T02:05:49.0065344Z [AUDIT] CREATE broker_accounts#1 by system
+ci	Test	2026-01-17T02:05:49.0065891Z [AUDIT] CREATE broker_accounts#2 by system
+ci	Test	2026-01-17T02:05:49.0066357Z [AUDIT] CREATE broker_accounts#3 by system
+ci	Test	2026-01-17T02:05:49.0066681Z [AUDIT] CREATE broker_accounts#4 by system
+ci	Test	2026-01-17T02:05:49.0067004Z [AUDIT] CREATE billing_rate_cards#1 by system
+ci	Test	2026-01-17T02:05:49.0067324Z [AUDIT] CREATE billing_rate_rules#1 by system
+ci	Test	2026-01-17T02:05:49.0067663Z [AUDIT] CREATE billing_rate_rules#2 by system
+ci	Test	2026-01-17T02:05:49.0067987Z [AUDIT] CREATE billing_rate_cards#2 by system
+ci	Test	2026-01-17T02:05:49.0068311Z [AUDIT] CREATE billing_rate_rules#3 by system
+ci	Test	2026-01-17T02:05:49.0068646Z [AUDIT] CREATE driver_pay_defaults#1 by system
+ci	Test	2026-01-17T02:05:49.0068974Z [AUDIT] CREATE driver_pay_defaults#2 by system
+ci	Test	2026-01-17T02:05:49.0069310Z [AUDIT] CREATE driver_pay_defaults#3 by system
+ci	Test	2026-01-17T02:05:49.0069756Z [Admin] Seed data created successfully with rate cards and pay defaults
+ci	Test	2026-01-17T02:05:49.0070046Z 
+ci	Test	2026-01-17T02:05:49.0187265Z [90mstdout[2m | server/drivers.test.ts
+ci	Test	2026-01-17T02:05:49.0189583Z [22m[39m[Reports] Seeded [33m4[39m built-in report templates
+ci	Test	2026-01-17T02:05:49.0191973Z 
+ci	Test	2026-01-17T02:05:49.0218268Z [90mstdout[2m | server/vehicles.test.ts
+ci	Test	2026-01-17T02:05:49.0220467Z [22m[39m[Reports] Seeded [33m4[39m built-in report templates
+ci	Test	2026-01-17T02:05:49.0221461Z 
+ci	Test	2026-01-17T02:05:49.0223438Z [90mstdout[2m | server/maintenance.test.ts
+ci	Test	2026-01-17T02:05:49.0225188Z [22m[39m[Reports] Seeded [33m4[39m built-in report templates
+ci	Test	2026-01-17T02:05:49.0226143Z 
+ci	Test	2026-01-17T02:05:49.0989816Z  [32m✓[39m server/maintenance.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ci	Test	2026-01-17T02:05:49.4972215Z [90mstdout[2m | server/auth.logout.test.ts
+ci	Test	2026-01-17T02:05:49.4976942Z [22m[39m[Admin] Seeding default data...
+ci	Test	2026-01-17T02:05:49.4979161Z [AUDIT] CREATE opcos#1 by system
+ci	Test	2026-01-17T02:05:49.4981981Z [AUDIT] CREATE opcos#2 by system
+ci	Test	2026-01-17T02:05:49.4982493Z [AUDIT] CREATE brokers#1 by system
+ci	Test	2026-01-17T02:05:49.4983006Z [AUDIT] CREATE brokers#2 by system
+ci	Test	2026-01-17T02:05:49.4983509Z [AUDIT] CREATE brokers#3 by system
+ci	Test	2026-01-17T02:05:49.4984031Z [AUDIT] CREATE broker_accounts#1 by system
+ci	Test	2026-01-17T02:05:49.4984614Z [AUDIT] CREATE broker_accounts#2 by system
+ci	Test	2026-01-17T02:05:49.4985179Z [AUDIT] CREATE broker_accounts#3 by system
+ci	Test	2026-01-17T02:05:49.4985724Z [AUDIT] CREATE broker_accounts#4 by system
+ci	Test	2026-01-17T02:05:49.4986339Z [AUDIT] CREATE billing_rate_cards#1 by system
+ci	Test	2026-01-17T02:05:49.4986947Z [AUDIT] CREATE billing_rate_rules#1 by system
+ci	Test	2026-01-17T02:05:49.4987577Z [AUDIT] CREATE billing_rate_rules#2 by system
+ci	Test	2026-01-17T02:05:49.4988178Z [AUDIT] CREATE billing_rate_cards#2 by system
+ci	Test	2026-01-17T02:05:49.4988782Z [AUDIT] CREATE billing_rate_rules#3 by system
+ci	Test	2026-01-17T02:05:49.4989388Z [AUDIT] CREATE driver_pay_defaults#1 by system
+ci	Test	2026-01-17T02:05:49.4990001Z [AUDIT] CREATE driver_pay_defaults#2 by system
+ci	Test	2026-01-17T02:05:49.4990816Z [AUDIT] CREATE driver_pay_defaults#3 by system
+ci	Test	2026-01-17T02:05:49.4991644Z [Admin] Seed data created successfully with rate cards and pay defaults
+ci	Test	2026-01-17T02:05:49.4992201Z 
+ci	Test	2026-01-17T02:05:49.5028091Z [90mstdout[2m | server/auth.logout.test.ts
+ci	Test	2026-01-17T02:05:49.5030292Z [22m[39m[Reports] Seeded [33m4[39m built-in report templates
+ci	Test	2026-01-17T02:05:49.5032694Z 
+ci	Test	2026-01-17T02:05:49.8600416Z  [32m✓[39m server/vehicles.test.ts [2m([22m[2m8 tests[22m[2m)[22m[90m 99[2mms[22m[39m
+ci	Test	2026-01-17T02:05:49.8736463Z  [32m✓[39m server/drivers.test.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 85[2mms[22m[39m
+ci	Test	2026-01-17T02:05:50.1693577Z  [32m✓[39m server/auth.logout.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 4[2mms[22m[39m
+ci	Test	2026-01-17T02:05:50.1858494Z 
+ci	Test	2026-01-17T02:05:50.1867917Z [2m Test Files [22m [1m[32m7 passed[39m[22m[90m (7)[39m
+ci	Test	2026-01-17T02:05:50.1869372Z [2m      Tests [22m [1m[32m57 passed[39m[22m[90m (57)[39m
+ci	Test	2026-01-17T02:05:50.1871953Z [2m   Start at [22m 02:05:47
+ci	Test	2026-01-17T02:05:50.1873317Z [2m   Duration [22m 2.18s[2m (transform 542ms, setup 0ms, collect 3.73s, tests 305ms, environment 2ms, prepare 655ms)[22m
+ci	Test	2026-01-17T02:05:50.1874127Z 
+ci	Post Run actions/setup-node@v4	﻿2026-01-17T02:05:50.2249610Z Post job cleanup.
+ci	Post Run actions/setup-node@v4	2026-01-17T02:05:50.4011150Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/orange-cab/orange-cab --files-from manifest.txt --use-compress-program zstdmt
+ci	Post Run actions/setup-node@v4	2026-01-17T02:05:53.7676416Z Sent 0 of 148858768 (0.0%), 0.0 MBs/sec
+ci	Post Run actions/setup-node@v4	2026-01-17T02:05:54.7676740Z Sent 81749904 of 148858768 (54.9%), 39.0 MBs/sec
+ci	Post Run actions/setup-node@v4	2026-01-17T02:05:54.8667552Z Sent 148858768 of 148858768 (100.0%), 67.6 MBs/sec
+ci	Post Run actions/setup-node@v4	2026-01-17T02:05:55.1857853Z Cache saved with the key: node-cache-Linux-x64-pnpm-c798aaa42459f5a58bb51ce2e923cb8b8f98335e7ead3e6b4c96ce911be5dbe5
+ci	Post Run pnpm/action-setup@v2	﻿2026-01-17T02:05:55.1973892Z Post job cleanup.
+ci	Post Run pnpm/action-setup@v2	2026-01-17T02:05:55.2850072Z Pruning is unnecessary.
+ci	Post Run actions/checkout@v4	﻿2026-01-17T02:05:55.2950875Z Post job cleanup.
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.3904873Z [command]/usr/bin/git version
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.3946984Z git version 2.52.0
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.3998043Z Temporarily overriding HOME='/home/runner/work/_temp/9a4e9d01-1b31-4e82-90ce-7feafced96eb' before making global git config changes
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.3999549Z Adding repository directory to the temporary git global config as a safe directory
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.4006151Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orange-cab/orange-cab
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.4045341Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.4082447Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.4326442Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.4349952Z http.https://github.com/.extraheader
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.4363260Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.4396315Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.4630126Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+ci	Post Run actions/checkout@v4	2026-01-17T02:05:55.4661437Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+ci	Stop containers	﻿2026-01-17T02:05:55.4964307Z Print service container logs: dc00b195b743498e86d343a11e5fe440_mysql80_011597
+ci	Stop containers	2026-01-17T02:05:55.4968822Z ##[command]/usr/bin/docker logs --details c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69
+ci	Stop containers	2026-01-17T02:05:55.5084912Z  2026-01-17 02:04:46+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.44-1.el9 started.
+ci	Stop containers	2026-01-17T02:05:55.5085951Z  2026-01-17 02:04:46+00:00 [Note] [Entrypoint]: Switching to dedicated user 'mysql'
+ci	Stop containers	2026-01-17T02:05:55.5086926Z  2026-01-17 02:04:46+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.0.44-1.el9 started.
+ci	Stop containers	2026-01-17T02:05:55.5087818Z  2026-01-17 02:04:46+00:00 [Note] [Entrypoint]: Initializing database files
+ci	Stop containers	2026-01-17T02:05:55.5088528Z  2026-01-17 02:04:49+00:00 [Note] [Entrypoint]: Database files initialized
+ci	Stop containers	2026-01-17T02:05:55.5089222Z  2026-01-17 02:04:49+00:00 [Note] [Entrypoint]: Starting temporary server
+ci	Stop containers	2026-01-17T02:05:55.5089905Z  2026-01-17 02:04:50+00:00 [Note] [Entrypoint]: Temporary server started.
+ci	Stop containers	2026-01-17T02:05:55.5090788Z  '/var/lib/mysql/mysql.sock' -> '/var/run/mysqld/mysqld.sock'
+ci	Stop containers	2026-01-17T02:05:55.5091320Z  2026-01-17 02:04:52+00:00 [Note] [Entrypoint]: Creating database orangecab_test
+ci	Stop containers	2026-01-17T02:05:55.5091849Z  2026-01-17 02:04:52+00:00 [Note] [Entrypoint]: Creating user test
+ci	Stop containers	2026-01-17T02:05:55.5092302Z  2026-01-17 02:04:52+00:00 [Note] [Entrypoint]: Giving user test access to schema orangecab_test
+ci	Stop containers	2026-01-17T02:05:55.5092692Z  
+ci	Stop containers	2026-01-17T02:05:55.5092943Z  2026-01-17 02:04:52+00:00 [Note] [Entrypoint]: Stopping temporary server
+ci	Stop containers	2026-01-17T02:05:55.5093363Z  2026-01-17 02:04:53+00:00 [Note] [Entrypoint]: Temporary server stopped
+ci	Stop containers	2026-01-17T02:05:55.5093673Z  
+ci	Stop containers	2026-01-17T02:05:55.5093964Z  2026-01-17 02:04:53+00:00 [Note] [Entrypoint]: MySQL init process done. Ready for start up.
+ci	Stop containers	2026-01-17T02:05:55.5094333Z  
+ci	Stop containers	2026-01-17T02:05:55.5095596Z  2026-01-17T02:04:46.990918Z 0 [Warning] [MY-011068] [Server] The syntax '--skip-host-cache' is deprecated and will be removed in a future release. Please use SET GLOBAL host_cache_size=0 instead.
+ci	Stop containers	2026-01-17T02:05:55.5096829Z  2026-01-17T02:04:46.990993Z 0 [System] [MY-013169] [Server] /usr/sbin/mysqld (mysqld 8.0.44) initializing of server in progress as process 80
+ci	Stop containers	2026-01-17T02:05:55.5097571Z  2026-01-17T02:04:46.995434Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+ci	Stop containers	2026-01-17T02:05:55.5098129Z  2026-01-17T02:04:47.146563Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+ci	Stop containers	2026-01-17T02:05:55.5098976Z  2026-01-17T02:04:47.792877Z 6 [Warning] [MY-010453] [Server] root@localhost is created with an empty password ! Please consider switching off the --initialize-insecure option.
+ci	Stop containers	2026-01-17T02:05:55.5100146Z  2026-01-17T02:04:50.132191Z 0 [Warning] [MY-011068] [Server] The syntax '--skip-host-cache' is deprecated and will be removed in a future release. Please use SET GLOBAL host_cache_size=0 instead.
+ci	Stop containers	2026-01-17T02:05:55.5101327Z  2026-01-17T02:04:50.132929Z 0 [System] [MY-010116] [Server] /usr/sbin/mysqld (mysqld 8.0.44) starting as process 124
+ci	Stop containers	2026-01-17T02:05:55.5102199Z  2026-01-17T02:04:50.141571Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+ci	Stop containers	2026-01-17T02:05:55.5102745Z  2026-01-17T02:04:50.226527Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+ci	Stop containers	2026-01-17T02:05:55.5103380Z  2026-01-17T02:04:50.400132Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+ci	Stop containers	2026-01-17T02:05:55.5104968Z  2026-01-17T02:04:50.400171Z 0 [System] [MY-013602] [Server] Channel mysql_main configured to support TLS. Encrypted connections are now supported for this channel.
+ci	Stop containers	2026-01-17T02:05:55.5106252Z  2026-01-17T02:04:50.401769Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/run/mysqld' in the path is accessible to all OS users. Consider choosing a different directory.
+ci	Stop containers	2026-01-17T02:05:55.5107332Z  2026-01-17T02:04:50.413720Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Socket: /var/run/mysqld/mysqlx.sock
+ci	Stop containers	2026-01-17T02:05:55.5108335Z  2026-01-17T02:04:50.413823Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.44'  socket: '/var/run/mysqld/mysqld.sock'  port: 0  MySQL Community Server - GPL.
+ci	Stop containers	2026-01-17T02:05:55.5109415Z  Warning: Unable to load '/usr/share/zoneinfo/iso3166.tab' as time zone. Skipping it.
+ci	Stop containers	2026-01-17T02:05:55.5109969Z  Warning: Unable to load '/usr/share/zoneinfo/leap-seconds.list' as time zone. Skipping it.
+ci	Stop containers	2026-01-17T02:05:55.5110812Z  Warning: Unable to load '/usr/share/zoneinfo/leapseconds' as time zone. Skipping it.
+ci	Stop containers	2026-01-17T02:05:55.5111435Z  Warning: Unable to load '/usr/share/zoneinfo/tzdata.zi' as time zone. Skipping it.
+ci	Stop containers	2026-01-17T02:05:55.5111941Z  Warning: Unable to load '/usr/share/zoneinfo/zone.tab' as time zone. Skipping it.
+ci	Stop containers	2026-01-17T02:05:55.5112445Z  Warning: Unable to load '/usr/share/zoneinfo/zone1970.tab' as time zone. Skipping it.
+ci	Stop containers	2026-01-17T02:05:55.5113121Z  2026-01-17T02:04:52.078837Z 13 [System] [MY-013172] [Server] Received SHUTDOWN from user root. Shutting down mysqld (Version: 8.0.44).
+ci	Stop containers	2026-01-17T02:05:55.5113980Z  2026-01-17T02:04:52.869314Z 0 [System] [MY-010910] [Server] /usr/sbin/mysqld: Shutdown complete (mysqld 8.0.44)  MySQL Community Server - GPL.
+ci	Stop containers	2026-01-17T02:05:55.5115028Z  2026-01-17T02:04:53.262816Z 0 [Warning] [MY-011068] [Server] The syntax '--skip-host-cache' is deprecated and will be removed in a future release. Please use SET GLOBAL host_cache_size=0 instead.
+ci	Stop containers	2026-01-17T02:05:55.5115958Z  2026-01-17T02:04:53.263546Z 0 [System] [MY-010116] [Server] /usr/sbin/mysqld (mysqld 8.0.44) starting as process 1
+ci	Stop containers	2026-01-17T02:05:55.5116571Z  2026-01-17T02:04:53.268291Z 1 [System] [MY-013576] [InnoDB] InnoDB initialization has started.
+ci	Stop containers	2026-01-17T02:05:55.5117113Z  2026-01-17T02:04:53.352375Z 1 [System] [MY-013577] [InnoDB] InnoDB initialization has ended.
+ci	Stop containers	2026-01-17T02:05:55.5117663Z  2026-01-17T02:04:53.505566Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+ci	Stop containers	2026-01-17T02:05:55.5118458Z  2026-01-17T02:04:53.505602Z 0 [System] [MY-013602] [Server] Channel mysql_main configured to support TLS. Encrypted connections are now supported for this channel.
+ci	Stop containers	2026-01-17T02:05:55.5119645Z  2026-01-17T02:04:53.507192Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/run/mysqld' in the path is accessible to all OS users. Consider choosing a different directory.
+ci	Stop containers	2026-01-17T02:05:55.5120981Z  2026-01-17T02:04:53.519489Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Bind-address: '::' port: 33060, socket: /var/run/mysqld/mysqlx.sock
+ci	Stop containers	2026-01-17T02:05:55.5122092Z  2026-01-17T02:04:53.519563Z 0 [System] [MY-010931] [Server] /usr/sbin/mysqld: ready for connections. Version: '8.0.44'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server - GPL.
+ci	Stop containers	2026-01-17T02:05:55.5127514Z Stop and remove container: dc00b195b743498e86d343a11e5fe440_mysql80_011597
+ci	Stop containers	2026-01-17T02:05:55.5132540Z ##[command]/usr/bin/docker rm --force c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69
+ci	Stop containers	2026-01-17T02:05:55.6919777Z c1305570980d7a187a0a65f2178ccb0d1e395203c091af3fd6f81371ddd33e69
+ci	Stop containers	2026-01-17T02:05:55.6948193Z Remove container network: github_network_d5a2d4d80baf48439326330edeae93a1
+ci	Stop containers	2026-01-17T02:05:55.6952640Z ##[command]/usr/bin/docker network rm github_network_d5a2d4d80baf48439326330edeae93a1
+ci	Stop containers	2026-01-17T02:05:55.8143239Z github_network_d5a2d4d80baf48439326330edeae93a1
+ci	Complete job	﻿2026-01-17T02:05:55.8199543Z Cleaning up orphan processes

@@ -350,9 +350,10 @@ export const idsRouter = router({
       
       // Use partition fields from shadow run to filter actual data
       // This ensures apples-to-apples comparison (Sahrawi vs Sahrawi, not Sahrawi vs Metrix)
+      const shadowRunWithPartition = shadowRun as { opcoId?: number; brokerAccountId?: number; opco_id?: number; broker_account_id?: number };
       const partitionFilter = {
-        opcoId: shadowRun.opcoId,
-        brokerAccountId: shadowRun.brokerAccountId,
+        opcoId: String(shadowRunWithPartition.opcoId ?? shadowRunWithPartition.opco_id ?? ""),
+        brokerAccountId: String(shadowRunWithPartition.brokerAccountId ?? shadowRunWithPartition.broker_account_id ?? ""),
       };
       
       const actualSummary = await importService.getDriverSummaryByDate(shadowRun.runDate, partitionFilter);

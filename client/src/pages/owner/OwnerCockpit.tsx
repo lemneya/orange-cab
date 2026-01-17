@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { trpc } from "../../lib/trpc";
+
+type NamedRow = { id: number | string; name: string };
 import {
   DollarSign,
   Clock,
@@ -73,22 +74,18 @@ export default function OwnerCockpit() {
   const [narrativeStyle, setNarrativeStyle] = useState<"internal" | "client">("internal");
 
   // Queries
-  const { data: opcos } = useQuery({
-    queryKey: ["admin", "opcos"],
-    queryFn: () => trpc.admin.getOpcos.query(),
-  });
+  const opcosQ = trpc.admin.getOpcos.useQuery();
+  const brokerAccountsQ = trpc.admin.getBrokerAccounts.useQuery();
 
-  const { data: brokerAccounts } = useQuery({
-    queryKey: ["admin", "brokerAccounts"],
-    queryFn: () => trpc.admin.getBrokerAccounts.query(),
-  });
+  const opcos = (opcosQ.data ?? []) as NamedRow[];
+  const brokerAccounts = (brokerAccountsQ.data ?? []) as NamedRow[];
 
   // Mock snapshot data (in production, this comes from owner.getSnapshot)
   const snapshot = useMemo(() => ({
     opcoId: selectedOpco,
-    opcoName: opcos?.find(o => o.id === selectedOpco)?.name || "All Companies",
+    opcoName: opcos.find((o: NamedRow) => String(o.id) === String(selectedOpco))?.name || "All Companies",
     brokerAccountId: selectedBrokerAccount === "all" ? null : selectedBrokerAccount,
-    brokerAccountName: brokerAccounts?.find(b => b.id === selectedBrokerAccount)?.name || null,
+    brokerAccountName: brokerAccounts.find((b: NamedRow) => String(b.id) === String(selectedBrokerAccount))?.name || null,
     startDate: new Date().toISOString().split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
     generatedAt: new Date().toISOString(),

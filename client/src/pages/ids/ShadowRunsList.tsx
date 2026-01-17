@@ -47,8 +47,8 @@ export default function ShadowRunsList() {
       run.id.toString().includes(searchTerm);
     
     // Partition filter
-    const matchesOpco = !selectedOpco || run.opcoId === selectedOpco;
-    const matchesBrokerAccount = !selectedBrokerAccount || run.brokerAccountId === selectedBrokerAccount;
+    const matchesOpco = !selectedOpco || String((run as { opcoId?: unknown }).opcoId) === String(selectedOpco);
+    const matchesBrokerAccount = !selectedBrokerAccount || String((run as { brokerAccountId?: unknown }).brokerAccountId) === String(selectedBrokerAccount);
     
     return matchesSearch && matchesOpco && matchesBrokerAccount;
   });
