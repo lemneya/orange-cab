@@ -1,0 +1,22 @@
+# Example db-backup.log
+# This file shows the expected format for database backup logging.
+# Copy this to ../db-backup.log and fill in actual values during deployment.
+
+Backup started at: YYYY-MM-DD HH:MM:SS
+Database: orangecab_<env>
+Host: <HOST>
+User: <USER>
+
+Backup command:
+mysqldump -h <HOST> -u <USER> -p*** <DATABASE> --single-transaction --routines --triggers > db-backup-YYYYMMDD-HHMMSS.sql
+
+Backup completed at: YYYY-MM-DD HH:MM:SS
+File: db-backup-YYYYMMDD-HHMMSS.sql
+Size: XXX MB
+Checksum (MD5): xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+Storage location: s3://backups/orangecab/db-backup-YYYYMMDD-HHMMSS.sql
+# OR
+Storage location: /backups/orangecab/db-backup-YYYYMMDD-HHMMSS.sql
+
+Verified by: <NAME>

@@ -1,0 +1,22 @@
+# Example health.log
+# This file shows the expected format for health check logging.
+# Copy this to ../health.log and fill in actual output during deployment.
+
+Health check started at: YYYY-MM-DD HH:MM:SS
+Target URL: https://<BASE_URL>/
+
+Running: curl -I https://<BASE_URL>/
+
+--- BEGIN OUTPUT ---
+HTTP/2 200
+date: Fri, 17 Jan 2026 12:00:00 GMT
+content-type: text/html; charset=utf-8
+cache-control: no-cache
+x-powered-by: Express
+--- END OUTPUT ---
+
+Health check exit code: 0
+Health check completed at: YYYY-MM-DD HH:MM:SS
+
+Status: PASS
+Verified by: <NAME>

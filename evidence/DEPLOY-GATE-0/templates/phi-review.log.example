@@ -1,0 +1,38 @@
+# Example phi-review.log
+# This file shows the expected format for PHI review logging.
+# Copy this to ../phi-review.log and complete during deployment.
+
+PHI Review for DEPLOY-GATE-0
+Date: YYYY-MM-DD HH:MM:SS
+Reviewer: <NAME>
+
+Files reviewed:
+- [ ] smoke_01_owner.png
+- [ ] smoke_02_admin_broker_accounts.png
+- [ ] smoke_03_admin_rate_cards.png
+- [ ] smoke_04_ids_map.png
+- [ ] smoke_05_simulator_roi.png
+- [ ] smoke_06_reports_run.png
+- [ ] db-backup.log
+- [ ] migrate.log
+- [ ] health.log
+
+Checks performed:
+- [ ] No real patient names visible
+- [ ] No real addresses visible
+- [ ] No real phone numbers visible
+- [ ] No real dates of birth visible
+- [ ] No real social security numbers visible
+- [ ] No real medical record numbers visible
+- [ ] All data appears synthetic/demo
+
+Issues found:
+  (None / List any issues here)
+
+Remediation:
+  (N/A / Describe remediation steps taken)
+
+Final Result: PASS / FAIL
+
+Signed: <NAME>
+Date: YYYY-MM-DD
