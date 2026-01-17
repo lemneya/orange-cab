@@ -563,7 +563,11 @@ function buildSections(
       })),
     },
     ids_impact: {
-      summary: ids.summary,
+      summary: {
+        on_time_uplift_pct: ids.summary.onTimeUplift,
+        deadhead_saved_mi: ids.summary.deadheadSaved,
+        pay_saved_usd: ids.summary.paySaved,
+      },
       rows: ids.shadowRuns.map(sr => ({
         date: sr.date,
         shadow_run_id: sr.id,

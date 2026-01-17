@@ -5,8 +5,25 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  ci:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: orangecab_test
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=30
+    env:
+      DATABASE_URL: mysql://test:test@127.0.0.1:3306/orangecab_test
     steps:
       - uses: actions/checkout@v4
 
@@ -19,6 +36,25 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - run: pnpm i --frozen-lockfile
-      - run: pnpm run check
-      - run: pnpm test
+      - name: Install deps
+        run: pnpm i --frozen-lockfile
+
+      - name: Install mysql client (for readiness check)
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
+
+      - name: Wait for MySQL
+        run: |
+          for i in $(seq 1 60); do
+            mysqladmin ping -h 127.0.0.1 -utest -ptest --silent && exit 0
+            sleep 1
+          done
+          echo "MySQL did not become ready in time" && exit 1
+
+      - name: Push DB schema (migrations)
+        run: pnpm db:push
+
+      - name: Typecheck
+        run: pnpm run check
+
+      - name: Test
+        run: pnpm test

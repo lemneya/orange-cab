@@ -496,7 +496,7 @@ export function buildReportRun(
   try {
     // Aggregate KPIs based on template sections
     const sections = template.sectionsJson?.sections || [];
-    const dataSources = new Set(sections.map((s: any) => s.dataSource));
+    const dataSources: Set<string> = new Set(sections.map((s: any) => s.dataSource as string));
 
     const kpis: ReportKPIs = {};
     const audit: ReportAudit = {

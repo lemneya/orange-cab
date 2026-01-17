@@ -60,9 +60,23 @@ const ACTIONS = [
   { value: "RESTORE", label: "Restore" },
 ];
 
+// AuditLogEntry type for selected entry state
+interface AuditLogEntry {
+  id: number | string;
+  entity: string;
+  entityId?: string | number;
+  action: string;
+  actor: string;
+  timestamp: string;
+  changes?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  beforeJson?: Record<string, unknown>;
+  afterJson?: Record<string, unknown>;
+}
+
 export default function AuditLogPage() {
   const [, setLocation] = useLocation();
-  const [selectedEntry, setSelectedEntry] = useState<typeof auditLog extends (infer T)[] | undefined ? T : never | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | undefined>(undefined);
   const [filters, setFilters] = useState({
     entity: "",
     action: "",
@@ -247,7 +261,7 @@ export default function AuditLogPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setSelectedEntry(entry)}
+                        onClick={() => setSelectedEntry(entry as AuditLogEntry)}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -265,7 +279,7 @@ export default function AuditLogPage() {
       </Card>
 
       {/* Detail Dialog */}
-      <Dialog open={!!selectedEntry} onOpenChange={() => setSelectedEntry(null)}>
+      <Dialog open={!!selectedEntry} onOpenChange={() => setSelectedEntry(undefined)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Audit Log Details</DialogTitle>

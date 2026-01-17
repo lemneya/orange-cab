@@ -1,0 +1,60 @@
+ci	Test	2026-01-17T02:05:48.9956794Z [90mstdout[2m | server/vehicles.test.ts
+ci	Test	2026-01-17T02:05:48.9973046Z [22m[39m[Admin] Seeding default data...
+ci	Test	2026-01-17T02:05:48.9973686Z [AUDIT] CREATE opcos#1 by system
+ci	Test	2026-01-17T02:05:48.9974239Z [AUDIT] CREATE opcos#2 by system
+ci	Test	2026-01-17T02:05:48.9974784Z [AUDIT] CREATE brokers#1 by system
+ci	Test	2026-01-17T02:05:48.9975341Z [AUDIT] CREATE brokers#2 by system
+ci	Test	2026-01-17T02:05:48.9975893Z [AUDIT] CREATE brokers#3 by system
+ci	Test	2026-01-17T02:05:48.9976463Z [AUDIT] CREATE broker_accounts#1 by system
+ci	Test	2026-01-17T02:05:48.9977053Z [AUDIT] CREATE broker_accounts#2 by system
+ci	Test	2026-01-17T02:05:48.9977664Z [AUDIT] CREATE broker_accounts#3 by system
+ci	Test	2026-01-17T02:05:48.9978291Z [AUDIT] CREATE broker_accounts#4 by system
+ci	Test	2026-01-17T02:05:48.9979454Z [AUDIT] CREATE billing_rate_cards#1 by system
+ci	Test	2026-01-17T02:05:48.9980143Z [AUDIT] CREATE billing_rate_rules#1 by system
+ci	Test	2026-01-17T02:05:48.9981327Z [AUDIT] CREATE billing_rate_rules#2 by system
+ci	Test	2026-01-17T02:05:48.9981981Z [AUDIT] CREATE billing_rate_cards#2 by system
+ci	Test	2026-01-17T02:05:48.9982619Z [AUDIT] CREATE billing_rate_rules#3 by system
+ci	Test	2026-01-17T02:05:48.9983368Z [AUDIT] CREATE driver_pay_defaults#1 by system
+ci	Test	2026-01-17T02:05:48.9984401Z [AUDIT] CREATE driver_pay_defaults#2 by system
+ci	Test	2026-01-17T02:05:48.9985214Z [AUDIT] CREATE driver_pay_defaults#3 by system
+ci	Test	2026-01-17T02:05:48.9986148Z [Admin] Seed data created successfully with rate cards and pay defaults
+ci	Test	2026-01-17T02:05:48.9986916Z 
+ci	Test	2026-01-17T02:05:49.0009625Z [90mstdout[2m | server/maintenance.test.ts
+ci	Test	2026-01-17T02:05:49.0010834Z [22m[39m[Admin] Seeding default data...
+ci	Test	2026-01-17T02:05:49.0011522Z [AUDIT] CREATE opcos#1 by system
+ci	Test	2026-01-17T02:05:49.0012365Z [AUDIT] CREATE opcos#2 by system
+ci	Test	2026-01-17T02:05:49.0013067Z [AUDIT] CREATE brokers#1 by system
+ci	Test	2026-01-17T02:05:49.0013687Z [AUDIT] CREATE brokers#2 by system
+ci	Test	2026-01-17T02:05:49.0014495Z [AUDIT] CREATE brokers#3 by system
+ci	Test	2026-01-17T02:05:49.0015279Z [AUDIT] CREATE broker_accounts#1 by system
+ci	Test	2026-01-17T02:05:49.0015972Z [AUDIT] CREATE broker_accounts#2 by system
+ci	Test	2026-01-17T02:05:49.0016843Z [AUDIT] CREATE broker_accounts#3 by system
+ci	Test	2026-01-17T02:05:49.0017526Z [AUDIT] CREATE broker_accounts#4 by system
+ci	Test	2026-01-17T02:05:49.0018241Z [AUDIT] CREATE billing_rate_cards#1 by system
+ci	Test	2026-01-17T02:05:49.0019144Z [AUDIT] CREATE billing_rate_rules#1 by system
+ci	Test	2026-01-17T02:05:49.0019898Z [AUDIT] CREATE billing_rate_rules#2 by system
+ci	Test	2026-01-17T02:05:49.0049186Z [AUDIT] CREATE billing_rate_cards#2 by system
+ci	Test	2026-01-17T02:05:49.0049976Z [AUDIT] CREATE billing_rate_rules#3 by system
+ci	Test	2026-01-17T02:05:49.0050826Z [AUDIT] CREATE driver_pay_defaults#1 by system
+ci	Test	2026-01-17T02:05:49.0051470Z [AUDIT] CREATE driver_pay_defaults#2 by system
+ci	Test	2026-01-17T02:05:49.0052124Z [AUDIT] CREATE driver_pay_defaults#3 by system
+ci	Test	2026-01-17T02:05:49.0052970Z [Admin] Seed data created successfully with rate cards and pay defaults
+ci	Test	2026-01-17T02:05:49.0053487Z 
+ci	Test	2026-01-17T02:05:49.0061665Z [90mstdout[2m | server/drivers.test.ts
+ci	Test	2026-01-17T02:05:49.0062361Z [22m[39m[Admin] Seeding default data...
+ci	Test	2026-01-17T02:05:49.0062904Z [AUDIT] CREATE opcos#1 by system
+ci	Test	2026-01-17T02:05:49.0063414Z [AUDIT] CREATE opcos#2 by system
+ci	Test	2026-01-17T02:05:49.0063882Z [AUDIT] CREATE brokers#1 by system
+ci	Test	2026-01-17T02:05:49.0064373Z [AUDIT] CREATE brokers#2 by system
+ci	Test	2026-01-17T02:05:49.0064836Z [AUDIT] CREATE brokers#3 by system
+ci	Test	2026-01-17T02:05:49.0065344Z [AUDIT] CREATE broker_accounts#1 by system
+ci	Test	2026-01-17T02:05:49.0065891Z [AUDIT] CREATE broker_accounts#2 by system
+--
+ci	Test	2026-01-17T02:05:49.0218268Z [90mstdout[2m | server/vehicles.test.ts
+ci	Test	2026-01-17T02:05:49.0220467Z [22m[39m[Reports] Seeded [33m4[39m built-in report templates
+ci	Test	2026-01-17T02:05:49.0221461Z 
+ci	Test	2026-01-17T02:05:49.0223438Z [90mstdout[2m | server/maintenance.test.ts
+ci	Test	2026-01-17T02:05:49.0225188Z [22m[39m[Reports] Seeded [33m4[39m built-in report templates
+ci	Test	2026-01-17T02:05:49.0226143Z 
+ci	Test	2026-01-17T02:05:49.0989816Z  [32m✓[39m server/maintenance.test.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ci	Test	2026-01-17T02:05:49.4972215Z [90mstdout[2m | server/auth.logout.test.ts
