@@ -1,0 +1,33 @@
+# Example rollback.log
+# This file shows the expected format for rollback logging.
+# Copy this to ../rollback.log ONLY if rollback was executed during deployment.
+
+Rollback initiated at: YYYY-MM-DD HH:MM:SS
+Reason: <Describe why rollback was needed>
+
+Rolling back from: oc-ids-rg0-20260117
+Rolling back to: <PREV_TAG>
+
+Steps executed:
+1. Stopped current deployment
+2. Checked out previous tag: <PREV_TAG>
+3. Rebuilt application
+4. Redeployed previous version
+5. Database restore: YES / NO / NOT NEEDED
+
+If database restored:
+  Backup file used: db-backup-YYYYMMDD-HHMMSS.sql
+  Restore command: mysql -h <HOST> -u <USER> -p*** <DATABASE> < db-backup-YYYYMMDD-HHMMSS.sql
+  Restore completed at: YYYY-MM-DD HH:MM:SS
+
+Post-rollback health check:
+--- BEGIN OUTPUT ---
+HTTP/2 200
+...
+--- END OUTPUT ---
+
+Rollback completed at: YYYY-MM-DD HH:MM:SS
+Status: SUCCESS / FAILED
+
+Executed by: <NAME>
+Verified by: <NAME>
