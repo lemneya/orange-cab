@@ -1,22 +1,29 @@
 # Example migrate.log
 # This file shows the expected format for migration logging.
 # Copy this to ../migrate.log and fill in actual output during deployment.
+#
+# WARNING: Never use db:push for staging/production. Use versioned migrations only.
 
 Migration started at: YYYY-MM-DD HH:MM:SS
 Tag: oc-ids-rg0-20260117
 Environment: staging / production
 DATABASE_URL: mysql://***@<HOST>:3306/<DATABASE>
 
-Running: pnpm db:push
+--- AVAILABLE SCRIPTS ---
+pnpm -s run | grep -E "db:|drizzle|migrate"
+  db:migrate
+  drizzle:migrate
+--- END SCRIPTS ---
+
+Running: pnpm db:migrate (or pnpm drizzle-kit migrate)
 
 --- BEGIN OUTPUT ---
-[drizzle-kit] Pushing to mysql://***@<HOST>:3306/<DATABASE>
-[drizzle-kit] Changes detected:
-[drizzle-kit]   + Added table: xyz
-[drizzle-kit]   ~ Modified column: abc.xyz
+[drizzle-kit] Applying migrations to mysql://***@<HOST>:3306/<DATABASE>
+[drizzle-kit] Migration 0001_initial applied
+[drizzle-kit] Migration 0002_add_vehicles applied
+[drizzle-kit] Migration 0003_add_ids_tables applied
 [drizzle-kit]
-[drizzle-kit] Applying changes...
-[drizzle-kit] Done!
+[drizzle-kit] All migrations applied successfully!
 --- END OUTPUT ---
 
 Migration exit code: 0

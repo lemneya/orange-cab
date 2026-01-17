@@ -97,13 +97,33 @@ pnpm install --frozen-lockfile
 
 ### 3.2 Run Database Migration
 
+> **WARNING**: Never use `db:push` for staging/production. It is for local/dev schema sync only and can be destructive. Always use versioned migrations.
+
 ```bash
-# Run migration and capture output
-pnpm db:push 2>&1 | tee evidence/DEPLOY-GATE-0/migrate.log
+# Discover the repo's production-safe migration command (DO NOT use db:push in staging/prod)
+pnpm -s run | grep -E "db:|drizzle|migrate" | tee evidence/DEPLOY-GATE-0/migrate.log
+
+# Run the migration command that applies versioned migrations.
+# Use ONE of these based on what the repo provides:
+#   pnpm db:migrate
+#   pnpm drizzle:migrate
+#   pnpm drizzle-kit migrate
+#
+# Example:
+pnpm db:migrate 2>&1 | tee -a evidence/DEPLOY-GATE-0/migrate.log
 
 # Verify migration success
 echo "Migration exit code: $?" >> evidence/DEPLOY-GATE-0/migrate.log
 echo "Completed at: $(date)" >> evidence/DEPLOY-GATE-0/migrate.log
+```
+
+If the repo only has `db:push`, you must first generate proper migrations:
+```bash
+# Generate migration files from schema changes
+pnpm drizzle-kit generate
+
+# Then apply migrations
+pnpm drizzle-kit migrate 2>&1 | tee -a evidence/DEPLOY-GATE-0/migrate.log
 ```
 
 ### 3.3 Build Application
@@ -158,7 +178,7 @@ render deploy
 # Basic uptime check
 curl -I https://<BASE_URL>/ 2>&1 | tee evidence/DEPLOY-GATE-0/health.log
 
-# Expected: HTTP/2 200
+# Expected: 2xx or 3xx (many apps redirect /)
 echo "Health check completed at: $(date)" >> evidence/DEPLOY-GATE-0/health.log
 ```
 
